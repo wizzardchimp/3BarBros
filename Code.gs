@@ -541,3 +541,15 @@ function saveReceiptPhoto(siteName, filename, dataBase64) {
     name: safeFile
   };
 }
+
+/**
+ * Run this once in the Apps Script editor to force authorisation of the
+ * Drive + Sheets scopes. The consent screen MUST list Google Drive.
+ * If it doesn't, the appsscript.json oauthScopes block is wrong — delete it
+ * so Apps Script auto-detects from this code.
+ */
+function __authDrive() {
+  const driveRoot = DriveApp.getRootFolder().getName();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getName();
+  return 'Drive: ' + driveRoot + ' | Sheet: ' + sheet;
+}
