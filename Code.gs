@@ -532,7 +532,8 @@ function saveReceiptPhoto(siteName, filename, dataBase64) {
     siteFolder = root.createFolder(safeName);
   }
   const safeFile = (String(filename) || 'receipt.jpg').replace(/[\\/:*?"<>|]/g, ' ').trim() || 'receipt.jpg';
-  const file = siteFolder.createFile(safeFile, bytes, 'image/jpeg');
+  const blob = Utilities.newBlob(bytes, 'image/jpeg', safeFile);
+  const file = siteFolder.createFile(blob);
   file.setDescription('3BarBros receipt snapshot');
   return {
     success: true,
