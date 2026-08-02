@@ -1324,8 +1324,8 @@ async function submitEntry() {
     const list = pendingPhotos[String(loc.id)] || [];
     if (!list.length) continue;
     const refs = [];
-    for (const p of list) {
-      const ref = await uploadReceipt(loc, p);
+    for (let i = 0; i < list.length; i++) {
+      const ref = await uploadReceipt(loc, list[i], date + '_receipt_' + (i + 1) + '.jpg');
       if (ref) refs.push(ref);
       else failed.push(loc.name || 'Site');
     }
@@ -1353,7 +1353,7 @@ async function submitEntry() {
   updateHistoryCount();
 }
 
-async function uploadReceipt(loc, photo) {
+async function uploadReceipt(loc, photo, filename) {
   const url = getApiUrl();
   if (!url) return null;
   const dataBase64 = (photo.dataUrl || '').split(',')[1];
@@ -1366,7 +1366,7 @@ async function uploadReceipt(loc, photo) {
         action: 'uploadPhoto',
         siteId: loc.id,
         siteName: loc.name,
-        filename: photo.name || 'receipt.jpg',
+        filename: filename || photo.name || 'receipt.jpg',
         dataBase64
       })
     });
