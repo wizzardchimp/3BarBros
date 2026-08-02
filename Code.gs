@@ -514,7 +514,7 @@ function doPost(e) {
  */
 function saveReceiptPhoto(siteName, filename, dataBase64) {
   const bytes = Utilities.base64Decode(dataBase64);
-  if (bytes.length > 6 * 1024 * 1024) {
+  if (bytes.length > 10 * 1024 * 1024) {
     return { success: false, error: 'Image too large' };
   }
   const safeName = (String(siteName) || 'Site').replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Site';

@@ -384,10 +384,6 @@ async function addPendingPhoto(locId, file) {
     showMsg('submitMsg', 'Only image files are supported', 'error');
     return false;
   }
-  if (file.size > 2 * 1024 * 1024) {
-    showMsg('submitMsg', 'Photo too large — retake with a closer snapshot', 'error');
-    return false;
-  }
   if (!Array.isArray(pendingPhotos[locId])) pendingPhotos[locId] = [];
   if (pendingPhotos[locId].length >= 5) {
     showMsg('submitMsg', 'Max 5 receipts per site', 'error');
@@ -408,10 +404,6 @@ function readImageDownscaled(file) {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      if (img.naturalWidth > 3000 || img.naturalHeight > 3000) {
-        resolve(null);
-        return;
-      }
       const MAX = 1024;
       let w = img.naturalWidth || 1;
       let h = img.naturalHeight || 1;
