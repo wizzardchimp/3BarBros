@@ -6,6 +6,8 @@ const LOG_SHEET_NAME = 'LoginLog';
 const RATES_SHEET_NAME = 'Rates';
 const MASTER_SHEET_NAME = 'MasterLog';
 
+const RECEIPTS_FOLDER_NAME = '3BarBros Receipts';
+
 const META_SHEETS = {};
 META_SHEETS[LOG_SHEET_NAME] = true;
 META_SHEETS[RATES_SHEET_NAME] = true;
@@ -388,6 +390,33 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (body.action === 'uploadPhoto') {
+      const siteName = String(body.siteName || 'Site');
+      const filename = String(body.filename || 'receipt.jpg');
+      const dataBase64 = String(body.dataBase64 || '');
+      if (!dataBase64) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'No image data' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const result = saveReceiptPhoto(siteName, filename, dataBase64);
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (body.action === 'deletePhoto') {
+      const fileId = String(body.fileId || '');
+      let ok = false;
+      if (fileId) {
+        try {
+          const file = DriveApp.getFileById(fileId);
+          file.setTrashed(true);
+          ok = true;
+        } catch (err) {}
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: ok }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (body.action === 'delete') {
       const targetId = body.id ? String(body.id) : '';
       const targetTs = body.timestamp ? String(body.timestamp) : '';
@@ -477,4 +506,38 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+/**
+ * Saves a receipt snapshot to the script owner's Google Drive, private.
+ * Returns { success, fileId, url, name }.
+ */
+function saveReceiptPhoto(siteName, filename, dataBase64) {
+  const bytes = Utilities.base64Decode(dataBase64);
+  if (bytes.length > 6 * 1024 * 1024) {
+    return { success: false, error: 'Image too large' };
+  }
+  const safeName = (String(siteName) || 'Site').replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Site';
+  let root = null;
+  try {
+    root = DriveApp.getFoldersByName(RECEIPTS_FOLDER_NAME).next();
+  } catch (e) {
+    root = DriveApp.createFolder(RECEIPTS_FOLDER_NAME);
+  }
+  let siteFolder = null;
+  const it = root.getFoldersByName(safeName);
+  if (it.hasNext()) {
+    siteFolder = it.next();
+  } else {
+    siteFolder = root.createFolder(safeName);
+  }
+  const safeFile = (String(filename) || 'receipt.jpg').replace(/[\\/:*?"<>|]/g, ' ').trim() || 'receipt.jpg';
+  const file = siteFolder.createFile(safeFile, bytes, 'image/jpeg');
+  file.setDescription('3BarBros receipt snapshot');
+  return {
+    success: true,
+    fileId: file.getId(),
+    url: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+    name: safeFile
+  };
 }

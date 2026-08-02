@@ -110,6 +110,19 @@ h3{font-size:14px;margin:0 0 8px}
 .entry-site-bar .site-title{font-size:16px;font-weight:700;flex:1;min-width:120px}
 .entry-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 8px}
 .entry-actions .btn-primary{min-width:140px}
+.receipt-panel{margin:4px 0 16px;padding:12px;background:#fdf8ea;border:1px solid #eed9a0;border-radius:10px}
+.receipt-header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.receipt-count{font-size:12px;color:#b7950b;font-weight:700}
+.receipt-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.receipt-thumb{position:relative;width:64px;height:64px}
+.receipt-thumb img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #ddd}
+.receipt-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;line-height:18px;text-align:center;border-radius:50%;background:#c0392b;color:#fff;border:none;cursor:pointer;font-size:13px;padding:0}
+.confirm-receipts{margin:4px 0 14px;display:flex;flex-direction:column;gap:8px}
+.confirm-receipt-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.receipt-chip{display:inline-block;padding:2px 8px;border-radius:10px;background:#fff8e1;color:#b7950b;font-weight:600;font-size:12px}
+.receipt-chip-muted{background:#f0f0f0;color:#999}
+.hist-receipt{display:inline-block;font-size:12px}
+.hist-receipt a{color:#1a73e8;font-weight:600;margin:0 1px}
 .hidden{display:none!important}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:flex-start;overflow-y:auto;padding:20px}
 .modal-overlay.active{display:flex}
@@ -297,12 +310,15 @@ h3{font-size:14px;margin:0 0 8px}
     <div class="confirm-month" id="confirmMonth"></div>
     <div id="confirmBreakdown"></div>
     <div class="confirm-totals" id="confirmTotals"></div>
+    <div class="confirm-receipts" id="confirmReceipts"></div>
     <div class="confirm-actions">
       <button type="button" class="btn btn-outline" id="confirmCancelBtn">Cancel</button>
       <button type="button" class="btn btn-primary" id="confirmOkBtn">Confirm &amp; save</button>
     </div>
   </div>
 </div>
+
+<input type="file" id="receiptFileInput" accept="image/*" capture="environment" multiple style="display:none">
 
 <script>
 // ===== DEFAULTS =====
@@ -334,6 +350,106 @@ let draftSite = null;
 let draftEditingId = null; // null = new site; id = editing existing
 /** Daily entry: null = site picker; site id = entry form for that site */
 let activeEntrySiteId = null;
+
+// ===== RECEIPT PHOTOS =====
+/** Pending receipt photos keyed by loc.id: array of { name, dataUrl } (downscaled JPEG data URLs) */
+let pendingPhotos = {};
+/** loc.id currently being targeted by the file input */
+let receiptTargetId = null;
+/** Entry currently shown in the confirm popup (for receipt indicator updates) */
+let confirmEntry = null;
+
+function openReceiptPicker(locId) {
+  receiptTargetId = String(locId || '');
+  const input = document.getElementById('receiptFileInput');
+  if (input) input.value = '';
+  if (input) input.click();
+}
+
+function handleReceiptFiles(files) {
+  if (!receiptTargetId) return;
+  const list = Array.from(files || []).slice(0, 5);
+  (async () => {
+    for (const file of list) {
+      const added = await addPendingPhoto(receiptTargetId, file);
+      if (!added) break;
+    }
+    renderReceipts(receiptTargetId);
+    updateConfirmReceipts();
+  })();
+}
+
+async function addPendingPhoto(locId, file) {
+  if (!file || !/^image\//.test(file.type)) {
+    showMsg('submitMsg', 'Only image files are supported', 'error');
+    return false;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showMsg('submitMsg', 'Photo too large — retake with a closer snapshot', 'error');
+    return false;
+  }
+  if (!Array.isArray(pendingPhotos[locId])) pendingPhotos[locId] = [];
+  if (pendingPhotos[locId].length >= 5) {
+    showMsg('submitMsg', 'Max 5 receipts per site', 'error');
+    return false;
+  }
+  const dataUrl = await readImageDownscaled(file);
+  if (!dataUrl) {
+    showMsg('submitMsg', 'Could not read that photo', 'error');
+    return false;
+  }
+  pendingPhotos[locId].push({ name: file.name || 'receipt.jpg', dataUrl });
+  return true;
+}
+
+function readImageDownscaled(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (img.naturalWidth > 3000 || img.naturalHeight > 3000) {
+        resolve(null);
+        return;
+      }
+      const MAX = 1024;
+      let w = img.naturalWidth || 1;
+      let h = img.naturalHeight || 1;
+      const scale = Math.min(MAX / w, MAX / h, 1);
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.6));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+function removePendingPhoto(locId, index) {
+  const list = pendingPhotos[locId] || [];
+  if (index >= 0 && index < list.length) list.splice(index, 1);
+  if (!list.length) delete pendingPhotos[locId];
+  renderReceipts(locId);
+  updateConfirmReceipts();
+}
+
+function renderReceipts(locId) {
+  const thumbs = document.getElementById('receiptThumbs_' + locId);
+  const count = document.getElementById('receiptCount_' + locId);
+  const list = pendingPhotos[locId] || [];
+  if (thumbs) {
+    thumbs.innerHTML = list.map((p, i) =>
+      `<div class="receipt-thumb">
+        <img src="${p.dataUrl}" alt="receipt ${i + 1}">
+        <button type="button" class="receipt-remove" onclick="removePendingPhoto('${locId.replace(/'/g, "\\'")}', ${i})" aria-label="Remove receipt">×</button>
+      </div>`).join('');
+  }
+  if (count) count.textContent = list.length ? (list.length + ' identified') : '';
+}
 
 // ===== CONFIG =====
 function loadConfigLocal() {
@@ -632,6 +748,7 @@ function entryKey(e) {
 async function deleteEntryFromSheet(entry) {
   const url = getApiUrl();
   if (!url) return false;
+  await deleteReceiptsOnDrive(entry);
   const payload = { action: 'delete' };
   if (entry.id) payload.id = entry.id;
   if (entry.timestamp) payload.timestamp = entry.timestamp;
@@ -884,6 +1001,15 @@ function renderForm() {
     <span><span class="ls-lbl">Float taken:</span> <span id="loc_ft_${loc.id}">0.00</span></span>
   </div></td></tr></tfoot></table></div>`;
 
+  html += `<div class="receipt-panel">
+    <div class="receipt-header">
+      <strong>Receipt photos</strong>
+      <span class="receipt-count" id="receiptCount_${loc.id}"></span>
+    </div>
+    <div class="receipt-thumbs" id="receiptThumbs_${loc.id}"></div>
+    <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${loc.id}')">Add receipt photo</button>
+  </div>`;
+
   html += `<div class="entry-actions" id="entryActions">
     <button type="button" class="btn btn-primary" onclick="submitEntry()">Submit</button>
     <button type="button" class="btn btn-outline" onclick="resetForm()">Reset</button>
@@ -904,6 +1030,7 @@ function renderForm() {
 
   if (container) container.innerHTML = html;
   updateFormCalcs();
+  renderReceipts(loc.id);
 }
 
 function fieldId(loc, cat) {
@@ -1045,6 +1172,25 @@ function buildEntryFromForm() {
   return entry;
 }
 
+function updateConfirmReceipts() {
+  const el = document.getElementById('confirmReceipts');
+  if (!el) return;
+  const entry = confirmEntry;
+  if (!entry) { el.innerHTML = ''; return; }
+  let html = '';
+  for (const loc of entry.locations || []) {
+    const list = pendingPhotos[String(loc.id)] || [];
+    const label = list.length
+      ? `<span class="receipt-chip">📷 ${list.length} receipt${list.length === 1 ? '' : 's'} identified</span>`
+      : '<span class="receipt-chip receipt-chip-muted">No receipt</span>';
+    html += `<div class="confirm-receipt-row">
+      <span>${esc(loc.name || 'Site')}: ${label}</span>
+      <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${String(loc.id).replace(/'/g, "\\'")}')">Add receipt</button>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
 function showSubmitConfirm(entry) {
   return new Promise((resolve) => {
     const ov = document.getElementById('confirmOverlay');
@@ -1057,6 +1203,9 @@ function showSubmitConfirm(entry) {
 
     const bKey = businessMonthKey(entry.date);
     const bLabel = formatBusinessMonthLabel(bKey);
+
+    confirmEntry = entry;
+    updateConfirmReceipts();
 
     if (meta) meta.textContent = 'Entry date: ' + entry.date;
     if (monthEl) {
@@ -1108,6 +1257,7 @@ function showSubmitConfirm(entry) {
     }
 
     function cleanup(result) {
+      confirmEntry = null;
       ov.classList.remove('active');
       okBtn.onclick = null;
       cancelBtn.onclick = null;
@@ -1143,9 +1293,27 @@ async function submitEntry() {
   }
 
   showMsg('submitMsg', 'Saving…', 'success');
+  const failed = [];
+  for (const loc of entry.locations || []) {
+    const list = pendingPhotos[String(loc.id)] || [];
+    if (!list.length) continue;
+    const refs = [];
+    for (const p of list) {
+      const ref = await uploadReceipt(loc, p);
+      if (ref) refs.push(ref);
+      else failed.push(loc.name || 'Site');
+    }
+    if (refs.length) loc.photos = refs;
+  }
+
   const ok = await saveEntry(entry);
   if (ok) {
-    showMsg('submitMsg', `Saved ${date}`, 'success');
+    for (const loc of entry.locations || []) {
+      delete pendingPhotos[String(loc.id)];
+    }
+    showMsg('submitMsg', failed.length
+      ? `Saved ${date} — ${failed.length} receipt upload failed (entry kept)`
+      : `Saved ${date}`, 'success');
     // Return to site buttons for the next submission
     activeEntrySiteId = null;
     const keepDate = date;
@@ -1157,6 +1325,48 @@ async function submitEntry() {
     showMsg('submitMsg', 'Save failed — check API URL', 'error');
   }
   updateHistoryCount();
+}
+
+async function uploadReceipt(loc, photo) {
+  const url = getApiUrl();
+  if (!url) return null;
+  const dataBase64 = (photo.dataUrl || '').split(',')[1];
+  if (!dataBase64) return null;
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'uploadPhoto',
+        siteId: loc.id,
+        siteName: loc.name,
+        filename: photo.name || 'receipt.jpg',
+        dataBase64
+      })
+    });
+    const result = await r.json();
+    if (!result.success) return null;
+    return { fileId: result.fileId, url: result.url, name: result.name };
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function deleteReceiptsOnDrive(entry) {
+  for (const loc of entry.locations || []) {
+    for (const ref of loc.photos || []) {
+      const url = getApiUrl();
+      if (!url) continue;
+      try {
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'deletePhoto', fileId: ref.fileId })
+        });
+      } catch (e) {}
+    }
+  }
 }
 
 function resetForm() {
@@ -1252,17 +1462,27 @@ function showHistory() {
     return d || String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
   });
   let html = `<div class="table-scroll"><table class="tbl"><thead><tr>
-    <th>Date</th><th>Submitted</th><th class="num">Net Total</th><th class="num">Site Share</th><th class="num">Float</th><th></th>
+    <th>Date</th><th>Submitted</th><th class="num">Net Total</th><th class="num">Site Share</th><th class="num">Float</th><th>Receipts</th><th></th>
   </tr></thead><tbody>`;
   for (const e of sorted) {
     const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
     const key = entryKey(e).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    let receiptsHtml = '—';
+    const withPhotos = (e.locations || []).filter(l => (l.photos || []).length);
+    if (withPhotos.length) {
+      receiptsHtml = withPhotos.map(l => {
+        const links = l.photos.map((p, i) =>
+          `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ');
+        return `<span class="hist-receipt">${esc(formatSiteName(l))}: ${links}</span>`;
+      }).join('<br>');
+    }
     html += `<tr>
       <td>${esc(e.date)}</td>
       <td>${esc(ts)}</td>
       <td class="ro">£${(e.grandTotal || 0).toFixed(2)}</td>
       <td class="ro">£${(e.grandCL || 0).toFixed(2)}</td>
       <td class="ro">£${(e.grandFloat || 0).toFixed(2)}</td>
+      <td>${receiptsHtml}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${key}')">Delete</button></td>
     </tr>`;
   }
@@ -1305,6 +1525,9 @@ async function clearHistory() {
   if (url) {
     showLoading('Clearing…');
     try {
+      for (const e of cachedEntries) {
+        await deleteReceiptsOnDrive(e);
+      }
       await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'clear' }) });
     } catch (e) {}
     hideLoading();
@@ -2081,6 +2304,10 @@ startApp();
 // Recalc float carry when date changes
 document.getElementById('entryDate').addEventListener('change', () => {
   renderForm();
+});
+
+document.getElementById('receiptFileInput').addEventListener('change', (e) => {
+  handleReceiptFiles(e.target.files);
 });
 </script>
 </body>
