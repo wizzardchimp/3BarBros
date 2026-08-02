@@ -598,6 +598,41 @@ function failToSettings(message) {
   }
 }
 
+/**
+ * fetch() with retry/backoff for the flaky Apps Script web-app endpoint.
+ * Retries on network errors, timeouts, and the intermittent 404 from the
+ * redirect target (script.googleusercontent.com). Returns the Response.
+ */
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function apiFetch(url, opts, timeoutMs) {
+  const maxRetries = 3;
+  let lastErr = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) await sleep(700 * attempt);
+    let ctrl = null;
+    let timer = null;
+    if (typeof AbortController !== 'undefined') {
+      ctrl = new AbortController();
+      if (timeoutMs) timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    }
+    try {
+      const r = await fetch(url, Object.assign({}, opts, ctrl ? { signal: ctrl.signal } : {}));
+      if (r.ok) return r;
+      if (r.status === 404 && attempt < maxRetries) {
+        lastErr = new Error('HTTP ' + r.status);
+        continue;
+      }
+      return r;
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  throw lastErr || new Error('API unreachable');
+}
+
 async function loadEntries() {
   const url = getApiUrl();
   if (!url) {
@@ -607,10 +642,7 @@ async function loadEntries() {
   }
   showLoading('Loading data…');
   try {
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
-    const r = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
-    if (timer) clearTimeout(timer);
+    const r = await apiFetch(url, undefined, 20000);
     if (!r.ok) {
       cachedEntries = [];
       entriesLoaded = true;
@@ -692,7 +724,7 @@ async function saveConfigToSheet(opts) {
   const silent = opts && opts.silent;
   if (!silent) showLoading('Saving config…');
   try {
-    const r = await fetch(url, {
+    const r = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'saveConfig', config })
@@ -712,7 +744,7 @@ async function saveEntry(entry) {
   if (!url) { showMsg('submitMsg', 'No API URL — set in Settings', 'error'); return false; }
   showLoading('Saving…');
   try {
-    const r = await fetch(url, {
+    const r = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(entry)
@@ -747,7 +779,7 @@ async function deleteEntryFromSheet(entry) {
   if (entry.date) payload.date = entry.date;
   showLoading('Deleting…');
   try {
-    const r = await fetch(url, {
+    const r = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload)
@@ -1325,7 +1357,7 @@ async function uploadReceipt(loc, photo) {
   const dataBase64 = (photo.dataUrl || '').split(',')[1];
   if (!dataBase64) return null;
   try {
-    const r = await fetch(url, {
+    const r = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
@@ -1351,7 +1383,7 @@ async function deleteReceiptsOnDrive(entry) {
       const url = getApiUrl();
       if (!url) continue;
       try {
-        await fetch(url, {
+        await apiFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({ action: 'deletePhoto', fileId: ref.fileId })
@@ -1520,7 +1552,7 @@ async function clearHistory() {
       for (const e of cachedEntries) {
         await deleteReceiptsOnDrive(e);
       }
-      await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'clear' }) });
+      await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'clear' }) });
     } catch (e) {}
     hideLoading();
   }
@@ -2091,7 +2123,7 @@ async function updateEntryOnSheet(entry) {
   const url = getApiUrl();
   if (!url) return false;
   try {
-    const r = await fetch(url, {
+    const r = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'updateEntry', entry })
@@ -2270,7 +2302,7 @@ async function doLogin() {
 
   const url = getApiUrl();
   if (url) {
-    fetch(url, {
+    apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'login', timestamp: new Date().toISOString() })
