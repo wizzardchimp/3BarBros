@@ -275,6 +275,11 @@ function readEntries() {
 }
 
 function doGet(e) {
+  // Ensure meta tabs exist (Rates, LoginLog, MasterLog) on every load
+  try {
+    getLogSheet();
+    getMasterLogSheet();
+  } catch (err) {}
   return ContentService.createTextOutput(JSON.stringify({
     entries: readEntries(),
     config: readConfig()
