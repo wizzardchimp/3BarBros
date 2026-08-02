@@ -253,6 +253,13 @@ h3{font-size:14px;margin:0 0 8px}
   </div>
 
   <div class="settings-card">
+    <h2>Reset local data</h2>
+    <p class="hint">Clears saved sites, API URL and login from this browser (sheet data is untouched).</p>
+    <button class="btn btn-danger" onclick="resetLocalData()">Reset local data</button>
+    <span id="resetLocalMsg" class="msg"></span>
+  </div>
+
+  <div class="settings-card">
     <h2>Delete Last Submission</h2>
     <button class="btn btn-danger" onclick="deleteLastSubmission()">Delete Last</button>
     <span id="deleteLastMsg" class="msg"></span>
@@ -1975,6 +1982,13 @@ async function saveApiUrl() {
   renderForm();
   render21DayTotals();
   showPage('entry');
+}
+
+function resetLocalData() {
+  localStorage.removeItem('3bb_config');
+  localStorage.removeItem('3bb_api_url');
+  sessionStorage.removeItem('3bb_logged_in');
+  location.reload();
 }
 
 // ===== EXPORT =====
