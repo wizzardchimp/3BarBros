@@ -1316,7 +1316,9 @@ async function submitEntry() {
     return;
   }
 
-  showMsg('submitMsg', 'Saving…', 'success');
+  // Show the blocking saving indicator immediately so the user knows the
+  // submission is in progress and can't tap anything else while it saves.
+  showLoading('Saving…');
   const failed = [];
   for (const loc of entry.locations || []) {
     const list = pendingPhotos[String(loc.id)] || [];
