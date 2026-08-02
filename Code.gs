@@ -274,6 +274,34 @@ function readEntries() {
   return best;
 }
 
+/**
+ * Wipe this spreadsheet's app data for a clean 3BarBros slate.
+ * Run ONLY from the Apps Script project bound to the 3BarBros sheet.
+ * WARNING: This permanently deletes config + entries + logs on THIS sheet.
+ * Do NOT run on the 3Lemons sheet.
+ */
+function resetAppForCleanSlate() {
+  const rates = getRatesSheet();
+  rates.clearContents();
+  rates.appendRow(['ConfigJSON']);
+  rates.appendRow([JSON.stringify({ locations: [] })]);
+
+  const data = getSheet();
+  data.clearContents();
+  data.appendRow(['Date', 'Timestamp', 'Data']);
+
+  const log = getLogSheet();
+  log.clearContents();
+  log.appendRow(['Timestamp', 'IP']);
+
+  const master = getMasterLogSheet();
+  master.clearContents();
+  master.appendRow(['Date', 'Submitted', 'Entry ID', 'Site', 'Category', 'Gross', 'Float req', 'Float taken', 'Net', 'MGD', 'Supplier', 'Site Share']);
+
+  Logger.log('3BarBros clean slate applied.');
+  return { success: true };
+}
+
 function doGet(e) {
   // Ensure meta tabs exist (Rates, LoginLog, MasterLog) on every load
   try {
