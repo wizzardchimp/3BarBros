@@ -180,7 +180,7 @@ h3{font-size:14px;margin:0 0 8px}
     <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;font-size:16px" onclick="doLogin()">Log In</button>
   </div>
 </div>
-<script>if(sessionStorage.getItem('3l_logged_in'))document.getElementById('loginOverlay').classList.add('hidden')</script>
+<script>if(sessionStorage.getItem('3bb_logged_in'))document.getElementById('loginOverlay').classList.add('hidden')</script>
 
 <div id="loadingOverlay" class="loading-overlay" aria-busy="false">
   <div class="loading-spinner"></div>
@@ -330,7 +330,7 @@ let activeEntrySiteId = null;
 
 // ===== CONFIG =====
 function loadConfigLocal() {
-  const saved = localStorage.getItem('3l_config');
+  const saved = localStorage.getItem('3bb_config');
   if (saved) {
     try {
       config = migrateConfig(JSON.parse(saved));
@@ -431,7 +431,7 @@ function poolModeLabel(loc) {
 }
 
 function saveConfigLocal() {
-  localStorage.setItem('3l_config', JSON.stringify(config));
+  localStorage.setItem('3bb_config', JSON.stringify(config));
 }
 
 function applyRemoteConfig(remote) {
@@ -442,8 +442,8 @@ function applyRemoteConfig(remote) {
 }
 
 // ===== API =====
-function getApiUrl() { return localStorage.getItem('3l_api_url') || ''; }
-function setApiUrl(url) { localStorage.setItem('3l_api_url', url); }
+function getApiUrl() { return localStorage.getItem('3bb_api_url') || ''; }
+function setApiUrl(url) { localStorage.setItem('3bb_api_url', url); }
 
 function showLoading(msg) {
   const el = document.getElementById('loadingOverlay');
@@ -2034,7 +2034,7 @@ async function doLogin() {
   }
   document.getElementById('loginError').style.display = 'none';
   document.getElementById('loginOverlay').classList.add('hidden');
-  sessionStorage.setItem('3l_logged_in', '1');
+  sessionStorage.setItem('3bb_logged_in', '1');
 
   const ok = await bootApp();
   if (!ok) return;
@@ -2054,7 +2054,7 @@ loadConfigLocal();
 
 async function startApp() {
   // Always verify API before using the app (except bare settings if already open)
-  const loggedIn = !!sessionStorage.getItem('3l_logged_in');
+  const loggedIn = !!sessionStorage.getItem('3bb_logged_in');
   if (!loggedIn) {
     // Stay on login; after login bootApp runs
     return;
