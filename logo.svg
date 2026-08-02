@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" role="img" aria-label="3BarBros">
+  <defs>
+    <linearGradient id="fistGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe566"/>
+      <stop offset="50%" stop-color="#f7b731"/>
+      <stop offset="100%" stop-color="#d4920f"/>
+    </linearGradient>
+    <filter id="soft" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.2"/>
+    </filter>
+    <g id="fist">
+      <rect x="-8" y="-11" width="16" height="22" rx="5" fill="url(#fistGrad)"/>
+      <rect x="-10" y="7" width="9" height="6" rx="3" fill="url(#fistGrad)"/>
+      <circle cx="5.5" cy="-7.5" r="3.5" fill="url(#fistGrad)"/>
+      <circle cx="5.5" cy="-1.5" r="3.5" fill="url(#fistGrad)"/>
+      <circle cx="5.5" cy="4.5" r="3.5" fill="url(#fistGrad)"/>
+    </g>
+  </defs>
+
+  <!-- mark -->
+  <rect x="4" y="12" width="72" height="72" rx="18" fill="#1a1a2e"/>
+  <g filter="url(#soft)">
+    <use href="#fist" transform="translate(33 52) scale(2) rotate(-10 0 0)"/>
+    <g transform="translate(47 52) scale(2)"><g transform="scale(-1 1) rotate(10)"><use href="#fist"/></g></g>
+  </g>
+  <g stroke="#fff8c4" stroke-width="2" stroke-linecap="round" opacity="0.75">
+    <path d="M40 38v6"/>
+    <path d="M40 62v6"/>
+    <path d="M29 49h6"/>
+    <path d="M51 49h6"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="92" y="58" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="36" font-weight="750" fill="#1a1a2e" letter-spacing="-0.5">3BarBros</text>
+  <text x="94" y="78" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="600" fill="#888" letter-spacing="1.5">DAILY TAKINGS</text>
+</svg>

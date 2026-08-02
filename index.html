@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>3BarBros — Daily Takings</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="favicon.svg">
+<meta name="theme-color" content="#1a1a2e">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.4}
+.nav{display:flex;gap:0;background:#1a1a2e;position:sticky;top:0;z-index:100;overflow-x:auto}
+.nav a{color:#aaa;padding:14px 16px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:3px solid transparent}
+.nav a.active,.nav a:hover{color:#fff;border-bottom-color:#f7b731}
+.page{display:none;padding:16px;max-width:960px;margin:0 auto}
+.page.active{display:block}
+h1{font-size:22px;margin-bottom:12px}
+h2{font-size:16px;margin:12px 0 8px}
+h3{font-size:14px;margin:0 0 8px}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;background:#e8e8e8;color:#333}
+.btn:hover{filter:brightness(0.95)}
+.btn-primary{background:#f7b731;color:#1a1a2e}
+.btn-danger{background:#e74c3c;color:#fff}
+.btn-outline{background:transparent;border:1.5px solid #ccc}
+.btn-success{background:#27ae60;color:#fff}
+.btn-sm{padding:4px 10px;font-size:12px}
+.msg{font-size:13px;margin-left:8px}
+.msg.success{color:#27ae60}
+.msg.error{color:#e74c3c}
+.form-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.form-header input[type=date]{padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px}
+.table-scroll{overflow-x:auto;margin-bottom:14px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left}
+.tbl th{background:#f8f8fa;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#666}
+.tbl th.num,.tbl .ro{text-align:right;font-variant-numeric:tabular-nums}
+.entry-table th,.entry-table td{vertical-align:middle}
+.entry-table th:first-child,.entry-table td:first-child{text-align:left}
+.entry-table input[type=number]{width:100%;max-width:110px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:15px;text-align:right;display:block}
+.tbl:not(.entry-table) input[type=number]{width:100%;max-width:110px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:15px;text-align:right}
+.loc-header{background:#1a1a2e!important;color:#fff!important;font-size:14px!important;text-transform:none!important;letter-spacing:0!important}
+.loc-summary{background:#fafafa}
+.loc-summary-inner{display:flex;flex-direction:column;gap:4px;padding:6px 4px;font-size:12px;max-width:220px}
+.loc-summary-inner>span{display:flex;justify-content:space-between;gap:8px}
+.ls-lbl{color:#888;font-weight:600}
+.split-shares{color:#999;font-size:10px;border-top:1px dashed #ddd;padding-top:3px;display:inline-block;margin-top:3px}
+.summary-card{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border-radius:10px;padding:14px 18px;min-width:120px;flex:1;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.kpi .val{font-size:22px;font-weight:700;color:#1a1a2e}
+.kpi .lbl{font-size:11px;color:#888;margin-top:2px;text-transform:uppercase;letter-spacing:.3px}
+.settings-card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.settings-card label{display:block;font-size:13px;margin:6px 0}
+.settings-card input[type=number],.settings-card input[type=text],.settings-card input[type=url]{
+  padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-top:2px;max-width:100%
+}
+.settings-card input[type=checkbox]{margin-right:6px;transform:scale(1.15)}
+.cat-row{display:grid;grid-template-columns:1fr 90px 1fr 70px 110px auto;gap:8px;align-items:end;margin:8px 0;padding:8px;background:#f8f8fa;border-radius:8px}
+.cat-row label{margin:0;font-size:11px;color:#666}
+.cat-row input{width:100%;margin:0}
+.rate-summary{font-size:12px;font-weight:600;color:#1a1a2e;padding:6px 8px;background:#fff;border-radius:6px;border:1px solid #e8e8e8;text-align:center;line-height:1.35;min-height:38px;display:flex;align-items:center;justify-content:center}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.empty-state{text-align:center;padding:40px;color:#888}
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#1a1a2e,#2d3436,#f7b73133);z-index:9999;display:flex;justify-content:center;align-items:center}
+.login-overlay.hidden{display:none}
+.login-box{background:#fff;border-radius:16px;padding:40px 32px;width:300px;box-shadow:0 16px 48px rgba(0,0,0,.3);text-align:center}
+.login-logo{width:72px;height:72px;margin:0 auto 12px;display:block}
+.login-box h1{margin:0 0 8px;font-size:24px}
+.brand-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#1a1a2e;border-bottom:1px solid rgba(247,183,49,.25)}
+.brand-bar img{width:36px;height:36px;display:block;flex-shrink:0}
+.brand-bar .brand-text{color:#fff;font-weight:750;font-size:16px;letter-spacing:-0.2px}
+.brand-bar .brand-sub{color:#f7b731;font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase}
+.login-box p{margin:0 0 20px;font-size:13px;color:#888}
+.login-box input{width:100%;padding:12px;font-size:18px;text-align:center;border:2px solid #ddd;border-radius:8px;outline:none}
+.login-box input:focus{border-color:#f7b731}
+.login-error{color:#e74c3c;font-size:12px;margin-top:8px;display:none}
+.loading-overlay{position:fixed;inset:0;background:rgba(26,26,46,.55);z-index:9000;display:none;justify-content:center;align-items:center;flex-direction:column;gap:14px}
+.loading-overlay.active{display:flex}
+.loading-spinner{width:44px;height:44px;border:4px solid rgba(255,255,255,.25);border-top-color:#f7b731;border-radius:50%;animation:spin .75s linear infinite}
+.loading-text{color:#fff;font-size:14px;font-weight:600}
+@keyframes spin{to{transform:rotate(360deg)}}
+.alert-overlay{display:none;position:fixed;inset:0;background:rgba(26,26,46,.65);z-index:9500;justify-content:center;align-items:center;padding:20px}
+.alert-overlay.active{display:flex}
+.alert-box{background:#fff;border-radius:14px;padding:24px 22px;max-width:380px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.35);text-align:center}
+.alert-box h3{margin:0 0 10px;font-size:18px;color:#c0392b}
+.alert-box p{margin:0 0 18px;font-size:14px;color:#444;line-height:1.45}
+.confirm-box{background:#fff;border-radius:14px;padding:22px 20px;max-width:440px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.35);text-align:left;max-height:85vh;overflow-y:auto}
+.confirm-box h3{margin:0 0 8px;font-size:18px;color:#1a1a2e;text-align:center}
+.confirm-box .confirm-month{background:#fff8e6;border:1px solid #f7b73155;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px;line-height:1.4}
+.confirm-box .confirm-month strong{color:#1a1a2e}
+.confirm-box .confirm-meta{font-size:13px;color:#666;margin:0 0 10px;text-align:center}
+.confirm-box table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+.confirm-box th,.confirm-box td{padding:6px 4px;border-bottom:1px solid #eee;text-align:left}
+.confirm-box th{font-size:10px;text-transform:uppercase;color:#888}
+.confirm-box td.ro,.confirm-box th.num{text-align:right}
+.confirm-box .confirm-totals{font-size:13px;font-weight:600;margin:0 0 14px;line-height:1.5}
+.confirm-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.site-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:12px 0 16px}
+.site-pick-btn{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+  min-height:72px;padding:14px 16px;border:none;border-radius:12px;cursor:pointer;
+  background:linear-gradient(145deg,#1a1a2e,#2d3436);color:#fff;text-align:left;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);font-weight:700;font-size:15px;
+}
+.site-pick-btn:hover,.site-pick-btn:focus{outline:2px solid #f7b731;outline-offset:2px;filter:brightness(1.08)}
+.site-pick-btn .site-pick-sub{font-size:11px;font-weight:600;color:#f7b731;margin-top:4px;opacity:.9}
+.site-pick-hint{font-size:13px;color:#666;margin:0 0 4px}
+.entry-site-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+.entry-site-bar.hidden{display:none!important}
+.entry-site-bar .site-title{font-size:16px;font-weight:700;flex:1;min-width:120px}
+.entry-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 8px}
+.entry-actions .btn-primary{min-width:140px}
+.hidden{display:none!important}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:flex-start;overflow-y:auto;padding:20px}
+.modal-overlay.active{display:flex}
+.modal-box{background:#f5f5f5;border-radius:12px;padding:20px;max-width:700px;width:100%;margin:20px auto;box-shadow:0 8px 32px rgba(0,0,0,.3);position:relative}
+.modal-close{position:absolute;top:12px;right:16px;font-size:24px;cursor:pointer;background:none;border:none;color:#666}
+.float-owed{color:#e67e22;font-size:11px;font-weight:600}
+.net-val{color:#27ae60;font-weight:600}
+.hint{font-size:12px;color:#888;margin:4px 0 10px}
+.confirm-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px 12px;padding:0 4px}
+@media(max-width:600px){
+  .page{padding:12px 10px}
+  h1{font-size:18px}
+  .nav a{padding:12px 12px;font-size:12px}
+  .brand-bar{padding:8px 12px}
+  .brand-bar img{width:30px;height:30px}
+  .brand-bar .brand-text{font-size:15px}
+  .form-header{gap:6px}
+  .form-header .btn{flex:1 1 auto;min-height:42px}
+  .form-header input[type=date]{min-height:42px;font-size:16px;flex:1 1 140px}
+  .entry-table{font-size:12px}
+  .entry-table th,.entry-table td{padding:6px 5px}
+  .entry-table input[type=number]{max-width:100%;min-width:64px;min-height:40px;font-size:16px;padding:8px 6px}
+  .tbl th,.tbl td{padding:6px 6px;font-size:12px}
+  .loc-summary-inner{gap:3px;font-size:11px;max-width:200px}
+  .kpi{min-width:calc(50% - 6px);padding:10px 12px}
+  .kpi .val{font-size:17px}
+  .cat-row{grid-template-columns:1fr 1fr;gap:8px}
+  .rate-summary{grid-column:1 / -1;min-height:32px}
+  .settings-card input[type=number],
+  .settings-card input[type=text],
+  .settings-card input[type=url],
+  .settings-card select{font-size:16px;min-height:40px}
+  .login-box{width:min(300px, calc(100vw - 32px));padding:28px 20px}
+  .login-box input{font-size:16px;min-height:44px}
+  .alert-overlay{padding:12px;align-items:flex-end}
+  .alert-box,.confirm-box{max-width:100%;max-height:min(88vh, 640px);padding:16px 14px;border-radius:14px 14px 0 0}
+  .confirm-box table{font-size:11px;min-width:320px}
+  .confirm-box th,.confirm-box td{padding:5px 3px}
+  .confirm-actions{position:sticky;bottom:0;background:#fff;padding-top:10px;margin:0 -2px}
+  .confirm-actions .btn{flex:1;min-height:44px}
+  .modal-overlay{padding:10px}
+  .modal-box{margin:8px auto;padding:14px;max-width:100%}
+  .btn{min-height:40px}
+  .btn-sm{min-height:36px;padding:6px 10px}
+  .msg{display:inline-block;margin:6px 0 0;width:100%}
+  .site-picker{grid-template-columns:1fr 1fr;gap:8px}
+  .site-pick-btn{min-height:64px;padding:12px;font-size:14px}
+  .entry-actions{flex-direction:column;align-items:stretch}
+  .entry-actions .btn{width:100%;min-height:48px;font-size:16px}
+  .entry-actions .btn-primary{order:-1}
+}
+@media(max-width:380px){
+  .kpi{min-width:100%}
+  .entry-table input[type=number]{min-width:56px;font-size:15px}
+  .site-picker{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-box">
+    <img class="login-logo" src="favicon.svg" alt="3BarBros">
+    <h1>3BarBros</h1>
+    <p>Enter password to continue</p>
+    <input type="password" id="loginPwd" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="loginError" class="login-error">Incorrect password</div>
+    <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;font-size:16px" onclick="doLogin()">Log In</button>
+  </div>
+</div>
+<script>if(sessionStorage.getItem('3l_logged_in'))document.getElementById('loginOverlay').classList.add('hidden')</script>
+
+<div id="loadingOverlay" class="loading-overlay" aria-busy="false">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Loading…</div>
+</div>
+
+<div class="brand-bar">
+  <img src="favicon.svg" alt="">
+  <div>
+    <div class="brand-text">3BarBros</div>
+    <div class="brand-sub">Daily Takings</div>
+  </div>
+</div>
+<div class="nav">
+  <a class="active" onclick="showPage('entry')">Daily Entry</a>
+  <a onclick="showPage('history')">History</a>
+  <a onclick="showPage('monthly')">Summary</a>
+  <a onclick="showPage('settings')">Settings</a>
+</div>
+
+<div id="page-entry" class="page active">
+  <h1>Daily Takings</h1>
+  <div id="totals21Container"></div>
+  <div class="entry-site-bar hidden" id="entrySiteBar">
+    <div class="site-title" id="entrySiteTitle"></div>
+  </div>
+  <div class="form-header" id="entryDateBar">
+    <label>Date:</label>
+    <input type="date" id="entryDate">
+    <span id="submitMsg" class="msg"></span>
+  </div>
+  <div id="sitePickerPanel"></div>
+  <div id="entryFormPanel" class="hidden">
+    <div id="formContainer"></div>
+  </div>
+</div>
+
+<div id="page-history" class="page">
+  <h1>History</h1>
+  <div class="toolbar">
+    <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-danger" onclick="clearHistory()">Clear All</button>
+    <span id="historyCount" style="font-size:14px;color:#888"></span>
+  </div>
+  <div id="historyTable"></div>
+</div>
+
+<div id="page-monthly" class="page">
+  <h1>Summary</h1>
+  <div class="toolbar">
+    <label style="font-size:13px">From: <input type="date" id="filterFrom" onchange="clearRangeRadios();showMonthlySummary()"></label>
+    <label style="font-size:13px">To: <input type="date" id="filterTo" onchange="clearRangeRadios();showMonthlySummary()"></label>
+    <label style="font-size:13px"><input type="radio" name="range" value="3" onchange="applyRangeFilter()"> 3m</label>
+    <label style="font-size:13px"><input type="radio" name="range" value="6" onchange="applyRangeFilter()"> 6m</label>
+    <label style="font-size:13px"><input type="radio" name="range" value="12" onchange="applyRangeFilter()"> 12m</label>
+    <label style="font-size:13px"><input type="radio" name="range" value="all" checked onchange="applyRangeFilter()"> All</label>
+  </div>
+  <div id="monthlySummary"></div>
+</div>
+
+<div id="page-settings" class="page">
+  <h1>Settings</h1>
+
+  <div class="settings-card">
+    <h2>Google Sheet API URL</h2>
+    <p class="hint">Paste the web app URL from Apps Script → Deploy</p>
+    <input type="url" id="apiUrlInput" style="width:100%;max-width:600px" placeholder="https://script.google.com/macros/s/.../exec">
+    <button class="btn btn-primary" style="margin-top:8px" onclick="saveApiUrl()">Save API URL</button>
+    <span id="apiUrlMsg" class="msg"></span>
+  </div>
+
+  <div class="settings-card">
+    <h2>Delete Last Submission</h2>
+    <button class="btn btn-danger" onclick="deleteLastSubmission()">Delete Last</button>
+    <span id="deleteLastMsg" class="msg"></span>
+  </div>
+
+  <div style="margin:16px 0 8px">
+    <h2 style="margin:0">Sites &amp; Rates</h2>
+    <p class="hint">Fill in a site below, then <strong>Save site</strong> to commit rates to the sheet. The form clears for the next site.</p>
+  </div>
+  <div id="settingsContainer"></div>
+  <div id="savedSitesList"></div>
+  <div id="mergeSitesContainer"></div>
+</div>
+
+<div id="monthModal" class="modal-overlay" onclick="if(event.target===this)closeMonthModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeMonthModal()">&times;</button>
+    <h2 id="monthModalTitle"></h2>
+    <div id="monthModalEntries"></div>
+  </div>
+</div>
+
+<div id="alertOverlay" class="alert-overlay" onclick="if(event.target===this)closeAppAlert()">
+  <div class="alert-box">
+    <h3 id="alertTitle">Connection error</h3>
+    <p id="alertBody">Could not reach the API.</p>
+    <button type="button" class="btn btn-primary" style="min-width:120px" onclick="closeAppAlert()">OK</button>
+  </div>
+</div>
+
+<div id="confirmOverlay" class="alert-overlay">
+  <div class="confirm-box">
+    <h3>Confirm submission</h3>
+    <p class="confirm-meta" id="confirmMeta"></p>
+    <div class="confirm-month" id="confirmMonth"></div>
+    <div id="confirmBreakdown"></div>
+    <div class="confirm-totals" id="confirmTotals"></div>
+    <div class="confirm-actions">
+      <button type="button" class="btn btn-outline" id="confirmCancelBtn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirmOkBtn">Confirm &amp; save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DEFAULTS =====
+const APP_PASSWORD = 'bl26';
+const MGD_RATE = 0.2;
+
+function uid() {
+  return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+const DEFAULT_CONFIG = {
+  locations: [
+    {
+      id: uid(), name: 'Site A', nameHistory: [], hasPool: false,
+      poolMode: 'fifty', poolRent: 0, poolPercent: 50,
+      categories: [
+        { id: uid(), name: 'Reels', rate: 0.6, hasFloat: true, floatRequired: 0, flatFee: 0 },
+        { id: uid(), name: 'Digital', rate: 0.5, hasFloat: true, floatRequired: 0, flatFee: 0 }
+      ]
+    }
+  ]
+};
+let config;
+let cachedEntries = [];
+let entriesLoaded = false;
+let _monthlyFiltered = [];
+/** Draft form for add/edit site — cleared after Save site */
+let draftSite = null;
+let draftEditingId = null; // null = new site; id = editing existing
+/** Daily entry: null = site picker; site id = entry form for that site */
+let activeEntrySiteId = null;
+
+// ===== CONFIG =====
+function loadConfigLocal() {
+  const saved = localStorage.getItem('3l_config');
+  if (saved) {
+    try {
+      config = migrateConfig(JSON.parse(saved));
+      return;
+    } catch (e) {}
+  }
+  config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  // fresh ids
+  config.locations.forEach(loc => {
+    loc.id = loc.id || uid();
+    (loc.categories || []).forEach(c => { c.id = c.id || uid(); });
+  });
+}
+
+function migrateConfig(cfg) {
+  if (!cfg || !Array.isArray(cfg.locations)) return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  cfg.locations.forEach(loc => {
+    loc.id = loc.id || uid();
+    loc.hasPool = !!loc.hasPool;
+    loc.poolRent = parseFloat(loc.poolRent) || 0;
+    loc.poolPercent = parseFloat(loc.poolPercent);
+    if (isNaN(loc.poolPercent)) loc.poolPercent = 50;
+    // poolMode: fifty | rent | percent
+    if (!loc.poolMode || !['fifty', 'rent', 'percent'].includes(loc.poolMode)) {
+      loc.poolMode = loc.poolRent > 0 ? 'rent' : 'fifty';
+    }
+    if (!Array.isArray(loc.nameHistory)) loc.nameHistory = [];
+    loc.nameHistory = loc.nameHistory
+      .filter(n => n && n !== loc.name && !['Site A', 'New Site', 'New'].includes(String(n).trim()))
+      .slice(0, 10);
+    if (!Array.isArray(loc.categories)) loc.categories = [];
+    loc.categories.forEach(c => {
+      c.id = c.id || uid();
+      c.rate = parseFloat(c.rate);
+      if (isNaN(c.rate)) c.rate = 0.5;
+      // Accept legacy % values (e.g. 60) and normalise to 0–1 share
+      if (c.rate > 1) c.rate = c.rate / 100;
+      if (c.rate < 0) c.rate = 0;
+      if (c.rate > 1) c.rate = 1;
+      c.hasFloat = !!c.hasFloat;
+      c.floatRequired = parseFloat(c.floatRequired) || 0;
+      c.flatFee = parseFloat(c.flatFee) || 0;
+      if (c.flatFee < 0) c.flatFee = 0;
+    });
+  });
+  return cfg;
+}
+
+const PLACEHOLDER_SITE_NAMES = ['Site A', 'New Site', 'New'];
+
+function isPlaceholderSiteName(n) {
+  return !n || PLACEHOLDER_SITE_NAMES.includes(String(n).trim());
+}
+
+/** Display name with legacy aliases from config (never show placeholder defaults) */
+function formatSiteName(locOrName, locId) {
+  let cfg = null;
+  if (locId) cfg = config.locations.find(l => l.id === locId);
+  if (!cfg && locOrName && typeof locOrName === 'object') {
+    cfg = config.locations.find(l => l.id === locOrName.id) ||
+          config.locations.find(l => l.name === locOrName.name);
+  }
+  if (!cfg && typeof locOrName === 'string') {
+    cfg = config.locations.find(l => l.name === locOrName || (l.nameHistory || []).includes(locOrName));
+  }
+  const current = cfg ? cfg.name : (typeof locOrName === 'object' ? locOrName.name : locOrName) || '—';
+  const hist = cfg && cfg.nameHistory && cfg.nameHistory.length
+    ? cfg.nameHistory.filter(n => n && n !== current && !isPlaceholderSiteName(n))
+    : [];
+  if (!hist.length) return current;
+  return current + ' (was ' + hist.join(', ') + ')';
+}
+
+function renameLocation(li, newName) {
+  const loc = config.locations[li];
+  if (!loc) return;
+  newName = String(newName || '').trim();
+  if (!newName || newName === loc.name) {
+    loc.name = newName || loc.name;
+    return;
+  }
+  if (!Array.isArray(loc.nameHistory)) loc.nameHistory = [];
+  // Only keep real prior names — not default placeholders like "Site A" / "New Site"
+  if (loc.name && !isPlaceholderSiteName(loc.name) && !loc.nameHistory.includes(loc.name)) {
+    loc.nameHistory.unshift(loc.name);
+  }
+  loc.nameHistory = loc.nameHistory
+    .filter(n => n && n !== newName && !isPlaceholderSiteName(n))
+    .slice(0, 10);
+  loc.name = newName;
+}
+
+function poolModeLabel(loc) {
+  if (!loc.hasPool) return '';
+  if (loc.poolMode === 'rent') return 'Rent £' + (loc.poolRent || 0);
+  if (loc.poolMode === 'percent') return (loc.poolPercent || 0) + '% supplier';
+  return '50/50';
+}
+
+function saveConfigLocal() {
+  localStorage.setItem('3l_config', JSON.stringify(config));
+}
+
+function applyRemoteConfig(remote) {
+  if (!remote || !Array.isArray(remote.locations)) return false;
+  config = migrateConfig(JSON.parse(JSON.stringify(remote)));
+  saveConfigLocal();
+  return true;
+}
+
+// ===== API =====
+function getApiUrl() { return localStorage.getItem('3l_api_url') || ''; }
+function setApiUrl(url) { localStorage.setItem('3l_api_url', url); }
+
+function showLoading(msg) {
+  const el = document.getElementById('loadingOverlay');
+  const txt = document.getElementById('loadingText');
+  if (txt) txt.textContent = msg || 'Loading…';
+  if (el) { el.classList.add('active'); el.setAttribute('aria-busy', 'true'); }
+}
+function hideLoading() {
+  const el = document.getElementById('loadingOverlay');
+  if (el) { el.classList.remove('active'); el.setAttribute('aria-busy', 'false'); }
+}
+
+function showAppAlert(title, message) {
+  const ov = document.getElementById('alertOverlay');
+  const t = document.getElementById('alertTitle');
+  const b = document.getElementById('alertBody');
+  if (t) t.textContent = title || 'Error';
+  if (b) b.textContent = message || '';
+  if (ov) ov.classList.add('active');
+}
+
+function closeAppAlert() {
+  document.getElementById('alertOverlay')?.classList.remove('active');
+}
+
+/** Go to Settings and show a blocking error when API is missing/unreachable */
+function failToSettings(message) {
+  cachedEntries = [];
+  entriesLoaded = true;
+  showPage('settings');
+  renderSettings();
+  showAppAlert('API connection failed', message);
+  const apiMsg = document.getElementById('apiUrlMsg');
+  if (apiMsg) {
+    apiMsg.textContent = message;
+    apiMsg.className = 'msg error';
+  }
+}
+
+async function loadEntries() {
+  const url = getApiUrl();
+  if (!url) {
+    cachedEntries = [];
+    entriesLoaded = true;
+    return { ok: false, error: 'No API URL saved. Paste your Apps Script web app URL below and save it.' };
+  }
+  showLoading('Loading data…');
+  try {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
+    const r = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+    if (timer) clearTimeout(timer);
+    if (!r.ok) {
+      cachedEntries = [];
+      entriesLoaded = true;
+      return { ok: false, error: 'API responded with HTTP ' + r.status + '. Check the deployment (Who has access: Anyone) and URL.' };
+    }
+    const data = await r.json();
+    if (Array.isArray(data)) {
+      cachedEntries = data;
+    } else if (data && typeof data === 'object') {
+      cachedEntries = data.entries || [];
+      if (data.config) {
+        applyRemoteConfig(data.config);
+      } else if (config && config.locations && config.locations.length) {
+        await saveConfigToSheet({ silent: true });
+      }
+    } else {
+      cachedEntries = [];
+      entriesLoaded = true;
+      return { ok: false, error: 'API returned unexpected data. Redeploy Code.gs and confirm the URL ends with /exec.' };
+    }
+    migrateEntries();
+    entriesLoaded = true;
+    return { ok: true, entries: cachedEntries };
+  } catch (e) {
+    console.error(e);
+    cachedEntries = [];
+    entriesLoaded = true;
+    const aborted = e && (e.name === 'AbortError' || String(e.message || '').includes('abort'));
+    return {
+      ok: false,
+      error: aborted
+        ? 'API timed out. Check your connection and that the Apps Script web app is deployed.'
+        : 'Could not reach the API. Check the URL, deployment access (Anyone), and your network.'
+    };
+  } finally {
+    hideLoading();
+  }
+}
+
+async function bootApp() {
+  const result = await loadEntries();
+  if (!result || !result.ok) {
+    failToSettings((result && result.error) || 'Could not connect to the API.');
+    return false;
+  }
+  updateHistoryCount();
+  renderForm();
+  render21DayTotals();
+  return true;
+}
+
+function migrateEntries() {
+  cachedEntries = (cachedEntries || []).filter(e => {
+    if (!e || e.action) return false;
+    if (!e.date) return false;
+    return true;
+  });
+  cachedEntries.forEach(e => {
+    e.date = normalizeEntryDate(e.date);
+    if (!e.id) e.id = e.timestamp || e.date;
+  });
+}
+
+function normalizeEntryDate(d) {
+  if (!d) return d;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(d))) return String(d);
+  const p = new Date(d);
+  if (!isNaN(p.getTime())) {
+    return p.getFullYear() + '-' + String(p.getMonth()+1).padStart(2,'0') + '-' + String(p.getDate()).padStart(2,'0');
+  }
+  return String(d);
+}
+
+function getEntries() { return cachedEntries; }
+
+async function saveConfigToSheet(opts) {
+  const url = getApiUrl();
+  if (!url) return false;
+  const silent = opts && opts.silent;
+  if (!silent) showLoading('Saving config…');
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'saveConfig', config })
+    });
+    const result = await r.json();
+    return !!result.success;
+  } catch (e) {
+    console.error(e);
+    return false;
+  } finally {
+    if (!silent) hideLoading();
+  }
+}
+
+async function saveEntry(entry) {
+  const url = getApiUrl();
+  if (!url) { showMsg('submitMsg', 'No API URL — set in Settings', 'error'); return false; }
+  showLoading('Saving…');
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(entry)
+    });
+    const result = await r.json();
+    if (result.success) {
+      if (result.id) entry.id = result.id;
+      if (result.timestamp) entry.timestamp = result.timestamp;
+      cachedEntries.push(entry);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error(e);
+    return false;
+  } finally {
+    hideLoading();
+  }
+}
+
+function entryKey(e) {
+  return e.id || e.timestamp || (e.date + '|' + (e.grandTotal || 0));
+}
+
+async function deleteEntryFromSheet(entry) {
+  const url = getApiUrl();
+  if (!url) return false;
+  const payload = { action: 'delete' };
+  if (entry.id) payload.id = entry.id;
+  if (entry.timestamp) payload.timestamp = entry.timestamp;
+  if (entry.date) payload.date = entry.date;
+  showLoading('Deleting…');
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    const result = await r.json();
+    if (result.success) {
+      const key = entryKey(entry);
+      cachedEntries = cachedEntries.filter(e => entryKey(e) !== key);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error(e);
+    return false;
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== MATH =====
+function round(v) { return Math.round((parseFloat(v) || 0) * 100) / 100; }
+
+/**
+ * Float + split calculation for one category.
+ * floatOwedIn = amount still owed into float from prior collections (>= 0)
+ * flatFee (e.g. Jukebox £20) is taken off gross first and goes to supplier; no MGD when set.
+ * Returns net after float; MGD/SS/CL on net only.
+ */
+function calcCategory(gross, rate, hasFloat, floatRequired, floatOwedIn, flatFee) {
+  gross = parseFloat(gross) || 0;
+  rate = parseFloat(rate);
+  if (isNaN(rate)) rate = 0.5;
+  floatRequired = hasFloat ? (parseFloat(floatRequired) || 0) : 0;
+  floatOwedIn = hasFloat ? (parseFloat(floatOwedIn) || 0) : 0;
+  flatFee = parseFloat(flatFee) || 0;
+  if (floatRequired < 0) floatRequired = 0;
+  if (floatOwedIn < 0) floatOwedIn = 0;
+
+  const fee = flatFee > 0 ? Math.min(flatFee, gross) : 0;
+  const afterFee = gross - fee;
+
+  const toRecover = hasFloat ? (floatRequired + floatOwedIn) : 0;
+  const floatTaken = Math.min(afterFee, toRecover);
+  const net = afterFee - floatTaken;
+  const floatOwedAfter = toRecover - floatTaken;
+
+  const mgd = flatFee > 0 ? 0 : net * MGD_RATE;
+  const cashLeft = net * rate;
+  const supplierShare = (net - cashLeft) + fee;
+
+  return {
+    gross: round(gross),
+    floatTaken: round(floatTaken),
+    floatOwedIn: round(floatOwedIn),
+    floatOwedAfter: round(floatOwedAfter),
+    net: round(net),
+    total: round(net),
+    mgd: round(mgd),
+    cashLeft: round(cashLeft),
+    supplierShare: round(supplierShare)
+  };
+}
+
+function calcPool(poolGross, loc) {
+  const g = parseFloat(poolGross) || 0;
+  const mode = (loc && loc.poolMode) || (loc && loc.poolRent > 0 ? 'rent' : 'fifty');
+  let poolSS, poolCL;
+  if (mode === 'rent') {
+    const rent = parseFloat(loc.poolRent) || 0;
+    poolSS = Math.min(rent, g);
+    poolCL = g - poolSS;
+  } else if (mode === 'percent') {
+    let pct = parseFloat(loc.poolPercent);
+    if (isNaN(pct)) pct = 50;
+    pct = Math.max(0, Math.min(100, pct));
+    poolSS = g * (pct / 100);
+    poolCL = g - poolSS;
+  } else {
+    poolSS = g * 0.5;
+    poolCL = g * 0.5;
+  }
+  return { poolGross: round(g), poolSS: round(poolSS), poolCL: round(poolCL), poolMode: mode };
+}
+
+/** Outstanding float owed for locationId+categoryId before a given date/timestamp */
+function getFloatOwedIn(locId, catId, beforeDate, beforeTs) {
+  const entries = getEntries()
+    .filter(e => e.date && e.locations)
+    .sort((a, b) => {
+      const d = a.date.localeCompare(b.date);
+      if (d) return d;
+      return String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
+    });
+
+  let owed = 0;
+  for (const e of entries) {
+    if (beforeDate) {
+      if (e.date > beforeDate) break;
+      if (e.date === beforeDate && beforeTs && String(e.timestamp || '') >= String(beforeTs)) break;
+    }
+    const loc = (e.locations || []).find(l => l.id === locId || l.name === locId);
+    if (!loc) continue;
+    const cat = (loc.categories || []).find(c => c.id === catId || c.name === catId);
+    if (!cat) continue;
+    if (cat.floatOwedAfter != null) owed = parseFloat(cat.floatOwedAfter) || 0;
+  }
+  return owed;
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ===== RENDER FORM =====
+function getActiveEntryLocations() {
+  if (!activeEntrySiteId) return [];
+  const loc = config.locations.find(l => String(l.id) === String(activeEntrySiteId));
+  return loc ? [loc] : [];
+}
+
+function backToSitePicker() {
+  activeEntrySiteId = null;
+  renderForm();
+}
+
+function selectEntrySite(siteId) {
+  activeEntrySiteId = String(siteId || '');
+  renderForm();
+  const panel = document.getElementById('entryFormPanel');
+  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderSitePicker() {
+  const panel = document.getElementById('sitePickerPanel');
+  if (!panel) return;
+  if (!config.locations.length) {
+    panel.innerHTML = '<div class="empty-state"><p>No sites configured. Add sites in Settings.</p></div>';
+    return;
+  }
+  let html = '<p class="site-pick-hint">Choose a site to enter takings</p><div class="site-picker">';
+  config.locations.forEach(loc => {
+    const cats = (loc.categories || []).map(c => c.name).join(' · ') || 'No categories';
+    const pool = loc.hasPool ? ' · Pool' : '';
+    html += `<button type="button" class="site-pick-btn" data-site-id="${esc(String(loc.id))}">
+      <span>${esc(formatSiteName(loc))}</span>
+      <span class="site-pick-sub">${esc(cats + pool)}</span>
+    </button>`;
+  });
+  html += '</div>';
+  panel.innerHTML = html;
+  panel.querySelectorAll('.site-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectEntrySite(btn.getAttribute('data-site-id')));
+  });
+}
+
+function renderForm() {
+  const container = document.getElementById('formContainer');
+  const dateEl = document.getElementById('entryDate');
+  const picker = document.getElementById('sitePickerPanel');
+  const formPanel = document.getElementById('entryFormPanel');
+  const siteBar = document.getElementById('entrySiteBar');
+  if (dateEl && !dateEl.value) dateEl.value = todayStr();
+  const date = dateEl ? dateEl.value : todayStr();
+
+  if (!config.locations.length) {
+    if (picker) picker.innerHTML = '<div class="empty-state"><p>No sites configured. Add sites in Settings.</p></div>';
+    if (formPanel) formPanel.classList.add('hidden');
+    if (siteBar) siteBar.classList.add('hidden');
+    if (container) container.innerHTML = '';
+    return;
+  }
+
+  // Site picker mode
+  if (!activeEntrySiteId) {
+    if (picker) picker.classList.remove('hidden');
+    if (formPanel) formPanel.classList.add('hidden');
+    if (siteBar) siteBar.classList.add('hidden');
+    renderSitePicker();
+    return;
+  }
+
+  const locs = getActiveEntryLocations();
+  if (!locs.length) {
+    activeEntrySiteId = null;
+    renderForm();
+    return;
+  }
+
+  if (picker) picker.classList.add('hidden');
+  if (formPanel) formPanel.classList.remove('hidden');
+  if (siteBar) siteBar.classList.remove('hidden');
+
+  const loc = locs[0];
+  const titleEl = document.getElementById('entrySiteTitle');
+  if (titleEl) titleEl.textContent = formatSiteName(loc);
+
+  let html = '';
+  const hasFloat = (loc.categories || []).some(c => c.hasFloat);
+  const cols = hasFloat ? 6 : 4;
+  html += `<div class="table-scroll"><table class="tbl entry-table"><thead>
+    <tr class="loc-header-row"><th colspan="${cols}" class="loc-header">${esc(formatSiteName(loc))}</th></tr>
+    <tr>${hasFloat ? '<th>Category</th><th>Gross (£)</th><th>Float req (£)</th><th>Float / Carried from last collection</th><th>Net</th><th>Split</th>' : '<th>Category</th><th>Gross (£)</th><th>Net</th><th>Split</th>'}</tr>
+  </thead><tbody>`;
+
+  for (const cat of loc.categories) {
+    const fid = fieldId(loc, cat);
+    const shares = `Site ${(cat.rate*100).toFixed(0)}% · Supp ${((1-cat.rate)*100).toFixed(0)}%`;
+    const floatCols = hasFloat
+      ? (cat.hasFloat
+          ? `<td><input type="number" step="any" min="0" id="floatreq_${fid}" oninput="updateFormCalcs()" placeholder="0"></td><td style="font-size:11px" id="float_${fid}">—</td>`
+          : '<td></td><td></td>')
+      : '';
+    html += `<tr>
+      <td><strong>${esc(cat.name)}</strong></td>
+      <td><input type="number" step="any" id="gross_${fid}" oninput="updateFormCalcs()" placeholder="0"></td>
+      ${floatCols}
+      <td class="ro net-val" id="net_${fid}">0.00</td>
+      <td style="font-size:11px" id="split_${fid}"><span class="split-shares">${esc(shares)}</span></td>
+    </tr>`;
+  }
+
+  if (loc.hasPool) {
+    const lid = loc.id;
+    const poolMode = loc.poolMode || (parseFloat(loc.poolRent) > 0 ? 'rent' : 'fifty');
+    const grossCell = poolMode === 'rent'
+      ? `<span id="pool_${lid}">£${(parseFloat(loc.poolRent) || 0).toFixed(2)}</span>`
+      : `<input type="number" step="any" id="pool_${lid}" oninput="updateFormCalcs()" placeholder="Gross">`;
+    html += `<tr>
+      <td><strong>Pool</strong><br><span style="font-size:10px;color:#888">${esc(poolModeLabel(loc))}</span></td>
+      <td>${grossCell}</td>
+      ${hasFloat ? '<td></td><td></td>' : ''}
+      <td class="ro" id="pool_net_${lid}">0.00</td>
+      <td style="font-size:11px" id="pool_split_${lid}">—</td>
+    </tr>`;
+  }
+
+  html += `</tbody><tfoot><tr><td colspan="${cols}" class="loc-summary"><div class="loc-summary-inner">
+    <span><span class="ls-lbl">Net:</span> <span id="loc_net_${loc.id}">0.00</span></span>
+    <span><span class="ls-lbl">MGD:</span> <span id="loc_mgd_${loc.id}">0.00</span></span>
+      <span><span class="ls-lbl">Supplier:</span> <span id="loc_ss_${loc.id}">0.00</span></span>
+    <span><span class="ls-lbl">Site Share:</span> <span id="loc_cl_${loc.id}">0.00</span></span>
+    <span><span class="ls-lbl">Float taken:</span> <span id="loc_ft_${loc.id}">0.00</span></span>
+  </div></td></tr></tfoot></table></div>`;
+
+  html += `<div class="entry-actions" id="entryActions">
+    <button type="button" class="btn btn-primary" onclick="submitEntry()">Submit</button>
+    <button type="button" class="btn btn-outline" onclick="resetForm()">Reset</button>
+    <button type="button" class="btn btn-outline" onclick="backToSitePicker()">← Back</button>
+  </div>`;
+
+  html += `<div class="table-scroll"><table class="tbl"><thead>
+    <tr><th colspan="5" style="background:#1a1a2e;color:#fff">Live Collection Totals</th></tr>
+    <tr><th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th></tr>
+  </thead><tbody id="gtBody"></tbody>
+  <tfoot><tr style="font-weight:700;background:#fff8e6">
+    <td>TOTAL</td>
+    <td class="ro" id="g_net">0.00</td>
+    <td class="ro" id="g_mgd">0.00</td>
+    <td class="ro" id="g_ss">0.00</td>
+    <td class="ro" id="g_cl">0.00</td>
+  </tr></tfoot></table></div>`;
+
+  if (container) container.innerHTML = html;
+  updateFormCalcs();
+}
+
+function fieldId(loc, cat) {
+  return (loc.id + '_' + cat.id).replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function updateFormCalcs() {
+  const date = document.getElementById('entryDate').value || todayStr();
+  let gNet = 0, gMgd = 0, gSs = 0, gCl = 0;
+  let gtHtml = '';
+  const locs = getActiveEntryLocations();
+  if (!locs.length) return;
+
+  for (const loc of locs) {
+    let locNet = 0, locMgd = 0, locSs = 0, locCl = 0, locFt = 0;
+
+    for (const cat of loc.categories) {
+      const fid = fieldId(loc, cat);
+      const gross = parseFloat(document.getElementById('gross_' + fid)?.value) || 0;
+      const floatReqEl = document.getElementById('floatreq_' + fid);
+      const floatReq = parseFloat(floatReqEl?.value) || 0;
+      const owed = getFloatOwedIn(loc.id, cat.id, date, null);
+      // Apply float whenever a value is entered or there is carry-in (pool never uses this path)
+      const useFloat = true;
+      const r = calcCategory(gross, cat.rate, useFloat, floatReq, owed, cat.flatFee);
+
+      const netEl = document.getElementById('net_' + fid);
+      const splitEl = document.getElementById('split_' + fid);
+      const floatEl = document.getElementById('float_' + fid);
+      if (netEl) netEl.textContent = r.net.toFixed(2);
+      if (splitEl) {
+        const fee = cat.flatFee > 0 ? Math.min(cat.flatFee, r.gross) : 0;
+        const shares = `Site ${(cat.rate*100).toFixed(0)}% · Supp ${((1-cat.rate)*100).toFixed(0)}%`;
+        splitEl.innerHTML = (cat.flatFee > 0 ? `Fee £${fee.toFixed(2)}<br>` : `MGD £${r.mgd.toFixed(2)}<br>`) + `SS £${r.supplierShare.toFixed(2)}<br>Site £${r.cashLeft.toFixed(2)}<br><span class="split-shares">${shares}</span>`;
+      }
+      if (floatEl) {
+        const defF = cat.floatRequired || 0;
+        const diff = round(defF - floatReq);
+        const diffStr = (diff >= 0 ? '£' : '−£') + Math.abs(diff).toFixed(2);
+        let bits = [`float £${r.floatTaken.toFixed(2)}`];
+        if (owed > 0) bits.push(`<span class="float-owed">from last £${owed.toFixed(2)}</span>`);
+        if (r.floatOwedAfter > 0) bits.push(`<span class="float-owed">carry next £${r.floatOwedAfter.toFixed(2)}</span>`);
+        if (defF > 0 || floatReq > 0) bits.push(`diff ${diffStr}`);
+        floatEl.innerHTML = bits.join('<br>');
+      }
+
+      locNet += r.net; locMgd += r.mgd; locSs += r.supplierShare; locCl += r.cashLeft; locFt += r.floatTaken;
+    }
+
+    if (loc.hasPool) {
+      const poolMode = loc.poolMode || (parseFloat(loc.poolRent) > 0 ? 'rent' : 'fifty');
+      const g = poolMode === 'rent'
+        ? (parseFloat(loc.poolRent) || 0)
+        : (parseFloat(document.getElementById('pool_' + loc.id)?.value) || 0);
+      const p = calcPool(g, loc);
+      const pn = document.getElementById('pool_net_' + loc.id);
+      const ps = document.getElementById('pool_split_' + loc.id);
+      if (pn) pn.textContent = p.poolGross.toFixed(2);
+      if (ps) ps.innerHTML = `SS £${p.poolSS.toFixed(2)}<br>CL £${p.poolCL.toFixed(2)}`;
+      locNet += p.poolGross; locSs += p.poolSS; locCl += p.poolCL;
+    }
+
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = round(v).toFixed(2); };
+    set('loc_net_' + loc.id, locNet);
+    set('loc_mgd_' + loc.id, locMgd);
+    set('loc_ss_' + loc.id, locSs);
+    set('loc_cl_' + loc.id, locCl);
+    set('loc_ft_' + loc.id, locFt);
+
+    gtHtml += `<tr><td>${esc(formatSiteName(loc))}</td><td class="ro">${round(locNet).toFixed(2)}</td><td class="ro">${round(locMgd).toFixed(2)}</td><td class="ro">${round(locSs).toFixed(2)}</td><td class="ro">${round(locCl).toFixed(2)}</td></tr>`;
+    gNet += locNet; gMgd += locMgd; gSs += locSs; gCl += locCl;
+  }
+
+  const gb = document.getElementById('gtBody');
+  if (gb) gb.innerHTML = gtHtml;
+  const setg = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = round(v).toFixed(2); };
+  setg('g_net', gNet); setg('g_mgd', gMgd); setg('g_ss', gSs); setg('g_cl', gCl);
+}
+
+// ===== SUBMIT =====
+function buildEntryFromForm() {
+  const date = document.getElementById('entryDate').value;
+  if (!date) return null;
+  const locs = getActiveEntryLocations();
+  if (!locs.length) return null;
+
+  const ts = new Date().toISOString();
+  const entry = { date, timestamp: ts, id: ts, locations: [], grandTotal: 0, grandCL: 0, grandMGD: 0, grandSS: 0, grandFloat: 0 };
+
+  for (const loc of locs) {
+    const locData = { id: loc.id, name: loc.name, categories: [] };
+    for (const cat of loc.categories) {
+      const fid = fieldId(loc, cat);
+      const gross = parseFloat(document.getElementById('gross_' + fid)?.value) || 0;
+      const floatReq = parseFloat(document.getElementById('floatreq_' + fid)?.value) || 0;
+      const owed = getFloatOwedIn(loc.id, cat.id, date, null);
+      const r = calcCategory(gross, cat.rate, true, floatReq, owed, cat.flatFee);
+      locData.categories.push({
+        id: cat.id, name: cat.name, rate: cat.rate,
+        hasFloat: true, floatRequired: floatReq, flatFee: cat.flatFee || 0,
+        cash: r.gross, gross: r.gross,
+        floatTaken: r.floatTaken, floatOwedIn: r.floatOwedIn, floatOwedAfter: r.floatOwedAfter,
+        net: r.net, total: r.net, mgd: r.mgd, cashLeft: r.cashLeft, supplierShare: r.supplierShare
+      });
+      entry.grandTotal += r.net;
+      entry.grandCL += r.cashLeft;
+      entry.grandMGD += r.mgd;
+      entry.grandSS += r.supplierShare;
+      entry.grandFloat += r.floatTaken;
+    }
+    if (loc.hasPool) {
+      const poolMode = loc.poolMode || (parseFloat(loc.poolRent) > 0 ? 'rent' : 'fifty');
+      const g = poolMode === 'rent'
+        ? (parseFloat(loc.poolRent) || 0)
+        : (parseFloat(document.getElementById('pool_' + loc.id)?.value) || 0);
+      const p = calcPool(g, loc);
+      locData.poolGross = p.poolGross;
+      locData.poolMode = loc.poolMode || 'fifty';
+      locData.poolRent = loc.poolRent || 0;
+      locData.poolPercent = loc.poolPercent || 50;
+      locData.poolSS = p.poolSS;
+      locData.poolCL = p.poolCL;
+      entry.grandTotal += p.poolGross;
+      entry.grandCL += p.poolCL;
+      entry.grandSS += p.poolSS;
+    }
+    entry.locations.push(locData);
+  }
+
+  entry.grandTotal = round(entry.grandTotal);
+  entry.grandCL = round(entry.grandCL);
+  entry.grandMGD = round(entry.grandMGD);
+  entry.grandSS = round(entry.grandSS);
+  entry.grandFloat = round(entry.grandFloat);
+  return entry;
+}
+
+function showSubmitConfirm(entry) {
+  return new Promise((resolve) => {
+    const ov = document.getElementById('confirmOverlay');
+    const meta = document.getElementById('confirmMeta');
+    const monthEl = document.getElementById('confirmMonth');
+    const breakdown = document.getElementById('confirmBreakdown');
+    const totals = document.getElementById('confirmTotals');
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    const bKey = businessMonthKey(entry.date);
+    const bLabel = formatBusinessMonthLabel(bKey);
+
+    if (meta) meta.textContent = 'Entry date: ' + entry.date;
+    if (monthEl) {
+      monthEl.innerHTML = 'This will count toward the <strong>' + esc(bLabel) + '</strong> collection on the Summary page.';
+    }
+
+    let rows = '';
+    for (const loc of entry.locations || []) {
+      for (const cat of loc.categories || []) {
+        const g = cat.gross || 0;
+        const f = cat.floatTaken || 0;
+        const n = cat.net || 0;
+        if (!g && !f && !n) continue;
+        rows += `<tr>
+          <td>${esc(loc.name)}</td>
+          <td>${esc(cat.name)}</td>
+          <td class="ro">£${g.toFixed(2)}</td>
+          <td class="ro">£${f.toFixed(2)}</td>
+          <td class="ro">£${n.toFixed(2)}</td>
+          <td class="ro">£${(cat.cashLeft || 0).toFixed(2)}</td>
+        </tr>`;
+      }
+      if (loc.poolGross) {
+        rows += `<tr>
+          <td>${esc(loc.name)}</td>
+          <td>Pool</td>
+          <td class="ro">£${loc.poolGross.toFixed(2)}</td>
+          <td class="ro">—</td>
+          <td class="ro">£${loc.poolGross.toFixed(2)}</td>
+          <td class="ro">£${(loc.poolCL || 0).toFixed(2)}</td>
+        </tr>`;
+      }
+    }
+    if (!rows) {
+      rows = '<tr><td colspan="6" style="text-align:center;color:#888">No amounts entered</td></tr>';
+    }
+    if (breakdown) {
+      breakdown.innerHTML = `<div class="confirm-table-wrap"><table>
+        <thead><tr><th>Site</th><th>Category</th><th class="num">Gross</th><th class="num">Float</th><th class="num">Net</th><th class="num">Site Share</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+    if (totals) {
+      totals.innerHTML =
+        'Net <strong>£' + (entry.grandTotal || 0).toFixed(2) + '</strong> · ' +
+        'Site Share <strong>£' + (entry.grandCL || 0).toFixed(2) + '</strong> · ' +
+        'Supplier <strong>£' + (entry.grandSS || 0).toFixed(2) + '</strong> · ' +
+        'Float taken <strong>£' + (entry.grandFloat || 0).toFixed(2) + '</strong>';
+    }
+
+    function cleanup(result) {
+      ov.classList.remove('active');
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      resolve(result);
+    }
+    okBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    ov.onclick = (e) => { if (e.target === ov) cleanup(false); };
+    ov.classList.add('active');
+  });
+}
+
+async function submitEntry() {
+  const date = document.getElementById('entryDate').value;
+  if (!date) { showMsg('submitMsg', 'Select a date', 'error'); return; }
+  if (!activeEntrySiteId) { showMsg('submitMsg', 'Choose a site first', 'error'); return; }
+  if (!config.locations.length) { showMsg('submitMsg', 'No sites configured', 'error'); return; }
+
+  const entry = buildEntryFromForm();
+  if (!entry) { showMsg('submitMsg', 'Could not build entry', 'error'); return; }
+
+  const hasAny = (entry.grandTotal || 0) > 0 || (entry.grandFloat || 0) > 0 ||
+    entry.locations.some(l => (l.categories || []).some(c => (c.gross || 0) > 0 || (c.floatRequired || 0) > 0) || (l.poolGross || 0) > 0);
+  if (!hasAny) {
+    showMsg('submitMsg', 'Enter at least one amount', 'error');
+    return;
+  }
+
+  const confirmed = await showSubmitConfirm(entry);
+  if (!confirmed) {
+    showMsg('submitMsg', 'Cancelled', 'error');
+    return;
+  }
+
+  showMsg('submitMsg', 'Saving…', 'success');
+  const ok = await saveEntry(entry);
+  if (ok) {
+    showMsg('submitMsg', `Saved ${date}`, 'success');
+    // Return to site buttons for the next submission
+    activeEntrySiteId = null;
+    const keepDate = date;
+    renderForm();
+    const dateEl = document.getElementById('entryDate');
+    if (dateEl) dateEl.value = keepDate;
+    render21DayTotals();
+  } else {
+    showMsg('submitMsg', 'Save failed — check API URL', 'error');
+  }
+  updateHistoryCount();
+}
+
+function resetForm() {
+  // Clear inputs for current site only (stay on site form)
+  if (activeEntrySiteId) {
+    renderForm();
+  } else {
+    renderForm();
+  }
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'msg ' + (type || '');
+  setTimeout(() => { el.className = 'msg'; }, 3500);
+}
+
+// ===== 21 DAY TOTALS =====
+function render21DayTotals() {
+  const el = document.getElementById('totals21Container');
+  if (!el) return;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 21);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const recent = getEntries().filter(e => e.date >= cutoffStr);
+
+  const locTotals = {};
+  for (const loc of config.locations) {
+    locTotals[loc.id] = { id: loc.id, name: formatSiteName(loc), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
+  }
+
+  for (const e of recent) {
+    for (const loc of e.locations || []) {
+      let key = loc.id;
+      let t = key ? locTotals[key] : null;
+      if (!t) {
+        const cfg = config.locations.find(l => l.id === loc.id) ||
+          config.locations.find(l => l.name === loc.name || (l.nameHistory || []).includes(loc.name));
+        if (cfg) {
+          key = cfg.id;
+          t = locTotals[key];
+        }
+      }
+      if (!t) {
+        key = loc.id || loc.name;
+        locTotals[key] = { id: loc.id, name: formatSiteName(loc, loc.id), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
+        t = locTotals[key];
+      }
+      for (const cat of loc.categories || []) {
+        const net = cat.net != null ? cat.net : (cat.total || cat.cash || 0);
+        t.net += net;
+        t.mgd += cat.mgd || (net * MGD_RATE);
+        t.ss += cat.supplierShare || 0;
+        t.cl += cat.cashLeft || 0;
+        t.float += cat.floatTaken || 0;
+      }
+      if (loc.poolGross) {
+        t.net += loc.poolGross;
+        t.ss += loc.poolSS || 0;
+        t.cl += loc.poolCL || 0;
+      }
+    }
+  }
+
+  let html = `<div class="table-scroll"><table class="tbl"><thead>
+    <tr><th colspan="5" style="background:#1a1a2e;color:#fff">Last 21 Days — Totals</th></tr>
+    <tr><th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier Share</th><th class="num">Site Share</th></tr>
+  </thead><tbody>`;
+  let tn = 0, tm = 0, ts = 0, tc = 0;
+  for (const t of Object.values(locTotals)) {
+    html += `<tr><td>${esc(t.name)}</td><td class="ro">£${t.net.toFixed(2)}</td><td class="ro">£${t.mgd.toFixed(2)}</td><td class="ro">£${t.ss.toFixed(2)}</td><td class="ro">£${t.cl.toFixed(2)}</td></tr>`;
+    tn += t.net; tm += t.mgd; ts += t.ss; tc += t.cl;
+  }
+  html += `<tr style="font-weight:700;background:#fff8e6"><td>${recent.length} collections</td>
+    <td class="ro">£${tn.toFixed(2)}</td><td class="ro">£${tm.toFixed(2)}</td><td class="ro">£${ts.toFixed(2)}</td><td class="ro">£${tc.toFixed(2)}</td></tr>
+  </tbody></table></div>`;
+  el.innerHTML = html;
+}
+
+// ===== HISTORY =====
+function showHistory() {
+  const entries = getEntries();
+  const container = document.getElementById('historyTable');
+  updateHistoryCount();
+  if (!entries.length) {
+    container.innerHTML = '<div class="empty-state"><p>No submissions yet.</p></div>';
+    return;
+  }
+  const sorted = [...entries].sort((a, b) => {
+    const d = b.date.localeCompare(a.date);
+    return d || String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+  });
+  let html = `<div class="table-scroll"><table class="tbl"><thead><tr>
+    <th>Date</th><th>Submitted</th><th class="num">Net Total</th><th class="num">Site Share</th><th class="num">Float</th><th></th>
+  </tr></thead><tbody>`;
+  for (const e of sorted) {
+    const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
+    const key = entryKey(e).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    html += `<tr>
+      <td>${esc(e.date)}</td>
+      <td>${esc(ts)}</td>
+      <td class="ro">£${(e.grandTotal || 0).toFixed(2)}</td>
+      <td class="ro">£${(e.grandCL || 0).toFixed(2)}</td>
+      <td class="ro">£${(e.grandFloat || 0).toFixed(2)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${key}')">Delete</button></td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+function updateHistoryCount() {
+  const el = document.getElementById('historyCount');
+  if (el) el.textContent = getEntries().length + ' entries';
+}
+
+async function deleteEntryByKey(key) {
+  const entry = getEntries().find(e => entryKey(e) === key);
+  if (!entry) return;
+  if (!confirm('Delete entry for ' + entry.date + '?')) return;
+  await deleteEntryFromSheet(entry);
+  showHistory();
+  updateHistoryCount();
+  render21DayTotals();
+}
+
+async function deleteLastSubmission() {
+  const entries = getEntries();
+  if (!entries.length) {
+    showMsg('deleteLastMsg', 'No entries', 'error');
+    return;
+  }
+  const last = [...entries].sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))[0];
+  if (!confirm('Delete most recent (' + last.date + ')?')) return;
+  await deleteEntryFromSheet(last);
+  showMsg('deleteLastMsg', 'Deleted ' + last.date, 'success');
+  updateHistoryCount();
+  render21DayTotals();
+}
+
+async function clearHistory() {
+  if (!confirm('Delete ALL entries?')) return;
+  const url = getApiUrl();
+  if (url) {
+    showLoading('Clearing…');
+    try {
+      await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'clear' }) });
+    } catch (e) {}
+    hideLoading();
+  }
+  cachedEntries = [];
+  showHistory();
+  render21DayTotals();
+}
+
+// ===== MONTHLY =====
+/** Business month: days 1–5 count as previous calendar month (e.g. 5 Jul → June). */
+const BUSINESS_MONTH_CUTOFF_DAY = 5;
+
+function businessMonthKey(dateStr) {
+  if (!dateStr || String(dateStr).length < 10) return '';
+  const y = parseInt(String(dateStr).slice(0, 4), 10);
+  const mo = parseInt(String(dateStr).slice(5, 7), 10);
+  const day = parseInt(String(dateStr).slice(8, 10), 10);
+  if (!y || !mo || !day) return String(dateStr).slice(0, 7);
+  let yy = y, mm = mo;
+  if (day <= BUSINESS_MONTH_CUTOFF_DAY) {
+    mm -= 1;
+    if (mm < 1) { mm = 12; yy -= 1; }
+  }
+  return yy + '-' + String(mm).padStart(2, '0');
+}
+
+function formatBusinessMonthLabel(key) {
+  if (!key || key.length < 7) return key || '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const y = key.slice(0, 4);
+  const m = parseInt(key.slice(5, 7), 10);
+  const name = months[m - 1] || key;
+  // Period covered: 6th of that month → 5th of next
+  let ny = parseInt(y, 10), nm = m + 1;
+  if (nm > 12) { nm = 1; ny += 1; }
+  const nextName = months[nm - 1];
+  return name + ' ' + y + ' (6 ' + name + ' – 5 ' + nextName + ')';
+}
+
+function applyRangeFilter() {
+  const val = document.querySelector('input[name="range"]:checked')?.value;
+  if (!val || val === 'all') {
+    document.getElementById('filterFrom').value = '';
+    document.getElementById('filterTo').value = '';
+  } else {
+    const months = parseInt(val, 10);
+    const d = new Date();
+    document.getElementById('filterTo').value = todayStr();
+    d.setMonth(d.getMonth() - months);
+    document.getElementById('filterFrom').value = d.toISOString().slice(0, 10);
+  }
+  showMonthlySummary();
+}
+function clearRangeRadios() {
+  document.querySelectorAll('input[name="range"]').forEach(r => r.checked = false);
+}
+
+function showMonthlySummary() {
+  const fromVal = document.getElementById('filterFrom').value;
+  const toVal = document.getElementById('filterTo').value;
+  let filtered = getEntries();
+  if (fromVal) filtered = filtered.filter(e => e.date >= fromVal);
+  if (toVal) filtered = filtered.filter(e => e.date <= toVal);
+  filtered.sort((a, b) => a.date.localeCompare(b.date));
+  _monthlyFiltered = filtered;
+  const label = fromVal || toVal ? `${fromVal || '…'} to ${toVal || '…'}` : 'All time';
+
+  if (!filtered.length) {
+    document.getElementById('monthlySummary').innerHTML = '<div class="empty-state"><p>No entries for this period.</p></div>';
+    return;
+  }
+
+  let totalGrand = 0, totalCL = 0, totalSS = 0, totalMGD = 0, totalFloat = 0;
+  const locTotals = {};
+
+  for (const e of filtered) {
+    totalGrand += e.grandTotal || 0;
+    totalCL += e.grandCL || 0;
+    totalSS += e.grandSS || 0;
+    totalMGD += e.grandMGD || 0;
+    totalFloat += e.grandFloat || 0;
+    for (const loc of e.locations || []) {
+      const cfg = config.locations.find(l => l.id === loc.id) ||
+        config.locations.find(l => l.name === loc.name || (l.nameHistory || []).includes(loc.name));
+      const key = (cfg && cfg.id) || loc.id || loc.name;
+      if (!locTotals[key]) {
+        locTotals[key] = { id: key, label: formatSiteName(loc, cfg && cfg.id), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
+      }
+      for (const cat of loc.categories || []) {
+        const net = cat.net != null ? cat.net : (cat.total || 0);
+        locTotals[key].net += net;
+        locTotals[key].mgd += cat.mgd || 0;
+        locTotals[key].ss += cat.supplierShare || 0;
+        locTotals[key].cl += cat.cashLeft || 0;
+        locTotals[key].float += cat.floatTaken || 0;
+      }
+      if (loc.poolGross) {
+        locTotals[key].net += loc.poolGross;
+        locTotals[key].ss += loc.poolSS || 0;
+        locTotals[key].cl += loc.poolCL || 0;
+      }
+    }
+  }
+
+  let html = `<div class="summary-card">
+    <div class="kpi"><div class="val">${filtered.length}</div><div class="lbl">Collections (${label})</div></div>
+    <div class="kpi"><div class="val">£${totalGrand.toFixed(2)}</div><div class="lbl">Net Total</div></div>
+    <div class="kpi"><div class="val">£${totalCL.toFixed(2)}</div><div class="lbl">Site Share</div></div>
+    <div class="kpi"><div class="val">£${totalSS.toFixed(2)}</div><div class="lbl">Supplier Share</div></div>
+    <div class="kpi"><div class="val">£${totalFloat.toFixed(2)}</div><div class="lbl">Float Taken</div></div>
+  </div>`;
+
+  html += `<p class="hint" style="margin-top:4px">Business months: collections on the 1st–${BUSINESS_MONTH_CUTOFF_DAY}th count toward the <strong>previous</strong> month (e.g. 3 Jul → June).</p>`;
+
+  html += `<div style="margin-top:12px"><h2>Totals per Location</h2><div class="table-scroll"><table class="tbl"><thead><tr>
+    <th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th><th></th>
+  </tr></thead><tbody>`;
+  for (const v of Object.values(locTotals)) {
+    const viewKey = (v.id || v.label).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    html += `<tr><td>${esc(v.label)}</td><td class="ro">£${v.net.toFixed(2)}</td><td class="ro">£${v.mgd.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td>
+      <td><button class="btn btn-sm" onclick="viewLocationTotals('${viewKey}')">View</button></td></tr>`;
+  }
+  html += `</tbody></table></div></div>`;
+
+  // Monthly breakdown (business month grouping)
+  const monthlyMap = {};
+  for (const e of filtered) {
+    const m = businessMonthKey(e.date);
+    if (!m) continue;
+    if (!monthlyMap[m]) monthlyMap[m] = { count: 0, grand: 0, cl: 0, ss: 0, float: 0 };
+    monthlyMap[m].count++;
+    monthlyMap[m].grand += e.grandTotal || 0;
+    monthlyMap[m].cl += e.grandCL || 0;
+    monthlyMap[m].ss += e.grandSS || 0;
+    monthlyMap[m].float += e.grandFloat || 0;
+  }
+  html += `<div style="margin-top:16px"><h2>Monthly Breakdown</h2><div class="table-scroll"><table class="tbl"><thead><tr>
+    <th>Business month</th><th class="num">Collections</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site Share</th><th class="num">Float</th><th></th>
+  </tr></thead><tbody>`;
+  for (const [m, v] of Object.entries(monthlyMap).sort()) {
+    html += `<tr><td>${esc(formatBusinessMonthLabel(m))}</td><td class="ro">${v.count}</td><td class="ro">£${v.grand.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td><td class="ro">£${v.float.toFixed(2)}</td>
+      <td><button class="btn btn-sm" onclick="viewMonth('${m}')">View</button></td></tr>`;
+  }
+  html += '</tbody></table></div></div>';
+
+  document.getElementById('monthlySummary').innerHTML = html;
+}
+
+function viewMonth(month) {
+  const entries = getEntries()
+    .filter(e => businessMonthKey(e.date) === month)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  document.getElementById('monthModalTitle').textContent = formatBusinessMonthLabel(month);
+  let html = '';
+  for (const e of entries) {
+    html += `<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:12px"><h3>${esc(e.date)}</h3>
+      <table class="tbl"><thead><tr><th>Location</th><th>Category</th><th class="num">Gross</th><th class="num">Float</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site Share</th></tr></thead><tbody>`;
+    for (const loc of e.locations || []) {
+      for (const cat of loc.categories || []) {
+        const siteLbl = formatSiteName(loc, loc.id);
+        html += `<tr><td>${esc(siteLbl)}</td><td>${esc(cat.name)}</td>
+          <td class="ro">£${(cat.gross ?? cat.cash ?? 0).toFixed(2)}</td>
+          <td class="ro">£${(cat.floatTaken || 0).toFixed(2)}</td>
+          <td class="ro">£${(cat.net ?? cat.total ?? 0).toFixed(2)}</td>
+          <td class="ro">£${(cat.supplierShare || 0).toFixed(2)}</td>
+          <td class="ro">£${(cat.cashLeft || 0).toFixed(2)}</td></tr>`;
+      }
+      if (loc.poolGross) {
+        html += `<tr><td>${esc(formatSiteName(loc, loc.id))}</td><td>Pool</td><td class="ro">£${loc.poolGross.toFixed(2)}</td><td class="ro">—</td>
+          <td class="ro">£${loc.poolGross.toFixed(2)}</td><td class="ro">£${(loc.poolSS||0).toFixed(2)}</td><td class="ro">£${(loc.poolCL||0).toFixed(2)}</td></tr>`;
+      }
+    }
+    html += `<tr style="font-weight:700;background:#fff8e6"><td colspan="4">TOTAL</td><td class="ro">£${(e.grandTotal||0).toFixed(2)}</td><td class="ro">£${(e.grandSS||0).toFixed(2)}</td><td class="ro">£${(e.grandCL||0).toFixed(2)}</td></tr>`;
+    html += '</tbody></table></div>';
+  }
+  document.getElementById('monthModalEntries').innerHTML = html || '<p>No entries</p>';
+  document.getElementById('monthModal').classList.add('active');
+}
+
+function viewLocationTotals(locKey) {
+  const entries = _monthlyFiltered;
+  const cfg = config.locations.find(l => l.id === locKey) ||
+    config.locations.find(l => l.name === locKey || (l.nameHistory || []).includes(locKey));
+  const title = cfg ? formatSiteName(cfg) : locKey;
+  document.getElementById('monthModalTitle').textContent = title + ' — monthly';
+  const monthData = {};
+  for (const e of entries) {
+    const loc = (e.locations || []).find(l =>
+      (cfg && (l.id === cfg.id || l.name === cfg.name || (cfg.nameHistory || []).includes(l.name))) ||
+      l.id === locKey || l.name === locKey
+    );
+    if (!loc) continue;
+    const m = businessMonthKey(e.date);
+    if (!m) continue;
+    if (!monthData[m]) monthData[m] = { net: 0, mgd: 0, ss: 0, cl: 0 };
+    for (const cat of loc.categories || []) {
+      const net = cat.net != null ? cat.net : (cat.total || 0);
+      monthData[m].net += net;
+      monthData[m].mgd += cat.mgd || 0;
+      monthData[m].ss += cat.supplierShare || 0;
+      monthData[m].cl += cat.cashLeft || 0;
+    }
+    if (loc.poolGross) {
+      monthData[m].net += loc.poolGross;
+      monthData[m].ss += loc.poolSS || 0;
+      monthData[m].cl += loc.poolCL || 0;
+    }
+  }
+  let html = `<table class="tbl"><thead><tr><th>Business month</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th></tr></thead><tbody>`;
+  for (const [m, v] of Object.entries(monthData).sort()) {
+    html += `<tr><td>${esc(formatBusinessMonthLabel(m))}</td><td class="ro">£${v.net.toFixed(2)}</td><td class="ro">£${v.mgd.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('monthModalEntries').innerHTML = html;
+  document.getElementById('monthModal').classList.add('active');
+}
+
+function closeMonthModal() {
+  document.getElementById('monthModal').classList.remove('active');
+}
+
+// ===== SETTINGS CRUD =====
+function blankDraftSite() {
+  return {
+    id: uid(),
+    name: '',
+    nameHistory: [],
+    hasPool: false,
+    poolMode: 'fifty',
+    poolRent: 0,
+    poolPercent: 50,
+    categories: [
+      { id: uid(), name: 'Reels', rate: 0.6, hasFloat: true, floatRequired: 0, flatFee: 0 },
+      { id: uid(), name: 'Digital', rate: 0.5, hasFloat: true, floatRequired: 0, flatFee: 0 }
+    ]
+  };
+}
+
+function ensureDraft() {
+  if (!draftSite) {
+    draftSite = blankDraftSite();
+    draftEditingId = null;
+  }
+}
+
+function resetDraftForm() {
+  draftSite = blankDraftSite();
+  draftEditingId = null;
+}
+
+function renderSettings() {
+  document.getElementById('apiUrlInput').value = getApiUrl();
+  ensureDraft();
+  const loc = draftSite;
+  const mode = loc.poolMode || 'fifty';
+  const editing = !!draftEditingId;
+  const title = editing ? 'Edit site' : 'New site';
+
+  let html = `<div class="settings-card" id="siteDraftCard">
+    <h3 style="margin:0 0 10px">${title}</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <label style="flex:1">Site name<br><input type="text" id="draft_name" value="${esc(loc.name)}" placeholder="e.g. Alberto" onchange="draftSite.name=this.value.trim()"></label>
+    </div>
+    <label style="margin-top:10px"><input type="checkbox" id="draft_hasPool" ${loc.hasPool ? 'checked' : ''} onchange="draftSite.hasPool=this.checked;renderSettings()"> Has pool</label>`;
+
+  if (loc.hasPool) {
+    html += `<div style="margin:10px 0;padding:10px;background:#f8f8fa;border-radius:8px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Pool split mode</div>
+      <label style="display:block;margin:4px 0"><input type="radio" name="draft_poolMode" value="fifty" ${mode==='fifty'?'checked':''} onchange="draftSite.poolMode='fifty';renderSettings()"> 50/50 share on gross</label>
+      <label style="display:block;margin:4px 0"><input type="radio" name="draft_poolMode" value="rent" ${mode==='rent'?'checked':''} onchange="draftSite.poolMode='rent';renderSettings()"> Fixed £ rent (supplier)</label>
+      ${mode==='rent' ? `<label style="margin:4px 0 8px 22px">Rent £ <input type="number" min="0" step="1" style="width:100px" value="${loc.poolRent||0}" onchange="draftSite.poolRent=parseFloat(this.value)||0"></label>` : ''}
+      <label style="display:block;margin:4px 0"><input type="radio" name="draft_poolMode" value="percent" ${mode==='percent'?'checked':''} onchange="draftSite.poolMode='percent';renderSettings()"> Percentage of gross (supplier %)</label>
+      ${mode==='percent' ? `<label style="margin:4px 0 0 22px">Supplier % <input type="number" min="0" max="100" step="1" style="width:80px" value="${loc.poolPercent||50}" onchange="draftSite.poolPercent=parseFloat(this.value)||50"></label>` : ''}
+    </div>`;
+  }
+
+  html += `<h3 style="margin-top:12px">Categories</h3>
+    <p class="hint">Site share % is your share of net (after float). Supplier gets the rest. Default float £ is a reference on daily entry (field starts empty). Pool never uses float.</p>`;
+
+  (loc.categories || []).forEach((cat, ci) => {
+    const clPct = Math.round((parseFloat(cat.rate) || 0.5) * 100);
+    const ssPct = 100 - clPct;
+    html += `<div class="cat-row">
+      <label>Name<br><input type="text" value="${esc(cat.name)}" onchange="draftSite.categories[${ci}].name=this.value"></label>
+      <label>Site share %<br><input type="number" min="0" max="100" step="1" value="${clPct}" oninput="onDraftRatePct(${ci}, this.value)" onchange="onDraftRatePct(${ci}, this.value)"></label>
+      <div class="rate-summary" id="draft_rate_sum_${ci}">Site ${clPct}% · Supplier ${ssPct}%${cat.flatFee > 0 ? ' · Fee £' + cat.flatFee : ''}</div>
+      <label>Float?<br><input type="checkbox" ${cat.hasFloat ? 'checked' : ''} onchange="draftSite.categories[${ci}].hasFloat=this.checked;renderSettings()"></label>
+      <label>Default float £<br><input type="number" min="0" step="any" value="${cat.floatRequired||0}" ${cat.hasFloat ? '' : 'disabled'} onchange="draftSite.categories[${ci}].floatRequired=parseFloat(this.value)||0"></label>
+      <label>Flat fee (no MGD)<br><input type="checkbox" ${cat.flatFee > 0 ? 'checked' : ''} onchange="draftSite.categories[${ci}].flatFee=this.checked?20:0;renderSettings()"></label>
+      <label>Fee £<br><input type="number" min="0" step="any" value="${cat.flatFee||0}" ${cat.flatFee > 0 ? '' : 'disabled'} onchange="draftSite.categories[${ci}].flatFee=parseFloat(this.value)||0"></label>
+      <button class="btn btn-danger btn-sm" onclick="draftRemoveCategory(${ci})">×</button>
+    </div>`;
+  });
+
+  html += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px">
+    <button class="btn btn-sm" onclick="draftAddCategory()">+ Category</button>
+    <button class="btn btn-primary" onclick="saveSiteFromDraft()">Save site</button>
+    <button class="btn btn-outline btn-sm" onclick="resetDraftForm();renderSettings()">Clear form</button>
+    <span class="msg" id="settingsMsg"></span>
+  </div></div>`;
+
+  document.getElementById('settingsContainer').innerHTML = html;
+  renderSavedSitesList();
+  renderMergeSites();
+}
+
+function renderSavedSitesList() {
+  const el = document.getElementById('savedSitesList');
+  if (!el) return;
+  if (!config.locations.length) {
+    el.innerHTML = '<div class="settings-card"><p class="hint" style="margin:0">No sites saved yet.</p></div>';
+    return;
+  }
+  let html = `<div class="settings-card"><h3 style="margin:0 0 10px">Saved sites (${config.locations.length})</h3>`;
+  config.locations.forEach((loc) => {
+    const realHist = (loc.nameHistory || []).filter(n => n && !isPlaceholderSiteName(n) && n !== loc.name);
+    const hist = realHist.length ? ` <span style="color:#888;font-size:11px">(was ${esc(realHist.join(', '))})</span>` : '';
+    const cats = (loc.categories || []).map(c => c.name).join(', ') || '—';
+    const sid = String(loc.id || '');
+    html += `<div class="saved-site-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee">
+      <div>
+        <strong>${esc(loc.name || 'Unnamed')}</strong>${hist}<br>
+        <span style="font-size:12px;color:#888">${esc(cats)}${loc.hasPool ? ' · Pool (' + esc(poolModeLabel(loc)) + ')' : ''}</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button type="button" class="btn btn-sm btn-edit-site" data-site-id="${esc(sid)}">Edit</button>
+        <button type="button" class="btn btn-danger btn-sm btn-remove-site" data-site-id="${esc(sid)}">Remove</button>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+
+  el.querySelectorAll('.btn-edit-site').forEach(btn => {
+    btn.addEventListener('click', () => editSavedSite(btn.getAttribute('data-site-id')));
+  });
+  el.querySelectorAll('.btn-remove-site').forEach(btn => {
+    btn.addEventListener('click', () => removeLocationById(btn.getAttribute('data-site-id')));
+  });
+}
+
+function onDraftRatePct(ci, val) {
+  ensureDraft();
+  if (!draftSite.categories[ci]) return;
+  let pct = parseFloat(val);
+  if (isNaN(pct)) pct = 50;
+  pct = Math.max(0, Math.min(100, pct));
+  draftSite.categories[ci].rate = pct / 100;
+  const sum = document.getElementById('draft_rate_sum_' + ci);
+  if (sum) {
+    const ss = 100 - Math.round(pct);
+    const fee = draftSite.categories[ci].flatFee || 0;
+    sum.textContent = 'Site ' + Math.round(pct) + '% · Supplier ' + ss + '%' + (fee > 0 ? ' · Fee £' + fee : '');
+  }
+}
+
+function draftAddCategory() {
+  ensureDraft();
+  draftSite.categories.push({ id: uid(), name: 'New', rate: 0.5, hasFloat: true, floatRequired: 0, flatFee: 0 });
+  renderSettings();
+}
+
+function draftRemoveCategory(ci) {
+  ensureDraft();
+  draftSite.categories.splice(ci, 1);
+  renderSettings();
+}
+
+function editSavedSite(id) {
+  id = String(id || '');
+  const loc = config.locations.find(l => String(l.id) === id);
+  if (!loc) {
+    alert('Site not found. Try Save site again or reload the page.');
+    console.warn('editSavedSite: no loc for', id, config.locations.map(l => l.id));
+    return;
+  }
+  draftSite = JSON.parse(JSON.stringify(loc));
+  if (!Array.isArray(draftSite.categories)) draftSite.categories = [];
+  draftEditingId = String(loc.id);
+  renderSettings();
+  const card = document.getElementById('siteDraftCard');
+  if (card) {
+    card.style.outline = '2px solid #f7b731';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => { card.style.outline = ''; }, 1500);
+  }
+  const nameEl = document.getElementById('draft_name');
+  if (nameEl) {
+    nameEl.focus();
+    nameEl.select();
+  }
+}
+
+async function removeLocationById(id) {
+  id = String(id || '');
+  const loc = config.locations.find(l => String(l.id) === id);
+  if (!loc) {
+    showAppAlert('Site not found', 'Could not find that site. Try refreshing the page.');
+    return;
+  }
+  const ok = confirm(
+    'Remove site "' + (loc.name || 'Unnamed') + '"?\n\n' +
+    '• It will disappear from Daily Entry and Settings\n' +
+    '• Collection history on the Google Sheet is NOT deleted\n\n' +
+    'Continue?'
+  );
+  if (!ok) return;
+
+  config.locations = config.locations.filter(l => String(l.id) !== id);
+  if (String(draftEditingId) === id) resetDraftForm();
+  saveConfigLocal();
+
+  showLoading('Removing site…');
+  let sheetOk = false;
+  try {
+    sheetOk = await saveConfigToSheet({ silent: true });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    hideLoading();
+  }
+
+  // Refresh all UI that lists sites
+  renderSettings();
+  renderForm();
+  render21DayTotals();
+  updateHistoryCount();
+  if (document.getElementById('page-history')?.classList.contains('active')) showHistory();
+  if (document.getElementById('page-monthly')?.classList.contains('active')) showMonthlySummary();
+
+  if (sheetOk) {
+    showAppAlert('Site removed', '"' + (loc.name || 'Unnamed') + '" was removed from Settings. History on the sheet was kept.');
+  } else {
+    showAppAlert(
+      'Removed locally',
+      '"' + (loc.name || 'Unnamed') + '" was removed on this device, but the sheet may not have updated. Check your API URL and try again.'
+    );
+  }
+}
+
+function readDraftFromDom() {
+  ensureDraft();
+  const nameEl = document.getElementById('draft_name');
+  if (nameEl) draftSite.name = nameEl.value.trim();
+  const poolCb = document.getElementById('draft_hasPool');
+  if (poolCb) draftSite.hasPool = poolCb.checked;
+  // categories: name, site share %, float?, default float
+  const card = document.getElementById('siteDraftCard');
+  if (card) {
+    const rows = card.querySelectorAll('.cat-row');
+    rows.forEach((row, ci) => {
+      if (!draftSite.categories[ci]) return;
+      const inputs = row.querySelectorAll('input');
+      if (inputs[0]) draftSite.categories[ci].name = inputs[0].value.trim() || draftSite.categories[ci].name;
+      if (inputs[1]) {
+        let pct = parseFloat(inputs[1].value);
+        if (isNaN(pct)) pct = 50;
+        pct = Math.max(0, Math.min(100, pct));
+        draftSite.categories[ci].rate = pct / 100;
+      }
+      if (inputs[2]) draftSite.categories[ci].hasFloat = inputs[2].checked;
+      if (inputs[3] && !inputs[3].disabled) draftSite.categories[ci].floatRequired = parseFloat(inputs[3].value) || 0;
+    });
+  }
+}
+
+async function saveSiteFromDraft() {
+  readDraftFromDom();
+  const name = (draftSite.name || '').trim();
+  if (!name || isPlaceholderSiteName(name)) {
+    showMsg('settingsMsg', 'Enter a site name', 'error');
+    return;
+  }
+  if (!draftSite.categories || !draftSite.categories.length) {
+    showMsg('settingsMsg', 'Add at least one category', 'error');
+    return;
+  }
+
+  draftSite.name = name;
+  draftSite = migrateConfig({ locations: [draftSite] }).locations[0];
+
+  if (draftEditingId) {
+    const idx = config.locations.findIndex(l => l.id === draftEditingId);
+    if (idx >= 0) {
+      const prev = config.locations[idx];
+      // preserve name history if renamed
+      if (prev.name && prev.name !== name && !isPlaceholderSiteName(prev.name)) {
+        if (!Array.isArray(draftSite.nameHistory)) draftSite.nameHistory = [];
+        if (!draftSite.nameHistory.includes(prev.name)) draftSite.nameHistory.unshift(prev.name);
+        (prev.nameHistory || []).forEach(n => {
+          if (n && n !== name && !draftSite.nameHistory.includes(n) && !isPlaceholderSiteName(n)) {
+            draftSite.nameHistory.push(n);
+          }
+        });
+        draftSite.nameHistory = draftSite.nameHistory.slice(0, 10);
+      } else {
+        draftSite.nameHistory = prev.nameHistory || [];
+      }
+      draftSite.id = prev.id;
+      config.locations[idx] = draftSite;
+    } else {
+      config.locations.push(draftSite);
+    }
+  } else {
+    // new site — avoid duplicate names silently stacking
+    if (config.locations.some(l => l.name === name)) {
+      if (!confirm('A site named "' + name + '" already exists. Add another anyway?')) return;
+    }
+    draftSite.id = draftSite.id || uid();
+    config.locations.push(JSON.parse(JSON.stringify(draftSite)));
+  }
+
+  config = migrateConfig(config);
+  saveConfigLocal();
+  const ok = await saveConfigToSheet();
+  showMsg('settingsMsg', ok ? 'Site saved — form cleared for next' : (!getApiUrl() ? 'Saved locally only' : 'Local OK; sheet sync failed'), ok ? 'success' : 'error');
+
+  // Clear form for next entry
+  resetDraftForm();
+  renderSettings();
+  renderForm();
+  render21DayTotals();
+}
+
+function renderMergeSites() {
+  const el = document.getElementById('mergeSitesContainer');
+  if (!el) return;
+  if (config.locations.length < 2) {
+    el.innerHTML = `<div class="settings-card" style="margin-top:16px">
+      <h2>Merge sites</h2>
+      <p class="hint" style="margin:0">Need at least two saved sites to merge (e.g. Alberto → Alberto2).</p>
+    </div>`;
+    return;
+  }
+  let options = config.locations.map(loc =>
+    `<option value="${esc(String(loc.id))}">${esc(loc.name || 'Unnamed')}</option>`
+  ).join('');
+  el.innerHTML = `<div class="settings-card" style="margin-top:16px">
+    <h2>Merge sites</h2>
+    <p class="hint">Move all collection history from one site into another on the Google Sheet, then remove the source site from Settings.</p>
+    <label style="display:block;margin:8px 0">Merge FROM (will be removed)<br>
+      <select id="mergeFromSelect" style="width:100%;max-width:360px;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:6px">
+        <option value="">— select —</option>${options}
+      </select>
+    </label>
+    <label style="display:block;margin:8px 0">INTO / keep<br>
+      <select id="mergeKeepSelect" style="width:100%;max-width:360px;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:6px">
+        <option value="">— select —</option>${options}
+      </select>
+    </label>
+    <button type="button" class="btn btn-primary" id="mergeSitesBtn" style="margin-top:8px">Merge permanently</button>
+    <span id="mergeMsg" class="msg"></span>
+  </div>`;
+  document.getElementById('mergeSitesBtn').addEventListener('click', () => mergeSites());
+}
+
+
+
+function locMatches(entryLoc, site) {
+  if (!entryLoc || !site) return false;
+  if (entryLoc.id && site.id && entryLoc.id === site.id) return true;
+  if (entryLoc.name === site.name) return true;
+  if ((site.nameHistory || []).includes(entryLoc.name)) return true;
+  return false;
+}
+
+async function updateEntryOnSheet(entry) {
+  const url = getApiUrl();
+  if (!url) return false;
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'updateEntry', entry })
+    });
+    const result = await r.json();
+    return !!result.success;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+}
+
+async function mergeSites() {
+  const keepId = document.getElementById('mergeKeepSelect')?.value || '';
+  const fromId = document.getElementById('mergeFromSelect')?.value || '';
+  const msgEl = document.getElementById('mergeMsg');
+  if (!keepId || !fromId) {
+    if (msgEl) { msgEl.textContent = 'Select both FROM and INTO sites'; msgEl.className = 'msg error'; }
+    return;
+  }
+  if (keepId === fromId) {
+    if (msgEl) { msgEl.textContent = 'FROM and INTO must be different sites'; msgEl.className = 'msg error'; }
+    return;
+  }
+  const keep = config.locations.find(l => String(l.id) === String(keepId));
+  const from = config.locations.find(l => String(l.id) === String(fromId));
+  if (!keep || !from) {
+    if (msgEl) { msgEl.textContent = 'Site not found — reload and try again'; msgEl.className = 'msg error'; }
+    return;
+  }
+
+  if (!confirm('Merge all history from "' + from.name + '" into "' + keep.name + '"?\n\nThis rewrites entries on the Google Sheet and removes "' + from.name + '" from Settings.')) return;
+
+  showLoading('Merging sites…');
+  try {
+    // name history
+    if (!Array.isArray(keep.nameHistory)) keep.nameHistory = [];
+    if (from.name && !isPlaceholderSiteName(from.name) && from.name !== keep.name && !keep.nameHistory.includes(from.name)) {
+      keep.nameHistory.unshift(from.name);
+    }
+    (from.nameHistory || []).forEach(n => {
+      if (n && !isPlaceholderSiteName(n) && n !== keep.name && !keep.nameHistory.includes(n)) keep.nameHistory.push(n);
+    });
+    keep.nameHistory = keep.nameHistory.slice(0, 10);
+
+    // rewrite entries in memory + sheet
+    let updated = 0;
+    for (const e of cachedEntries) {
+      let changed = false;
+      for (const loc of e.locations || []) {
+        if (locMatches(loc, from)) {
+          loc.id = keep.id;
+          loc.name = keep.name;
+          changed = true;
+        }
+      }
+      if (changed) {
+        const ok = await updateEntryOnSheet(e);
+        if (ok) updated++;
+        else {
+          // still keep local rewrite
+          updated++;
+        }
+      }
+    }
+
+    // remove from site from config
+    config.locations = config.locations.filter(l => l.id !== from.id);
+    config = migrateConfig(config);
+    saveConfigLocal();
+    await saveConfigToSheet({ silent: true });
+
+    if (msgEl) {
+      msgEl.textContent = 'Merged. Updated ' + updated + ' entr' + (updated === 1 ? 'y' : 'ies') + '.';
+      msgEl.className = 'msg success';
+    }
+    resetDraftForm();
+    renderSettings();
+    renderForm();
+    render21DayTotals();
+    updateHistoryCount();
+  } finally {
+    hideLoading();
+  }
+}
+
+async function saveApiUrl() {
+  const url = document.getElementById('apiUrlInput').value.trim();
+  if (!url) {
+    showMsg('apiUrlMsg', 'Paste an API URL first', 'error');
+    showAppAlert('API URL required', 'Paste your Apps Script web app URL, then save again.');
+    return;
+  }
+  setApiUrl(url);
+  showMsg('apiUrlMsg', 'Testing connection…', 'success');
+  const result = await loadEntries();
+  if (!result || !result.ok) {
+    failToSettings((result && result.error) || 'Could not connect to the API.');
+    return;
+  }
+  showMsg('apiUrlMsg', 'API connected — data loaded', 'success');
+  updateHistoryCount();
+  renderForm();
+  render21DayTotals();
+  showPage('entry');
+}
+
+// ===== EXPORT =====
+function exportCSV() {
+  const entries = getEntries();
+  if (!entries.length) { alert('No entries'); return; }
+  const rows = [['Date', 'Location', 'Category', 'Gross', 'Float Taken', 'Float Owed After', 'Net', 'MGD', 'Supplier', 'Site Share']];
+  for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const loc of e.locations || []) {
+      for (const cat of loc.categories || []) {
+        rows.push([
+          e.date, formatSiteName(loc, loc.id), cat.name,
+          cat.gross ?? cat.cash ?? 0,
+          cat.floatTaken || 0,
+          cat.floatOwedAfter || 0,
+          cat.net ?? cat.total ?? 0,
+          cat.mgd || 0,
+          cat.supplierShare || 0,
+          cat.cashLeft || 0
+        ]);
+      }
+      if (loc.poolGross) {
+        rows.push([e.date, formatSiteName(loc, loc.id), 'Pool', loc.poolGross, 0, 0, loc.poolGross, 0, loc.poolSS || 0, loc.poolCL || 0]);
+      }
+    }
+  }
+  const csv = rows.map(r => r.map(v => typeof v === 'string' && v.includes(',') ? '"' + v + '"' : v).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '3barbros_export_' + todayStr() + '.csv';
+  a.click();
+}
+
+// ===== NAV / LOGIN =====
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`.nav a[onclick*="${name}"]`)?.classList.add('active');
+  if (name === 'history') showHistory();
+  if (name === 'monthly') showMonthlySummary();
+  if (name === 'settings') renderSettings();
+  if (name === 'entry') {
+    // Always land on site picker when opening Daily Entry
+    activeEntrySiteId = null;
+    renderForm();
+    render21DayTotals();
+  }
+}
+
+async function doLogin() {
+  const pwd = document.getElementById('loginPwd').value;
+  if (String(pwd || '').toLowerCase() !== String(APP_PASSWORD).toLowerCase()) {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('loginOverlay').classList.add('hidden');
+  sessionStorage.setItem('3l_logged_in', '1');
+
+  const ok = await bootApp();
+  if (!ok) return;
+
+  const url = getApiUrl();
+  if (url) {
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'login', timestamp: new Date().toISOString() })
+    }).catch(() => {});
+  }
+}
+
+// ===== INIT =====
+loadConfigLocal();
+
+async function startApp() {
+  // Always verify API before using the app (except bare settings if already open)
+  const loggedIn = !!sessionStorage.getItem('3l_logged_in');
+  if (!loggedIn) {
+    // Stay on login; after login bootApp runs
+    return;
+  }
+  await bootApp();
+}
+
+startApp();
+
+// Recalc float carry when date changes
+document.getElementById('entryDate').addEventListener('change', () => {
+  renderForm();
+});
+</script>
+</body>
+</html>
