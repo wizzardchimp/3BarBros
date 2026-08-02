@@ -89,6 +89,9 @@ h3{font-size:14px;margin:0 0 8px}
 .confirm-box .confirm-month{background:#fff8e6;border:1px solid #f7b73155;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px;line-height:1.4}
 .confirm-box .confirm-month strong{color:#1a1a2e}
 .confirm-box .confirm-meta{font-size:13px;color:#666;margin:0 0 10px;text-align:center}
+.confirm-box .warn-body{font-size:14px;color:#444;line-height:1.5;margin:0 0 16px;text-align:center}
+.confirm-box .warn-body strong{color:#c0392b}
+.confirm-box .warn-note{font-size:12px;color:#888;line-height:1.45;margin:12px 0 16px;text-align:center}
 .confirm-box table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
 .confirm-box th,.confirm-box td{padding:6px 4px;border-bottom:1px solid #eee;text-align:left}
 .confirm-box th{font-size:10px;text-transform:uppercase;color:#888}
@@ -314,6 +317,18 @@ h3{font-size:14px;margin:0 0 8px}
     <div class="confirm-actions">
       <button type="button" class="btn btn-outline" id="confirmCancelBtn">Cancel</button>
       <button type="button" class="btn btn-primary" id="confirmOkBtn">Confirm &amp; save</button>
+    </div>
+  </div>
+</div>
+
+<div id="warnOverlay" class="alert-overlay">
+  <div class="confirm-box">
+    <h3 id="warnTitle">Permanent change</h3>
+    <p class="warn-body" id="warnBody"></p>
+    <p class="warn-note" id="warnNote"></p>
+    <div class="confirm-actions">
+      <button type="button" class="btn btn-outline" id="warnCancelBtn">Cancel</button>
+      <button type="button" class="btn btn-danger" id="warnOkBtn">Delete</button>
     </div>
   </div>
 </div>
@@ -1524,7 +1539,12 @@ function updateHistoryCount() {
 async function deleteEntryByKey(key) {
   const entry = getEntries().find(e => entryKey(e) === key);
   if (!entry) return;
-  if (!confirm('Delete entry for ' + entry.date + '?')) return;
+  const confirmed = await confirmPermanent(
+    'Delete entry?',
+    'This is a <strong>permanent change</strong> — the entry for <strong>' + esc(entry.date) + '</strong> and its receipts will be deleted from the sheet.',
+    'Delete'
+  );
+  if (!confirmed) return;
   await deleteEntryFromSheet(entry);
   showHistory();
   updateHistoryCount();
@@ -1538,15 +1558,53 @@ async function deleteLastSubmission() {
     return;
   }
   const last = [...entries].sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))[0];
-  if (!confirm('Delete most recent (' + last.date + ')?')) return;
+  const confirmed = await confirmPermanent(
+    'Delete last submission?',
+    'This is a <strong>permanent change</strong> — the most recent entry (<strong>' + esc(last.date) + '</strong>) and its receipts will be deleted from the sheet.',
+    'Delete'
+  );
+  if (!confirmed) return;
   await deleteEntryFromSheet(last);
   showMsg('deleteLastMsg', 'Deleted ' + last.date, 'success');
   updateHistoryCount();
   render21DayTotals();
 }
 
+function confirmPermanent(title, body, okLabel) {
+  return new Promise((resolve) => {
+    const ov = document.getElementById('warnOverlay');
+    const t = document.getElementById('warnTitle');
+    const b = document.getElementById('warnBody');
+    const note = document.getElementById('warnNote');
+    const okBtn = document.getElementById('warnOkBtn');
+    const cancelBtn = document.getElementById('warnCancelBtn');
+
+    if (t) t.textContent = title || 'Permanent change';
+    if (b) b.innerHTML = body || '';
+    if (note) note.textContent = 'This cannot be undone. Your master log in Google Sheets remains as a backup.';
+    if (okBtn && okLabel) okBtn.textContent = okLabel;
+
+    function cleanup(result) {
+      ov.classList.remove('active');
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      ov.onclick = null;
+      resolve(result);
+    }
+    okBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    ov.onclick = (e) => { if (e.target === ov) cleanup(false); };
+    ov.classList.add('active');
+  });
+}
+
 async function clearHistory() {
-  if (!confirm('Delete ALL entries?')) return;
+  const confirmed = await confirmPermanent(
+    'Clear ALL entries?',
+    'This is a <strong>permanent change</strong> — every entry and its receipts will be deleted from the sheet.',
+    'Delete everything'
+  );
+  if (!confirmed) return;
   const url = getApiUrl();
   if (url) {
     showLoading('Clearing…');
