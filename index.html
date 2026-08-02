@@ -301,7 +301,6 @@ h3{font-size:14px;margin:0 0 8px}
 // ===== DEFAULTS =====
 const APP_PASSWORD = 'bl26';
 const MGD_RATE = 0.2;
-const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyfdbxUBq5j1X5a9ssujgUUMB5bbWVxv9gZqsjzuVEkNhIEVKk9s3B7pNWFwo3QvYcG/exec';
 
 function uid() {
   return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -443,7 +442,7 @@ function applyRemoteConfig(remote) {
 }
 
 // ===== API =====
-function getApiUrl() { return localStorage.getItem('3l_api_url') || DEFAULT_API_URL; }
+function getApiUrl() { return localStorage.getItem('3l_api_url') || ''; }
 function setApiUrl(url) { localStorage.setItem('3l_api_url', url); }
 
 function showLoading(msg) {
