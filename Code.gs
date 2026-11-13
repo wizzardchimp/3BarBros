@@ -8,6 +8,34 @@ const MASTER_SHEET_NAME = 'MasterLog';
 
 const RECEIPTS_FOLDER_NAME = '3BarBros Receipts';
 
+const DATA_HEADER = ['Date', 'Timestamp', 'Data'];
+const MASTER_HEADER = [
+  'Date', 'Submitted', 'Entry ID', 'Site', 'Category',
+  'Gross', 'Float req', 'Float taken', 'Net', 'MGD', 'Supplier', 'Site Share'
+];
+const ALLOWED_IMAGE_TYPES = { 'image/jpeg': 1, 'image/png': 1, 'image/webp': 1, 'image/heic': 1 };
+
+function json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function round2(v) {
+  return Math.round((parseFloat(v) || 0) * 100) / 100;
+}
+
+/**
+ * Optional shared-secret check. Set a Script Property named API_TOKEN
+ * (Project Settings → Script properties). When set, every request must carry
+ * the same token (?token= on GET, "token" in the POST body). When unset the
+ * endpoint behaves as before (open) so existing deployments keep working.
+ */
+function isAuthorised(token) {
+  const expected = PropertiesService.getScriptProperties().getProperty('API_TOKEN');
+  if (!expected) return true;
+  return String(token || '') === expected;
+}
+
 const META_SHEETS = {};
 META_SHEETS[LOG_SHEET_NAME] = true;
 META_SHEETS[RATES_SHEET_NAME] = true;
@@ -32,7 +60,7 @@ function getSheet() {
   }
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow(['Date', 'Timestamp', 'Data']);
+    sheet.appendRow(DATA_HEADER);
   }
   return sheet;
 }
@@ -62,36 +90,22 @@ function getMasterLogSheet() {
   let sheet = ss.getSheetByName(MASTER_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(MASTER_SHEET_NAME);
-    sheet.appendRow([
-      'Date',
-      'Submitted',
-      'Entry ID',
-      'Site',
-      'Category',
-      'Gross',
-      'Float req',
-      'Float taken',
-      'Net',
-      'MGD',
-      'Supplier',
-      'Site Share'
-    ]);
+    sheet.appendRow(MASTER_HEADER);
     sheet.setFrozenRows(1);
   }
   return sheet;
 }
 
 /**
- * Append-only audit rows for one submission.
+ * Append-only audit rows for one submission (written in one batch).
  * Never updated/deleted by clear/delete/merge.
  */
 function appendMasterLog(entry) {
   if (!entry || !entry.locations) return 0;
-  const sheet = getMasterLogSheet();
   const date = normalizeDate(entry.date);
   const ts = entry.timestamp || new Date().toISOString();
   const entryId = entry.id || ts;
-  let n = 0;
+  const rows = [];
 
   for (let i = 0; i < entry.locations.length; i++) {
     const loc = entry.locations[i] || {};
@@ -100,62 +114,58 @@ function appendMasterLog(entry) {
     for (let c = 0; c < cats.length; c++) {
       const cat = cats[c] || {};
       const gross = cat.gross != null ? cat.gross : (cat.cash != null ? cat.cash : 0);
-      const floatReq = cat.floatRequired != null ? cat.floatRequired : 0;
-      const floatTaken = cat.floatTaken != null ? cat.floatTaken : 0;
       const net = cat.net != null ? cat.net : (cat.total != null ? cat.total : gross);
-      sheet.appendRow([
-        date,
-        ts,
-        entryId,
-        site,
-        cat.name || '',
-        gross,
-        floatReq,
-        floatTaken,
-        net,
-        cat.mgd != null ? cat.mgd : 0,
-        cat.supplierShare != null ? cat.supplierShare : 0,
-        cat.cashLeft != null ? cat.cashLeft : 0
+      rows.push([
+        date, ts, entryId, site, cat.name || '',
+        round2(gross),
+        round2(cat.floatRequired),
+        round2(cat.floatTaken),
+        round2(net),
+        round2(cat.mgd),
+        round2(cat.supplierShare),
+        round2(cat.cashLeft)
       ]);
-      n++;
     }
+    // Pool row: only when the entry actually carries pool takings or pool shares
     if (loc.poolGross != null && loc.poolGross !== '') {
       const pg = parseFloat(loc.poolGross) || 0;
-      // Always log pool row when present (including 0) only if has explicit pool fields
-      if (loc.poolSS != null || loc.poolCL != null || pg > 0) {
-        sheet.appendRow([
-          date,
-          ts,
-          entryId,
-          site,
-          'Pool',
-          pg,
-          '',
-          '',
-          pg,
-          0,
-          loc.poolSS != null ? loc.poolSS : 0,
-          loc.poolCL != null ? loc.poolCL : 0
+      if (pg > 0 || loc.poolSS != null || loc.poolCL != null) {
+        rows.push([
+          date, ts, entryId, site, 'Pool',
+          round2(pg), '', '', round2(pg), 0,
+          round2(loc.poolSS), round2(loc.poolCL)
         ]);
-        n++;
       }
     }
   }
-  return n;
+  if (!rows.length) return 0;
+  const sheet = getMasterLogSheet();
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, MASTER_HEADER.length).setValues(rows);
+  return rows.length;
 }
 
 /**
  * Optional: run once from Apps Script editor to copy existing Data entries into MasterLog.
- * Safe to re-run only if MasterLog is empty — does not de-dupe.
+ * Skips entries whose Entry ID is already in MasterLog, so it is safe to re-run.
  */
 function backfillMasterLogFromData() {
   const entries = readEntries();
+  const master = getMasterLogSheet();
+  const seen = {};
+  const last = master.getLastRow();
+  if (last > 1) {
+    const ids = master.getRange(2, 3, last - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) seen[String(ids[i][0])] = true;
+  }
   let total = 0;
+  let skipped = 0;
   for (let i = 0; i < entries.length; i++) {
+    const id = String(entries[i].id || entries[i].timestamp || '');
+    if (id && seen[id]) { skipped++; continue; }
     total += appendMasterLog(entries[i]);
   }
-  Logger.log('MasterLog backfill wrote ' + total + ' row(s) from ' + entries.length + ' entr(y/ies)');
-  return { success: true, rows: total, entries: entries.length };
+  Logger.log('MasterLog backfill wrote ' + total + ' row(s) from ' + entries.length + ' entr(y/ies); skipped ' + skipped);
+  return { success: true, rows: total, entries: entries.length, skipped: skipped };
 }
 
 function readConfig() {
@@ -165,15 +175,16 @@ function readConfig() {
   try {
     return JSON.parse(String(data[1][0]));
   } catch (e) {
+    Logger.log('readConfig: stored config is not valid JSON: ' + e);
     return null;
   }
 }
 
 function writeConfig(config) {
   const sheet = getRatesSheet();
-  sheet.clearContents();
-  sheet.appendRow(['ConfigJSON']);
-  sheet.appendRow([JSON.stringify(config)]);
+  // Overwrite in place (no clear-then-append window where the config is empty)
+  sheet.getRange(1, 1).setValue('ConfigJSON');
+  sheet.getRange(2, 1).setValue(JSON.stringify(config));
 }
 
 function normalizeDate(val) {
@@ -283,6 +294,24 @@ function readEntries() {
  * Do NOT run on the 3Lemons sheet.
  */
 function resetAppForCleanSlate() {
+  // Destructive: ask for confirmation in the sheet UI when one is available.
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const answer = ui.alert(
+      'Wipe ALL 3BarBros data?',
+      'This permanently deletes config, entries, login log and MasterLog on THIS spreadsheet.',
+      ui.ButtonSet.YES_NO
+    );
+    if (answer !== ui.Button.YES) {
+      Logger.log('Clean slate cancelled.');
+      return { success: false, cancelled: true };
+    }
+  } catch (e) {
+    // No UI context (editor run): refuse rather than wipe silently.
+    Logger.log('Clean slate needs the spreadsheet UI to confirm; run it from the sheet menu or add a UI trigger.');
+    return { success: false, error: 'No UI available to confirm' };
+  }
+
   const rates = getRatesSheet();
   rates.clearContents();
   rates.appendRow(['ConfigJSON']);
@@ -290,7 +319,7 @@ function resetAppForCleanSlate() {
 
   const data = getSheet();
   data.clearContents();
-  data.appendRow(['Date', 'Timestamp', 'Data']);
+  data.appendRow(DATA_HEADER);
 
   const log = getLogSheet();
   log.clearContents();
@@ -298,241 +327,252 @@ function resetAppForCleanSlate() {
 
   const master = getMasterLogSheet();
   master.clearContents();
-  master.appendRow(['Date', 'Submitted', 'Entry ID', 'Site', 'Category', 'Gross', 'Float req', 'Float taken', 'Net', 'MGD', 'Supplier', 'Site Share']);
+  master.appendRow(MASTER_HEADER);
 
   Logger.log('3BarBros clean slate applied.');
   return { success: true };
 }
 
 function doGet(e) {
-  // Ensure meta tabs exist (Rates, LoginLog, MasterLog) on every load
+  if (!isAuthorised(e && e.parameter && e.parameter.token)) {
+    return json({ success: false, error: 'Unauthorized' });
+  }
+  // Ensure meta tabs exist (LoginLog, MasterLog) on every load
   try {
     getLogSheet();
     getMasterLogSheet();
-  } catch (err) {}
-  return ContentService.createTextOutput(JSON.stringify({
+  } catch (err) {
+    Logger.log('doGet: could not ensure meta sheets: ' + err);
+  }
+  return json({
     entries: readEntries(),
     config: readConfig()
-  })).setMimeType(ContentService.MimeType.JSON);
+  });
+}
+
+/** Find the row entry on a sheet that matches the target id/timestamp. */
+function findEntryRow(sheet, targetId, targetTs) {
+  const data = sheet.getDataRange().getValues();
+  const display = sheet.getDataRange().getDisplayValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    let rowEntry = null;
+    if (data[i].length > 2) {
+      rowEntry = tryParseEntry(data[i][2]) || tryParseEntry(display[i][2]);
+    }
+    if (!rowEntry) {
+      for (let c = 0; c < data[i].length; c++) {
+        rowEntry = tryParseEntry(data[i][c]) || tryParseEntry(display[i][c]);
+        if (rowEntry) break;
+      }
+    }
+    if (!rowEntry) continue;
+    const rowId = rowEntry.id ? String(rowEntry.id) : '';
+    const rowTs = rowEntry.timestamp ? String(rowEntry.timestamp) : String(data[i][1] || '');
+    // Prefer id. Fall back to timestamp only when either side has no id.
+    let match = false;
+    if (targetId && rowId) match = rowId === targetId;
+    else if (targetTs && rowTs) match = rowTs === targetTs;
+    if (match) return { row: i + 1, entry: rowEntry };
+  }
+  return null;
+}
+
+function findEntryAcrossSheets(targetId, targetTs) {
+  const sheets = getSpreadsheet().getSheets();
+  for (let s = 0; s < sheets.length; s++) {
+    const sheet = sheets[s];
+    if (isMetaSheetName(sheet.getName())) continue;
+    const hit = findEntryRow(sheet, targetId, targetTs);
+    if (hit) { hit.sheet = sheet; return hit; }
+  }
+  return null;
 }
 
 function doPost(e) {
+  let body;
   try {
-    const body = JSON.parse(e.postData.contents);
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return json({ success: false, error: 'Bad request' });
+  }
+  if (!isAuthorised(body && body.token)) {
+    return json({ success: false, error: 'Unauthorized' });
+  }
 
-    if (body.action === 'login') {
-      const logSheet = getLogSheet();
-      logSheet.appendRow([body.timestamp || new Date().toISOString(), '']);
-      return ContentService.createTextOutput(JSON.stringify({ success: true }))
-        .setMimeType(ContentService.MimeType.JSON);
+  // Serialise all writes so concurrent requests can't interleave rows.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (err) {
+    return json({ success: false, error: 'Server busy, try again' });
+  }
+  try {
+    return handlePost(body);
+  } catch (err) {
+    return json({ success: false, error: err.toString() });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handlePost(body) {
+  const action = body.action;
+
+  if (action === 'login') {
+    getLogSheet().appendRow([new Date().toISOString(), '']);
+    return json({ success: true });
+  }
+
+  if (action === 'saveConfig') {
+    if (!body.config || !Array.isArray(body.config.locations)) {
+      return json({ success: false, error: 'No config' });
     }
+    writeConfig(body.config);
+    return json({ success: true });
+  }
 
-    if (body.action === 'saveConfig') {
-      if (!body.config) {
-        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'No config' }))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-      writeConfig(body.config);
-      return ContentService.createTextOutput(JSON.stringify({ success: true }))
-        .setMimeType(ContentService.MimeType.JSON);
+  if (action === 'updateEntry') {
+    const entry = body.entry;
+    if (!entry) return json({ success: false, error: 'No entry' });
+    const targetId = entry.id ? String(entry.id) : '';
+    const targetTs = entry.timestamp ? String(entry.timestamp) : '';
+    const hit = findEntryAcrossSheets(targetId, targetTs);
+    if (!hit) return json({ success: false, error: 'Not found' });
+
+    const rest = {};
+    for (const k in entry) {
+      if (k !== 'date') rest[k] = entry[k];
     }
+    if (!rest.id) rest.id = targetId || targetTs;
+    if (!rest.timestamp) rest.timestamp = targetTs || new Date().toISOString();
+    // Single write for the whole row
+    hit.sheet.getRange(hit.row, 1, 1, 3).setValues([[
+      normalizeDate(entry.date), rest.timestamp, JSON.stringify(rest)
+    ]]);
+    // Do NOT write MasterLog on merge/update — audit is submit-only
+    return json({ success: true });
+  }
 
-    if (body.action === 'updateEntry') {
-      const entry = body.entry;
-      if (!entry) {
-        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'No entry' }))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-      const targetId = entry.id ? String(entry.id) : '';
-      const targetTs = entry.timestamp ? String(entry.timestamp) : '';
-      const date = normalizeDate(entry.date);
-      const ss = getSpreadsheet();
-      const sheets = ss.getSheets();
-      for (let s = 0; s < sheets.length; s++) {
-        const sheet = sheets[s];
-        if (isMetaSheetName(sheet.getName())) continue;
-        const data = sheet.getDataRange().getValues();
-        const display = sheet.getDataRange().getDisplayValues();
-        for (let i = 1; i < data.length; i++) {
-          let rowEntry = null;
-          if (data[i].length > 2) {
-            rowEntry = tryParseEntry(data[i][2]) || tryParseEntry(display[i][2]);
-          }
-          if (!rowEntry) {
-            for (let c = 0; c < data[i].length; c++) {
-              rowEntry = tryParseEntry(data[i][c]) || tryParseEntry(display[i][c]);
-              if (rowEntry) break;
-            }
-          }
-          if (!rowEntry) continue;
-          const rowId = rowEntry.id ? String(rowEntry.id) : '';
-          const rowTs = rowEntry.timestamp ? String(rowEntry.timestamp) : String(data[i][1] || '');
-          let match = false;
-          if (targetId && rowId && rowId === targetId) match = true;
-          else if (targetTs && rowTs && rowTs === targetTs) match = true;
-          if (match) {
-            const rest = {};
-            for (const k in entry) {
-              if (k !== 'date') rest[k] = entry[k];
-            }
-            if (!rest.id) rest.id = targetId || targetTs;
-            if (!rest.timestamp) rest.timestamp = targetTs || new Date().toISOString();
-            sheet.getRange(i + 1, 1).setValue(date);
-            sheet.getRange(i + 1, 2).setValue(rest.timestamp);
-            sheet.getRange(i + 1, 3).setValue(JSON.stringify(rest));
-            // Do NOT write MasterLog on merge/update — audit is submit-only
-            return ContentService.createTextOutput(JSON.stringify({ success: true }))
-              .setMimeType(ContentService.MimeType.JSON);
-          }
-        }
-      }
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Not found' }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+  if (action === 'uploadPhoto') {
+    const siteName = String(body.siteName || 'Site');
+    const filename = String(body.filename || 'receipt.jpg');
+    const dataBase64 = String(body.dataBase64 || '');
+    if (!dataBase64) return json({ success: false, error: 'No image data' });
+    return json(saveReceiptPhoto(siteName, filename, dataBase64, body.mimeType));
+  }
 
-    if (body.action === 'uploadPhoto') {
-      const siteName = String(body.siteName || 'Site');
-      const filename = String(body.filename || 'receipt.jpg');
-      const dataBase64 = String(body.dataBase64 || '');
-      if (!dataBase64) {
-        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'No image data' }))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-      const result = saveReceiptPhoto(siteName, filename, dataBase64);
-      return ContentService.createTextOutput(JSON.stringify(result))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (body.action === 'deletePhoto') {
-      const fileId = String(body.fileId || '');
-      let ok = false;
-      if (fileId) {
-        try {
-          const file = DriveApp.getFileById(fileId);
+  if (action === 'deletePhoto') {
+    const fileId = String(body.fileId || '');
+    let ok = false;
+    if (fileId) {
+      try {
+        const file = DriveApp.getFileById(fileId);
+        // Only ever trash files that live inside the receipts folder tree.
+        if (isInReceiptsFolder(file)) {
           file.setTrashed(true);
           ok = true;
-        } catch (err) {}
-      }
-      return ContentService.createTextOutput(JSON.stringify({ success: ok }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (body.action === 'delete') {
-      const targetId = body.id ? String(body.id) : '';
-      const targetTs = body.timestamp ? String(body.timestamp) : '';
-      const targetDate = body.date ? normalizeDate(body.date) : '';
-      const ss = getSpreadsheet();
-      const sheets = ss.getSheets();
-      for (let s = 0; s < sheets.length; s++) {
-        const sheet = sheets[s];
-        if (isMetaSheetName(sheet.getName())) continue;
-        const data = sheet.getDataRange().getValues();
-        const display = sheet.getDataRange().getDisplayValues();
-        for (let i = data.length - 1; i >= 1; i--) {
-          let entry = null;
-          if (data[i].length > 2) {
-            entry = tryParseEntry(data[i][2]) || tryParseEntry(display[i][2]);
-          }
-          if (!entry) {
-            for (let c = 0; c < data[i].length; c++) {
-              entry = tryParseEntry(data[i][c]) || tryParseEntry(display[i][c]);
-              if (entry) break;
-            }
-          }
-          if (!entry) continue;
-
-          const rowId = entry.id ? String(entry.id) : '';
-          const rowTs = entry.timestamp ? String(entry.timestamp) : String(data[i][1] || '');
-          const rowDate = normalizeDate(data[i][0] || entry.date);
-
-          let match = false;
-          if (targetId && rowId && rowId === targetId) match = true;
-          else if (targetTs && rowTs && rowTs === targetTs) match = true;
-          else if (!targetId && !targetTs && targetDate && rowDate === targetDate) match = true;
-
-          if (match) {
-            sheet.deleteRow(i + 1);
-            return ContentService.createTextOutput(JSON.stringify({ success: true }))
-              .setMimeType(ContentService.MimeType.JSON);
-          }
         }
+      } catch (err) {
+        Logger.log('deletePhoto failed: ' + err);
       }
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Not found' }))
-        .setMimeType(ContentService.MimeType.JSON);
     }
-
-    if (body.action === 'clear') {
-      const sheet = getSheet();
-      sheet.clearContents();
-      sheet.appendRow(['Date', 'Timestamp', 'Data']);
-      return ContentService.createTextOutput(JSON.stringify({ success: true }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // Always APPEND (multiple entries per date OK)
-    const sheet = getSheet();
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(['Date', 'Timestamp', 'Data']);
-    }
-    const date = normalizeDate(body.date);
-    const ts = body.timestamp || new Date().toISOString();
-    const id = body.id || ts;
-    const rest = {};
-    for (const k in body) {
-      if (k !== 'date') rest[k] = body[k];
-    }
-    rest.timestamp = ts;
-    rest.id = id;
-    rest.date = date;
-    sheet.appendRow([date, ts, JSON.stringify(rest)]);
-
-    // Permanent append-only audit log (survives delete/clear/merge)
-    let masterRows = 0;
-    try {
-      masterRows = appendMasterLog(rest);
-    } catch (logErr) {
-      // Don't fail the save if audit log has an issue
-      masterRows = -1;
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      id: id,
-      timestamp: ts,
-      masterLogRows: masterRows
-    })).setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return json({ success: ok });
   }
+
+  if (action === 'delete') {
+    const targetId = body.id ? String(body.id) : '';
+    const targetTs = body.timestamp ? String(body.timestamp) : '';
+    // A delete must identify the entry by id or timestamp (never by date alone).
+    if (!targetId && !targetTs) return json({ success: false, error: 'No id' });
+    const hit = findEntryAcrossSheets(targetId, targetTs);
+    if (!hit) return json({ success: false, error: 'Not found' });
+    hit.sheet.deleteRow(hit.row);
+    return json({ success: true });
+  }
+
+  if (action === 'clear') {
+    // Guard against stray/accidental POSTs: caller must confirm explicitly.
+    if (body.confirm !== 'CLEAR') return json({ success: false, error: 'Confirmation required' });
+    const sheet = getSheet();
+    sheet.clearContents();
+    sheet.appendRow(DATA_HEADER);
+    return json({ success: true });
+  }
+
+  // ---- Submit: always APPEND (multiple entries per date OK) ----
+  const sheet = getSheet();
+  if (sheet.getLastRow() === 0) sheet.appendRow(DATA_HEADER);
+
+  const date = normalizeDate(body.date);
+  const ts = body.timestamp || new Date().toISOString();
+  const id = body.id || ts;
+
+  // Idempotent: a retried POST with an id we already stored is a success, not a duplicate.
+  if (findEntryRow(sheet, String(id), '')) {
+    return json({ success: true, id: id, timestamp: ts, duplicate: true, masterLogRows: 0 });
+  }
+
+  const rest = {};
+  for (const k in body) {
+    if (k !== 'date' && k !== 'token') rest[k] = body[k];
+  }
+  rest.timestamp = ts;
+  rest.id = id;
+  rest.date = date;
+  sheet.appendRow([date, ts, JSON.stringify(rest)]);
+
+  // Permanent append-only audit log (survives delete/clear/merge)
+  let masterRows = 0;
+  try {
+    masterRows = appendMasterLog(rest);
+  } catch (logErr) {
+    Logger.log('MasterLog write failed: ' + logErr);
+    masterRows = -1; // don't fail the save if the audit log has an issue
+  }
+
+  return json({ success: true, id: id, timestamp: ts, masterLogRows: masterRows });
+}
+
+function getReceiptsRoot() {
+  const it = DriveApp.getFoldersByName(RECEIPTS_FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(RECEIPTS_FOLDER_NAME);
+}
+
+/** True when the file sits (at any depth) under the receipts root folder. */
+function isInReceiptsFolder(file) {
+  const rootId = getReceiptsRoot().getId();
+  const queue = [];
+  const parents = file.getParents();
+  while (parents.hasNext()) queue.push(parents.next());
+  let guard = 0;
+  while (queue.length && guard++ < 50) {
+    const f = queue.shift();
+    if (f.getId() === rootId) return true;
+    const up = f.getParents();
+    while (up.hasNext()) queue.push(up.next());
+  }
+  return false;
 }
 
 /**
  * Saves a receipt snapshot to the script owner's Google Drive, private.
  * Returns { success, fileId, url, name }.
  */
-function saveReceiptPhoto(siteName, filename, dataBase64) {
+function saveReceiptPhoto(siteName, filename, dataBase64, mimeType) {
+  const type = String(mimeType || 'image/jpeg').toLowerCase();
+  if (!ALLOWED_IMAGE_TYPES[type]) {
+    return { success: false, error: 'Unsupported image type' };
+  }
   const bytes = Utilities.base64Decode(dataBase64);
   if (bytes.length > 10 * 1024 * 1024) {
     return { success: false, error: 'Image too large' };
   }
   const safeName = (String(siteName) || 'Site').replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Site';
-  let root = null;
-  try {
-    root = DriveApp.getFoldersByName(RECEIPTS_FOLDER_NAME).next();
-  } catch (e) {
-    root = DriveApp.createFolder(RECEIPTS_FOLDER_NAME);
-  }
-  let siteFolder = null;
+  const root = getReceiptsRoot();
   const it = root.getFoldersByName(safeName);
-  if (it.hasNext()) {
-    siteFolder = it.next();
-  } else {
-    siteFolder = root.createFolder(safeName);
-  }
+  const siteFolder = it.hasNext() ? it.next() : root.createFolder(safeName);
   const safeFile = (String(filename) || 'receipt.jpg').replace(/[\\/:*?"<>|]/g, ' ').trim() || 'receipt.jpg';
-  const blob = Utilities.newBlob(bytes, 'image/jpeg', safeFile);
+  const blob = Utilities.newBlob(bytes, type, safeFile);
   const file = siteFolder.createFile(blob);
   file.setDescription('3BarBros receipt snapshot');
   return {

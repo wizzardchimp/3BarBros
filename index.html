@@ -266,6 +266,9 @@ h3{font-size:14px;margin:0 0 8px}
     <input type="url" id="apiUrlInput" style="width:100%;max-width:600px" placeholder="https://script.google.com/macros/s/.../exec">
     <button class="btn btn-primary" style="margin-top:8px" onclick="saveApiUrl()">Save API URL</button>
     <span id="apiUrlMsg" class="msg"></span>
+    <h2 style="margin-top:16px">API access token (optional)</h2>
+    <p class="hint">If you set an <code>API_TOKEN</code> script property in Apps Script, enter the same value here.</p>
+    <input type="password" id="apiTokenInput" autocomplete="off" style="width:100%;max-width:600px" placeholder="Leave blank if not using a token">
   </div>
 
   <div class="settings-card">
@@ -347,16 +350,18 @@ function uid() {
 const DEFAULT_CONFIG = {
   locations: [
     {
-      id: uid(), name: 'Site A', nameHistory: [], hasPool: false,
+      id: 'site_a', name: 'Site A', nameHistory: [], hasPool: false,
       poolMode: 'fifty', poolRent: 0, poolPercent: 50,
       categories: [
-        { id: uid(), name: 'Reels', rate: 0.6, hasFloat: true, floatRequired: 0, flatFee: 0 },
-        { id: uid(), name: 'Digital', rate: 0.5, hasFloat: true, floatRequired: 0, flatFee: 0 }
+        { id: 'cat_reels', name: 'Reels', rate: 0.6, hasFloat: true, floatRequired: 0, flatFee: 0 },
+        { id: 'cat_digital', name: 'Digital', rate: 0.5, hasFloat: true, floatRequired: 0, flatFee: 0 }
       ]
     }
   ]
 };
 let config;
+let configIsDefault = false; // true when config is the built-in sample, not user-saved
+let dataLoadOk = false;   // true only after a successful load from the sheet
 let cachedEntries = [];
 let entriesLoaded = false;
 let _monthlyFiltered = [];
@@ -452,7 +457,7 @@ function renderReceipts(locId) {
     thumbs.innerHTML = list.map((p, i) =>
       `<div class="receipt-thumb">
         <img src="${p.dataUrl}" alt="receipt ${i + 1}">
-        <button type="button" class="receipt-remove" onclick="removePendingPhoto('${locId.replace(/'/g, "\\'")}', ${i})" aria-label="Remove receipt">×</button>
+        <button type="button" class="receipt-remove" onclick="removePendingPhoto('${jsAttr(locId)}', ${i})" aria-label="Remove receipt">×</button>
       </div>`).join('');
   }
   if (count) count.textContent = list.length ? (list.length + ' identified') : '';
@@ -464,9 +469,11 @@ function loadConfigLocal() {
   if (saved) {
     try {
       config = migrateConfig(JSON.parse(saved));
+      configIsDefault = false;
       return;
     } catch (e) {}
   }
+  configIsDefault = true;
   config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   // fresh ids
   config.locations.forEach(loc => {
@@ -574,6 +581,26 @@ function applyRemoteConfig(remote) {
 // ===== API =====
 function getApiUrl() { return localStorage.getItem('3bb_api_url') || ''; }
 function setApiUrl(url) { localStorage.setItem('3bb_api_url', url); }
+function getApiToken() { return localStorage.getItem('3bb_api_token') || ''; }
+function setApiToken(t) {
+  if (t) localStorage.setItem('3bb_api_token', t);
+  else localStorage.removeItem('3bb_api_token');
+}
+/** Attach the optional shared secret to a request (GET query / POST JSON body). */
+function withToken(url, opts) {
+  const token = getApiToken();
+  if (!token) return { url, opts };
+  if (!opts || !opts.body) {
+    return { url: url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token), opts };
+  }
+  let o = opts;
+  try {
+    const b = JSON.parse(opts.body);
+    b.token = token;
+    o = Object.assign({}, opts, { body: JSON.stringify(b) });
+  } catch (e) {}
+  return { url, opts: o };
+}
 
 function showLoading(msg) {
   const el = document.getElementById('loadingOverlay');
@@ -621,6 +648,8 @@ function failToSettings(message) {
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function apiFetch(url, opts, timeoutMs) {
+  const t = withToken(url, opts);
+  url = t.url; opts = t.opts;
   const maxRetries = 3;
   let lastErr = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -651,7 +680,7 @@ async function apiFetch(url, opts, timeoutMs) {
 async function loadEntries() {
   const url = getApiUrl();
   if (!url) {
-    cachedEntries = [];
+    dataLoadOk = false;
     entriesLoaded = true;
     return { ok: false, error: 'No API URL saved. Paste your Apps Script web app URL below and save it.' };
   }
@@ -659,31 +688,41 @@ async function loadEntries() {
   try {
     const r = await apiFetch(url, undefined, 20000);
     if (!r.ok) {
-      cachedEntries = [];
+      dataLoadOk = false;
       entriesLoaded = true;
       return { ok: false, error: 'API responded with HTTP ' + r.status + '. Check the deployment (Who has access: Anyone) and URL.' };
     }
     const data = await r.json();
+    if (data && data.error === 'Unauthorized') {
+      dataLoadOk = false;
+      entriesLoaded = true;
+      return { ok: false, error: 'The API rejected the access token. Check the API token in Settings matches the API_TOKEN script property.' };
+    }
     if (Array.isArray(data)) {
       cachedEntries = data;
     } else if (data && typeof data === 'object') {
       cachedEntries = data.entries || [];
       if (data.config) {
         applyRemoteConfig(data.config);
-      } else if (config && config.locations && config.locations.length) {
+        configIsDefault = false;
+      } else if (!configIsDefault && config && config.locations && config.locations.length) {
+        // Sheet has no config yet: seed it only from a config the user actually saved,
+        // never from the built-in sample on a fresh device.
         await saveConfigToSheet({ silent: true });
       }
     } else {
-      cachedEntries = [];
+      dataLoadOk = false;
       entriesLoaded = true;
       return { ok: false, error: 'API returned unexpected data. Redeploy Code.gs and confirm the URL ends with /exec.' };
     }
     migrateEntries();
     entriesLoaded = true;
+    dataLoadOk = true;
     return { ok: true, entries: cachedEntries };
   } catch (e) {
     console.error(e);
-    cachedEntries = [];
+    // Keep any previously loaded entries; just record that this refresh failed.
+    dataLoadOk = false;
     entriesLoaded = true;
     const aborted = e && (e.name === 'AbortError' || String(e.message || '').includes('abort'));
     return {
@@ -895,9 +934,9 @@ function getFloatOwedIn(locId, catId, beforeDate, beforeTs) {
       if (e.date > beforeDate) break;
       if (e.date === beforeDate && beforeTs && String(e.timestamp || '') >= String(beforeTs)) break;
     }
-    const loc = (e.locations || []).find(l => l.id === locId || l.name === locId);
+    const loc = (e.locations || []).find(l => l.id ? l.id === locId : l.name === locId);
     if (!loc) continue;
-    const cat = (loc.categories || []).find(c => c.id === catId || c.name === catId);
+    const cat = (loc.categories || []).find(c => c.id ? c.id === catId : c.name === catId);
     if (!cat) continue;
     if (cat.floatOwedAfter != null) owed = parseFloat(cat.floatOwedAfter) || 0;
   }
@@ -1046,7 +1085,7 @@ function renderForm() {
       <span class="receipt-count" id="receiptCount_${loc.id}"></span>
     </div>
     <div class="receipt-thumbs" id="receiptThumbs_${loc.id}"></div>
-    <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${loc.id}')">Add receipt photo</button>
+    <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${jsAttr(loc.id)}')">Add receipt photo</button>
   </div>`;
 
   html += `<div class="entry-actions" id="entryActions">
@@ -1074,6 +1113,11 @@ function renderForm() {
 
 function fieldId(loc, cat) {
   return (loc.id + '_' + cat.id).replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
+/** Escape a value for a single-quoted JS string inside an inline HTML attribute handler. */
+function jsAttr(v) {
+  return esc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'")).replace(/'/g, '&#39;');
 }
 
 function esc(s) {
@@ -1191,7 +1235,7 @@ function buildEntryFromForm() {
         : (parseFloat(document.getElementById('pool_' + loc.id)?.value) || 0);
       const p = calcPool(g, loc);
       locData.poolGross = p.poolGross;
-      locData.poolMode = loc.poolMode || 'fifty';
+      locData.poolMode = p.poolMode;
       locData.poolRent = loc.poolRent || 0;
       locData.poolPercent = loc.poolPercent || 50;
       locData.poolSS = p.poolSS;
@@ -1224,7 +1268,7 @@ function updateConfirmReceipts() {
       : '<span class="receipt-chip receipt-chip-muted">No receipt</span>';
     html += `<div class="confirm-receipt-row">
       <span>${esc(loc.name || 'Site')}: ${label}</span>
-      <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${String(loc.id).replace(/'/g, "\\'")}')">Add receipt</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${jsAttr(loc.id)}')">Add receipt</button>
     </div>`;
   }
   el.innerHTML = html;
@@ -1314,6 +1358,13 @@ async function submitEntry() {
   if (!date) { showMsg('submitMsg', 'Select a date', 'error'); return; }
   if (!activeEntrySiteId) { showMsg('submitMsg', 'Choose a site first', 'error'); return; }
   if (!config.locations.length) { showMsg('submitMsg', 'No sites configured', 'error'); return; }
+
+  // Refresh first so float carry-forward uses the latest sheet data (not a stale tab).
+  const fresh = await loadEntries();
+  if (!fresh.ok || !dataLoadOk) {
+    showMsg('submitMsg', 'Could not load latest data — not submitted. ' + (fresh.error || ''), 'error');
+    return;
+  }
 
   const entry = buildEntryFromForm();
   if (!entry) { showMsg('submitMsg', 'Could not build entry', 'error'); return; }
@@ -1412,11 +1463,7 @@ async function deleteReceiptsOnDrive(entry) {
 
 function resetForm() {
   // Clear inputs for current site only (stay on site form)
-  if (activeEntrySiteId) {
-    renderForm();
-  } else {
-    renderForm();
-  }
+  renderForm();
 }
 
 function showMsg(id, text, type) {
@@ -1507,7 +1554,6 @@ function showHistory() {
   </tr></thead><tbody>`;
   for (const e of sorted) {
     const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
-    const key = entryKey(e).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     let receiptsHtml = '—';
     const withPhotos = (e.locations || []).filter(l => (l.photos || []).length);
     if (withPhotos.length) {
@@ -1524,7 +1570,7 @@ function showHistory() {
       <td class="ro">£${(e.grandCL || 0).toFixed(2)}</td>
       <td class="ro">£${(e.grandFloat || 0).toFixed(2)}</td>
       <td>${receiptsHtml}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${key}')">Delete</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${jsAttr(entryKey(e))}')">Delete</button></td>
     </tr>`;
   }
   html += '</tbody></table></div>';
@@ -1612,7 +1658,7 @@ async function clearHistory() {
       for (const e of cachedEntries) {
         await deleteReceiptsOnDrive(e);
       }
-      await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'clear' }) });
+      await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'clear', confirm: 'CLEAR' }) });
     } catch (e) {}
     hideLoading();
   }
@@ -1718,7 +1764,7 @@ function showMonthlySummary() {
   }
 
   let html = `<div class="summary-card">
-    <div class="kpi"><div class="val">${filtered.length}</div><div class="lbl">Collections (${label})</div></div>
+    <div class="kpi"><div class="val">${filtered.length}</div><div class="lbl">Collections (${esc(label)})</div></div>
     <div class="kpi"><div class="val">£${totalGrand.toFixed(2)}</div><div class="lbl">Net Total</div></div>
     <div class="kpi"><div class="val">£${totalCL.toFixed(2)}</div><div class="lbl">Site Share</div></div>
     <div class="kpi"><div class="val">£${totalSS.toFixed(2)}</div><div class="lbl">Supplier Share</div></div>
@@ -1731,7 +1777,7 @@ function showMonthlySummary() {
     <th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th><th></th>
   </tr></thead><tbody>`;
   for (const v of Object.values(locTotals)) {
-    const viewKey = (v.id || v.label).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const viewKey = jsAttr(v.id || v.label);
     html += `<tr><td>${esc(v.label)}</td><td class="ro">£${v.net.toFixed(2)}</td><td class="ro">£${v.mgd.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td>
       <td><button class="btn btn-sm" onclick="viewLocationTotals('${viewKey}')">View</button></td></tr>`;
   }
@@ -1865,6 +1911,7 @@ function resetDraftForm() {
 
 function renderSettings() {
   document.getElementById('apiUrlInput').value = getApiUrl();
+  document.getElementById('apiTokenInput').value = getApiToken();
   ensureDraft();
   const loc = draftSite;
   const mode = loc.poolMode || 'fifty';
@@ -2278,6 +2325,7 @@ async function saveApiUrl() {
     return;
   }
   setApiUrl(url);
+  setApiToken(document.getElementById('apiTokenInput').value.trim());
   showMsg('apiUrlMsg', 'Testing connection…', 'success');
   const result = await loadEntries();
   if (!result || !result.ok) {
@@ -2294,11 +2342,19 @@ async function saveApiUrl() {
 function resetLocalData() {
   localStorage.removeItem('3bb_config');
   localStorage.removeItem('3bb_api_url');
+  localStorage.removeItem('3bb_api_token');
   sessionStorage.removeItem('3bb_logged_in');
   location.reload();
 }
 
 // ===== EXPORT =====
+/** CSV-safe cell: quotes/newlines escaped, and formula-leading text neutralised. */
+function csvCell(v) {
+  if (typeof v !== 'string') return v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+  return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
 function exportCSV() {
   const entries = getEntries();
   if (!entries.length) { alert('No entries'); return; }
@@ -2322,12 +2378,15 @@ function exportCSV() {
       }
     }
   }
-  const csv = rows.map(r => r.map(v => typeof v === 'string' && v.includes(',') ? '"' + v + '"' : v).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  // BOM so Excel reads UTF-8 (keeps £ intact)
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  const href = URL.createObjectURL(blob);
+  a.href = href;
   a.download = '3barbros_export_' + todayStr() + '.csv';
   a.click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 
 // ===== NAV / LOGIN =====
