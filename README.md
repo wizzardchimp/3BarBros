@@ -21,7 +21,7 @@ Create a spreadsheet with tabs (or let the script create them):
 - **LoginLog** — optional  
 - **MasterLog** — append-only audit of every submit (Date, Site, Category, Gross, Float, Net, …). Not cleared when Data is deleted.  
 
-Optional backfill of old Data rows: in Apps Script, run function `backfillMasterLogFromData` once.
+Optional backfill of old Data rows: in Apps Script, run function `backfillMasterLogFromData` (skips entries already in MasterLog, so it is safe to re-run).
 
 ### 2. Apps Script
 1. Extensions → Apps Script  
@@ -30,6 +30,15 @@ Optional backfill of old Data rows: in Apps Script, run function `backfillMaster
    - Execute as: Me  
    - Who has access: Anyone  
 4. Copy the `/exec` URL  
+
+### 2b. Lock down the API (recommended)
+The web app is deployed as "Anyone", so the `/exec` URL is the only barrier. To require a shared secret:
+1. Apps Script → Project Settings → **Script properties** → add `API_TOKEN` = a long random string  
+2. In the app: Settings → **API access token** → enter the same value → Save  
+
+When `API_TOKEN` is unset the API stays open (previous behaviour). The in-app password (`APP_PASSWORD`) is only a UI gate — it is visible in the page source and is **not** real security.
+
+Server-side safeguards: writes are serialised with a script lock; submits are idempotent by entry id (a retried POST can't create a duplicate); `clear` needs an explicit confirm flag; `delete` needs an id/timestamp; `deletePhoto` only trashes files inside the receipts folder.
 
 ### 3. App Settings
 1. Open the site → log in (`bl26`)  
@@ -43,6 +52,11 @@ Optional backfill of old Data rows: in Apps Script, run function `backfillMaster
 - MGD / rate splits on **net** only (site share % vs supplier % in Settings)  
 - `floatOwedAfter` carries to the next collection for that **location + category**  
 - Pool: no float (rent or 50/50 as configured)  
+
+## Known limitations
+- Editing/back-dating an entry does not recalculate `floatOwedAfter` on later entries.
+- Receipt photos upload before the entry saves; if the save then fails, the uploaded files stay in Drive.
+- Flat fees below the day's gross are not carried forward.
 
 ## Password
 Change `APP_PASSWORD` in `index.html` if needed.
