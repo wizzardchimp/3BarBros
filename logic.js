@@ -204,6 +204,24 @@
     return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');
   }
 
+  /**
+   * Filter "type" for a category/machine name. Digital groups Digital, Inspire and GM;
+   * Reels and Pool are their own types; anything else keeps its own name (e.g. Jukebox).
+   */
+  var TYPE_ORDER = ['Reels', 'Digital', 'Pool'];
+  function machineType(name) {
+    var n = String(name || '').trim();
+    if (/reel/i.test(n)) return 'Reels';
+    if (/^pool/i.test(n)) return 'Pool';
+    if (/digital|inspire|(^|[^a-z])gm([^a-z]|$)/i.test(n)) return 'Digital';
+    return n || 'Other';
+  }
+  function typeSort(a, b) {
+    var ia = TYPE_ORDER.indexOf(a), ib = TYPE_ORDER.indexOf(b);
+    if (ia < 0) ia = 99; if (ib < 0) ib = 99;
+    return ia - ib || String(a).localeCompare(String(b));
+  }
+
   /** One flat row per entry x site x category (pool as category 'Pool'). */
   function buildRows(entries, siteInfo, keyFn) {
     var rows = [];
@@ -217,13 +235,13 @@
           var gross = c.gross != null ? c.gross : (c.cash != null ? c.cash : 0);
           var net = c.net != null ? c.net : (c.total != null ? c.total : gross);
           rows.push({ entry: e, entryKey: ek, date: e.date, bm: bm, siteKey: si.key, siteName: si.label,
-            cat: c.name || '', gross: +gross || 0, floatTaken: +c.floatTaken || 0, net: +net || 0,
+            cat: c.name || '', type: machineType(c.name), gross: +gross || 0, floatTaken: +c.floatTaken || 0, net: +net || 0,
             mgd: +c.mgd || 0, ss: +c.supplierShare || 0, cl: +c.cashLeft || 0, low: null });
         });
         if (loc.poolGross != null && loc.poolGross !== '' && (parseFloat(loc.poolGross) > 0 || loc.poolSS != null || loc.poolCL != null)) {
           var pg = parseFloat(loc.poolGross) || 0;
           rows.push({ entry: e, entryKey: ek, date: e.date, bm: bm, siteKey: si.key, siteName: si.label,
-            cat: 'Pool', gross: pg, floatTaken: 0, net: pg, mgd: 0, ss: +loc.poolSS || 0, cl: +loc.poolCL || 0, low: null });
+            cat: 'Pool', type: 'Pool', gross: pg, floatTaken: 0, net: pg, mgd: 0, ss: +loc.poolSS || 0, cl: +loc.poolCL || 0, low: null });
         }
       });
     });
@@ -440,7 +458,7 @@
     applyTermChanges: applyTermChanges, seedCatTerms: seedCatTerms, seedPoolTerms: seedPoolTerms,
     calcCategory: calcCategory, calcPool: calcPool,
     shiftMonth: shiftMonth, daysBefore: daysBefore, buildRows: buildRows, periodTest: periodTest,
-    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, recomputeGrands: recomputeGrands
+    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, machineType: machineType, typeSort: typeSort, recomputeGrands: recomputeGrands
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.keys(api).forEach(function (k) { root[k] = api[k]; });

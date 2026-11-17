@@ -1624,9 +1624,9 @@ function histCompute() {
   const sites = groupRows(all, 'siteKey', 'siteName').sort((a, b) => a.label.localeCompare(b.label));
   if (histState.site !== 'all' && !sites.some(x => x.key === histState.site)) histState.site = 'all';
   const siteRows = histState.site === 'all' ? all : all.filter(r => r.siteKey === histState.site);
-  const cats = [...new Set(siteRows.map(r => r.cat))].sort();
+  const cats = [...new Set(siteRows.map(r => r.type))].sort(typeSort);
   if (histState.cat !== 'all' && !cats.includes(histState.cat)) histState.cat = 'all';
-  const base = histState.cat === 'all' ? siteRows : siteRows.filter(r => r.cat === histState.cat);
+  const base = histState.cat === 'all' ? siteRows : siteRows.filter(r => r.type === histState.cat);
   const inPeriod = periodTest(histState.period, today);
   const rows = base.filter(inPeriod);
   return { today, all, sites, cats, base, rows };
@@ -1645,8 +1645,8 @@ function histRenderFilters(c, targetId) {
     <label>Site<select onchange="histSet('site', this.value)" aria-label="Site">
       ${opt('all', 'All sites', histState.site)}${c.sites.map(x => opt(x.key, x.label, histState.site)).join('')}
     </select></label>
-    <label>Machine<select onchange="histSet('cat', this.value)" aria-label="Machine">
-      ${opt('all', 'All machines', histState.cat)}${c.cats.map(x => opt(x, x, histState.cat)).join('')}
+    <label>Type<select onchange="histSet('cat', this.value)" aria-label="Type">
+      ${opt('all', 'All types', histState.cat)}${c.cats.map(x => opt(x, x, histState.cat)).join('')}
     </select></label>
     ${dirty ? '<button type="button" class="btn btn-outline" onclick="histReset()">Reset</button>' : ''}`;
 }
@@ -1705,7 +1705,7 @@ function histRenderChart(c) {
     </g>`;
   });
   const scope = [histState.site === 'all' ? 'all sites' : (c.sites.find(x => x.key === histState.site) || {}).label,
-                 histState.cat === 'all' ? 'all machines' : histState.cat].join(' · ');
+                 histState.cat === 'all' ? 'all types' : histState.cat].join(' · ');
   const summary = series.filter(m => m.net > 0).map(m => monthShort(m.key) + ' ' + gbp(m.net)).join(', ') || 'no data';
   el.innerHTML = `<div class="hist-panel hist-chart">
     <h2>Net by business month <span style="font-weight:400;color:#777">· ${esc(scope)}</span></h2>
@@ -1722,12 +1722,12 @@ function histRenderChart(c) {
 function histRenderBreakdown(c) {
   const el = document.getElementById('histBreakdown');
   const bySite = histState.site === 'all';
-  const groups = bySite ? groupRows(c.rows, 'siteKey', 'siteName') : groupRows(c.rows, 'cat', 'cat');
+  const groups = bySite ? groupRows(c.rows, 'siteKey', 'siteName') : groupRows(c.rows, 'type', 'type').sort((a, b) => typeSort(a.key, b.key));
   if (groups.length < 2) { el.innerHTML = ''; return; }
   const max = Math.max.apply(null, groups.map(g => g.net).concat([1]));
   const field = bySite ? 'site' : 'cat';
-  el.innerHTML = `<div class="hist-panel"><h2>${bySite ? 'By site' : 'By machine'} <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>
-    ${groups.map(g => `<button type="button" class="bd-row" data-hset="${field}" data-v="${esc(g.key)}" aria-label="${esc(g.label)}: net ${esc(gbp(g.net))}. Filter to this ${bySite ? 'site' : 'machine'}">
+  el.innerHTML = `<div class="hist-panel"><h2>${bySite ? 'By site' : 'By type'} <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>
+    ${groups.map(g => `<button type="button" class="bd-row" data-hset="${field}" data-v="${esc(g.key)}" aria-label="${esc(g.label)}: net ${esc(gbp(g.net))}. Filter to this ${bySite ? 'site' : 'type'}">
       <div class="bd-top"><span>${esc(g.label)}</span><span>${gbp(g.net)}</span></div>
       <div class="bd-bar"><i style="width:${Math.max(2, Math.round((g.net / max) * 100))}%"></i></div>
       <div class="bd-sub">Site ${gbp(g.cl)} · Supplier ${gbp(g.ss)} · ${g.collections} collection${g.collections === 1 ? '' : 's'}</div>
@@ -2019,17 +2019,17 @@ function sumRenderMonths(c) {
 function sumRenderTables(c) {
   const el = document.getElementById('sumTables');
   const sites = groupRows(c.rows, 'siteKey', 'siteName');
-  const cats = groupRows(c.rows, 'cat', 'cat');
+  const cats = groupRows(c.rows, 'type', 'type').sort((a, b) => typeSort(a.key, b.key));
   if (!sites.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="hist-panel"><h2>By site <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(sites, 'Site', 'site', c.rows)}</div>
-    <div class="hist-panel"><h2>By machine <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(cats, 'Machine', 'cat', c.rows)}</div>`;
+    <div class="hist-panel"><h2>By type <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(cats, 'Type', 'cat', c.rows)}</div>`;
 }
 
 function sumRenderFloat(c) {
   const el = document.getElementById('sumFloat');
   let list = floatOutstanding(getEntries(), histSiteInfo, entryKey);
   if (histState.site !== 'all') list = list.filter(x => x.siteKey === histState.site);
-  if (histState.cat !== 'all') list = list.filter(x => x.cat === histState.cat);
+  if (histState.cat !== 'all') list = list.filter(x => machineType(x.cat) === histState.cat);
   if (!list.length) { el.innerHTML = ''; return; }
   list.sort((a, b) => b.owed - a.owed);
   const total = list.reduce((s, x) => s + x.owed, 0);
@@ -2755,9 +2755,9 @@ function downloadCsv(rows, name) {
 function exportRowsCSV() {
   const c = histCompute();
   if (!c.rows.length) { alert('Nothing to export for these filters'); return; }
-  const rows = [['Date', 'Business month', 'Site', 'Machine', 'Gross', 'Float Taken', 'Net', 'MGD', 'Supplier', 'Site Share']];
+  const rows = [['Date', 'Business month', 'Site', 'Type', 'Machine', 'Gross', 'Float Taken', 'Net', 'MGD', 'Supplier', 'Site Share']];
   [...c.rows].sort((a, b) => a.date.localeCompare(b.date)).forEach(r =>
-    rows.push([r.date, r.bm, r.siteName, r.cat, r.gross, r.floatTaken, r.net, r.mgd, r.ss, r.cl]));
+    rows.push([r.date, r.bm, r.siteName, r.type, r.cat, r.gross, r.floatTaken, r.net, r.mgd, r.ss, r.cl]));
   downloadCsv(rows, '3barbros_view_' + todayStr() + '.csv');
 }
 

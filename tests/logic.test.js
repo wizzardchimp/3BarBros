@@ -194,4 +194,22 @@ t('uses the dated MGD rate for the entry date', () => {
   const res = L.recalcFloat(es, info, '2026-01-01', d => 0.25, {});
   assert.strictEqual(res.changed[0].entry.locations[0].categories[0].mgd, 37.5); // net 150 * 25%
 });
+t('machine type: Digital covers Digital, Inspire and GM; Reels and Pool stay separate', () => {
+  ['Digital', 'digital', 'Inspire', 'Inspire 2', 'GM', 'gm', 'GM 1', 'Digital GM'].forEach(x => assert.strictEqual(L.machineType(x), 'Digital', x));
+  ['Reels', 'Reel', 'reels 2'].forEach(x => assert.strictEqual(L.machineType(x), 'Reels', x));
+  assert.strictEqual(L.machineType('Pool'), 'Pool');
+  assert.strictEqual(L.machineType('Jukebox'), 'Jukebox');       // unknown types keep their own name
+  assert.strictEqual(L.machineType('Gamma'), 'Gamma');            // 'gm' only as its own word, not inside other words
+  assert.deepStrictEqual(['Pool', 'Jukebox', 'Digital', 'Reels'].sort(L.typeSort), ['Reels', 'Digital', 'Pool', 'Jukebox']);
+});
+
+t('rows carry a type; grouping by type merges Digital + Inspire + GM but keeps real names', () => {
+  const e = { id: 'x', timestamp: 'x', date: '2026-05-10', locations: [{ id: 's1', name: 's1', poolGross: 40, poolSS: 20, poolCL: 20, categories: [
+    { name: 'Reels', gross: 100, net: 100 }, { name: 'Digital', gross: 10, net: 10 }, { name: 'Inspire', gross: 20, net: 20 }, { name: 'GM', gross: 30, net: 30 } ] }] };
+  const rows = L.buildRows([e], info, keyFn);
+  assert.deepStrictEqual(rows.map(r => r.type), ['Reels', 'Digital', 'Digital', 'Digital', 'Pool']);
+  assert.deepStrictEqual(rows.map(r => r.cat), ['Reels', 'Digital', 'Inspire', 'GM', 'Pool']);
+  const g = L.groupRows(rows, 'type', 'type');
+  assert.deepStrictEqual(g.map(x => [x.key, x.net]).sort(), [['Digital', 60], ['Pool', 40], ['Reels', 100]].sort());
+});
 console.log(n + ' tests passed');
