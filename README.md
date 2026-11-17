@@ -77,6 +77,9 @@ Settings → *Recalculate float from a date*. Pick a from date (and optionally o
 - Safe to re-run: when the data is already consistent it reports *Nothing to change*.
 - The MasterLog audit sheet is append-only and keeps the figures as first submitted.
 
+## Releasing front-end changes
+`logic.js` is loaded as `logic.js?v=<version>` and `index.html` checks `REQUIRED_LOGIC_VERSION`. When you change `logic.js`, bump `LOGIC_VERSION` in `logic.js` **and** both values in `index.html` together (`node tests/version.test.js` fails if they drift). This stops a phone/browser that cached the old `logic.js` from rendering blank History/Summary pages. If it ever does mismatch, the page reloads once and then shows a red banner instead of failing silently.
+
 ## Known limitations
 - Editing, deleting or back-dating an entry does not automatically fix the float carried into later entries — run *Recalculate float from a date* in Settings afterwards.
 - Receipt photos upload before the entry saves; if the save then fails, the uploaded files stay in Drive.

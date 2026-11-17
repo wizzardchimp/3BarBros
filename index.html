@@ -402,8 +402,26 @@ h3{font-size:14px;margin:0 0 8px}
 
 <input type="file" id="receiptFileInput" accept="image/*" capture="environment" multiple style="display:none">
 
-<script src="logic.js"></script>
+<script src="logic.js?v=2026-11-18.1"></script>
 <script>
+// If the browser served an older cached logic.js, reload it once (bypassing the cache);
+// if it is still out of date, say so instead of rendering blank pages.
+const REQUIRED_LOGIC_VERSION = '2026-11-18.1';
+(function () {
+  if (window.LOGIC_VERSION === REQUIRED_LOGIC_VERSION) return;
+  let tried = false;
+  try { tried = sessionStorage.getItem('3bb_lv_reload') === '1'; sessionStorage.setItem('3bb_lv_reload', '1'); } catch (e) {}
+  if (!tried) {
+    fetch('logic.js?v=' + REQUIRED_LOGIC_VERSION, { cache: 'reload' }).catch(() => {}).then(() => location.reload());
+    return;
+  }
+  window.addEventListener('DOMContentLoaded', () => {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#e74c3c;color:#fff;padding:10px 14px;font:600 14px sans-serif;text-align:center';
+    bar.textContent = 'This page is out of date in your browser. Please fully refresh (close and reopen the tab, or clear site data).';
+    document.body.appendChild(bar);
+  });
+})();
 // ===== DEFAULTS =====
 const APP_PASSWORD = 'bl26';
 
@@ -827,6 +845,20 @@ function migrateEntries() {
   cachedEntries.forEach(e => {
     e.date = normalizeEntryDate(e.date);
     if (!e.id) e.id = e.timestamp || e.date;
+    // Tolerate malformed rows from the sheet (null sites / categories) instead of crashing the pages
+    if (Array.isArray(e.locations)) {
+      e.locations = e.locations.filter(l => l && typeof l === 'object');
+      e.locations.forEach(l => {
+        if (l.categories != null && !Array.isArray(l.categories)) l.categories = [];
+        if (Array.isArray(l.categories)) l.categories = l.categories.filter(c => c && typeof c === 'object');
+        // Numbers saved as text (older rows) -> real numbers, so sums don't turn into string concatenation
+        ['poolGross', 'poolSS', 'poolCL'].forEach(k => { if (typeof l[k] === 'string' && l[k].trim() !== '' && !isNaN(l[k])) l[k] = parseFloat(l[k]); });
+        (l.categories || []).forEach(c => {
+          ['gross', 'cash', 'net', 'total', 'mgd', 'cashLeft', 'supplierShare', 'floatTaken', 'floatRequired', 'floatOwedIn', 'floatOwedAfter', 'rate', 'flatFee']
+            .forEach(k => { if (typeof c[k] === 'string' && c[k].trim() !== '' && !isNaN(c[k])) c[k] = parseFloat(c[k]); });
+        });
+      });
+    }
   });
 }
 
@@ -1797,7 +1829,21 @@ function histRenderCards(c) {
   el.innerHTML = html;
 }
 
-function showHistory() {
+/** Run a page render; on error show a visible message (and log it) instead of a silent blank page. */
+function safeRender(targetId, fn) {
+  try { fn(); }
+  catch (e) {
+    console.error(e);
+    const el = document.getElementById(targetId);
+    if (el) el.innerHTML = `<div class="hist-panel" style="border-left:4px solid #e74c3c"><strong>Something went wrong showing this page.</strong>
+      <p class="hint" style="margin:6px 0">${esc(String(e && e.message || e))}</p>
+      <button type="button" class="btn btn-primary" onclick="location.reload()">Reload</button></div>`;
+  }
+}
+
+function showHistory() { safeRender('historyTable', renderHistoryPage); }
+
+function renderHistoryPage() {
   updateHistoryCount();
   const c = histCompute();
   histRenderFilters(c);
@@ -2039,7 +2085,9 @@ function sumRenderFloat(c) {
   </div>`;
 }
 
-function showMonthlySummary() {
+function showMonthlySummary() { safeRender('sumMonths', renderSummaryPage); }
+
+function renderSummaryPage() {
   const c = histCompute();
   histRenderFilters(c, 'sumFilters');
   histRenderKpis(c, 'sumKpis');

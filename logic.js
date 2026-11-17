@@ -2,6 +2,10 @@
 (function (root) {
   'use strict';
 
+  // Bump together with the ?v= on the <script src> in index.html and REQUIRED_LOGIC_VERSION there
+  // (tests/version.test.js fails if they drift). Prevents a stale cached logic.js breaking the pages.
+  var LOGIC_VERSION = '2026-11-18.1';
+
   var MGD_RATE = 0.2;              // default / fallback MGD when no dated schedule exists
   var BUSINESS_MONTH_CUTOFF_DAY = 5; // collections on the 1st–5th belong to the PREVIOUS month
   var EPOCH = '0000-00';           // "from the beginning" marker for a first schedule row
@@ -230,8 +234,10 @@
       var bm = businessMonthKey(e.date);
       var ek = keyFn(e);
       e.locations.forEach(function (loc) {
+        if (!loc || typeof loc !== 'object') return;
         var si = siteInfo(loc);
         (loc.categories || []).forEach(function (c) {
+          if (!c || typeof c !== 'object') return;
           var gross = c.gross != null ? c.gross : (c.cash != null ? c.cash : 0);
           var net = c.net != null ? c.net : (c.total != null ? c.total : gross);
           rows.push({ entry: e, entryKey: ek, date: e.date, bm: bm, siteKey: si.key, siteName: si.label,
@@ -452,6 +458,7 @@
   }
 
   var api = {
+    LOGIC_VERSION: LOGIC_VERSION,
     MGD_RATE: MGD_RATE, BUSINESS_MONTH_CUTOFF_DAY: BUSINESS_MONTH_CUTOFF_DAY, EPOCH: EPOCH,
     round: round, businessMonthKey: businessMonthKey, sortTerms: sortTerms, termAt: termAt,
     addTerm: addTerm, lastTerm: lastTerm, mgdAt: mgdAt, resolveLoc: resolveLoc,
