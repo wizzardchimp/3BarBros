@@ -53,6 +53,14 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 - `floatOwedAfter` carries to the next collection for that **location + category**  
 - Pool: no float (rent or 50/50 as configured)  
 
+## Settings page
+Five sections (sticky tabs): **Sites & rates**, **Data**, **Connection**, **Preferences**, **Danger zone**. A status line at the top shows whether the sheet is connected, how many entries loaded and when (or why it failed).
+- **Sites & rates:** the saved-sites list comes first, with **+ Add site** opening the form below it. Each site shows its rates in force today, any *scheduled* future changes, and a *Rate history* you can prune. Per site: **Edit**, **Duplicate** (copies the setup under a new name), **Archive** (hides it from Daily Entry but keeps its history; restore any time) and **Remove**. Category names show which filter type they fall under (Reels / Digital / Pool / own type). MGD schedule and a *Recent changes* log (when and what; stored with your settings) sit below.
+- **Data:** export all entries, **settings backup & restore** (JSON of sites, rates, dated changes and MGD — a backup of the current settings downloads automatically before a restore), merge sites, and recalculate float.
+- **Connection:** **Test connection** checks the URL/token you typed without saving anything; **Save & load data** stores them and loads your entries.
+- **Preferences (this device only):** default History/Summary period, and whether to show *Below usual* flags and at what percentage. The About card shows the app version.
+- **Danger zone:** delete the most recent collection (shows which one) and clear this device's saved settings (nothing on the sheet is deleted). All confirmations use the in-app popup.
+
 ## Types (machine filter)
 The **Type** filter groups machines as: **Reels**; **Digital** (anything named Digital, Inspire or GM); **Pool**. They are separate types for filtering, breakdowns, the Summary "By type" table and the float-owed panel. Collection cards still list the real machine names (Inspire, GM…). Any other category name (e.g. Jukebox) is its own type. The rule lives in `machineType()` in `logic.js`.
 

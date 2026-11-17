@@ -163,6 +163,24 @@ h3{font-size:14px;margin:0 0 8px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 .tbl tr.total td{font-weight:700;background:#fff8e6}
 .link-btn{background:none;border:0;color:#1a1a2e;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px;text-align:left}
+.set-tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:46px;z-index:90;background:#f0f2f5;padding:8px 0;margin:0 0 10px}
+.set-tab{flex:0 0 auto;border:0;background:#e3e6ec;color:#333;font-size:13px;font-weight:600;padding:10px 14px;border-radius:20px;min-height:40px;cursor:pointer;white-space:nowrap}
+.set-tab.active{background:#1a1a2e;color:#fff}
+.conn-status{font-size:13px;font-weight:600;padding:8px 12px;border-radius:8px;margin-bottom:8px}
+.conn-status.ok{background:#eafaf1;color:#1e8449}.conn-status.bad{background:#fdecea;color:#b03a2e}.conn-status.unk{background:#eef0f4;color:#555}
+.type-tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eef0f4;color:#444;margin-top:4px}
+.site-row{padding:12px 0;border-bottom:1px solid #eee}
+.site-row:last-child{border-bottom:0}
+.site-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.site-actions .btn{min-height:36px}
+.rate-line{font-size:12px;color:#555;margin-top:2px}
+.sched{font-size:12px;color:#b36b00;margin-top:2px;font-weight:600}
+.site-row details{margin-top:6px;font-size:12px}
+.site-row summary{cursor:pointer;color:#555;min-height:28px;display:flex;align-items:center}
+.term-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed #eee}
+.log-row{display:flex;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid #eee}
+.log-row time{color:#888;flex:0 0 auto;min-width:96px}
+.danger-zone{border:1px solid #f1b0a8}
 .hist-more{display:block;margin:10px auto;min-height:44px}
 @media(min-width:700px){
   .hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
@@ -328,42 +346,56 @@ h3{font-size:14px;margin:0 0 8px}
 
 <div id="page-settings" class="page">
   <h1>Settings</h1>
-
-  <div class="settings-card">
-    <h2>Google Sheet API URL</h2>
-    <p class="hint">Paste the web app URL from Apps Script → Deploy</p>
-    <input type="url" id="apiUrlInput" style="width:100%;max-width:600px" placeholder="https://script.google.com/macros/s/.../exec">
-    <button class="btn btn-primary" style="margin-top:8px" onclick="saveApiUrl()">Save API URL</button>
-    <span id="apiUrlMsg" class="msg"></span>
-    <h2 style="margin-top:16px">API access token (optional)</h2>
-    <p class="hint">If you set an <code>API_TOKEN</code> script property in Apps Script, enter the same value here.</p>
-    <input type="password" id="apiTokenInput" autocomplete="off" style="width:100%;max-width:600px" placeholder="Leave blank if not using a token">
+  <div id="connStatus" class="conn-status unk" role="status"></div>
+  <div class="set-tabs" id="setTabs" role="tablist" aria-label="Settings sections">
+    <button type="button" class="set-tab" data-sec="sites" role="tab" onclick="setSection('sites')">Sites &amp; rates</button>
+    <button type="button" class="set-tab" data-sec="data" role="tab" onclick="setSection('data')">Data</button>
+    <button type="button" class="set-tab" data-sec="conn" role="tab" onclick="setSection('conn')">Connection</button>
+    <button type="button" class="set-tab" data-sec="prefs" role="tab" onclick="setSection('prefs')">Preferences</button>
+    <button type="button" class="set-tab" data-sec="danger" role="tab" onclick="setSection('danger')">Danger zone</button>
   </div>
 
-  <div class="settings-card">
-    <h2>Reset local data</h2>
-    <p class="hint">Clears saved sites, API URL and login from this browser (sheet data is untouched).</p>
-    <button class="btn btn-danger" onclick="resetLocalData()">Reset local data</button>
-    <span id="resetLocalMsg" class="msg"></span>
-  </div>
+  <section id="sec-sites" class="set-sec">
+    <div id="savedSitesList"></div>
+    <div id="settingsContainer"></div>
+    <div id="mgdCard"></div>
+    <div id="changeLogCard"></div>
+  </section>
 
-  <div class="settings-card">
-    <h2>Delete Last Submission</h2>
-    <button class="btn btn-danger" onclick="deleteLastSubmission()">Delete Last</button>
-    <span id="deleteLastMsg" class="msg"></span>
-  </div>
+  <section id="sec-data" class="set-sec hidden">
+    <div id="exportCard"></div>
+    <div id="backupCard"></div>
+    <div id="mergeSitesContainer"></div>
+    <div id="floatRecalcCard"></div>
+    <input type="file" id="settingsFileInput" accept="application/json,.json" class="hidden">
+  </section>
 
-  <div style="margin:16px 0 8px">
-    <h2 style="margin:0">Sites &amp; Rates</h2>
-    <p class="hint">Fill in a site below, then <strong>Save site</strong> to commit rates to the sheet. The form clears for the next site.</p>
-  </div>
-  <div id="mgdCard"></div>
-  <div id="settingsContainer"></div>
-  <div id="savedSitesList"></div>
-  <div id="mergeSitesContainer"></div>
-  <div id="floatRecalcCard"></div>
+  <section id="sec-conn" class="set-sec hidden">
+    <div class="settings-card">
+      <h2>Google Sheet API URL</h2>
+      <p class="hint">Paste the web app URL from Apps Script → Deploy</p>
+      <input type="url" id="apiUrlInput" style="width:100%;max-width:600px" placeholder="https://script.google.com/macros/s/.../exec">
+      <h2 style="margin-top:16px">API access token (optional)</h2>
+      <p class="hint">If you set an <code>API_TOKEN</code> script property in Apps Script, enter the same value here.</p>
+      <input type="password" id="apiTokenInput" autocomplete="off" style="width:100%;max-width:600px" placeholder="Leave blank if not using a token">
+      <div class="toolbar" style="margin-top:12px">
+        <button type="button" class="btn btn-outline" onclick="testConnection()">Test connection</button>
+        <button type="button" class="btn btn-primary" onclick="saveApiUrl()">Save &amp; load data</button>
+        <span id="apiUrlMsg" class="msg"></span>
+      </div>
+      <p class="hint" style="margin-top:8px"><strong>Test connection</strong> only checks the URL and token you typed — nothing is saved or changed. <strong>Save &amp; load data</strong> stores them and loads your entries.</p>
+    </div>
+  </section>
+
+  <section id="sec-prefs" class="set-sec hidden">
+    <div id="prefsCard"></div>
+    <div id="aboutCard"></div>
+  </section>
+
+  <section id="sec-danger" class="set-sec hidden">
+    <div id="dangerCard"></div>
+  </section>
 </div>
-
 
 <div id="alertOverlay" class="alert-overlay" onclick="if(event.target===this)closeAppAlert()">
   <div class="alert-box">
@@ -567,6 +599,7 @@ function loadConfigLocal() {
 function migrateConfig(cfg) {
   if (!cfg || !Array.isArray(cfg.locations)) return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   // Dated global MGD schedule (rate as 0–1). Missing = the historic default for all time.
+  if (!Array.isArray(cfg.changeLog)) cfg.changeLog = [];
   if (!Array.isArray(cfg.mgd) || !cfg.mgd.length) cfg.mgd = [{ from: EPOCH, value: MGD_RATE }];
   cfg.mgd = sortTerms(cfg.mgd.map(t => ({ from: String(t.from || EPOCH), value: (parseFloat(t.value) > 1 ? parseFloat(t.value) / 100 : parseFloat(t.value)) })));
   cfg.locations.forEach(loc => {
@@ -720,6 +753,7 @@ function failToSettings(message) {
   entriesLoaded = true;
   showPage('settings');
   renderSettings();
+  setSection('conn');
   showAppAlert('API connection failed', message);
   const apiMsg = document.getElementById('apiUrlMsg');
   if (apiMsg) {
@@ -765,7 +799,34 @@ async function apiFetch(url, opts, timeoutMs) {
   throw lastErr || new Error('API unreachable');
 }
 
+let connState = { ok: null, when: null, count: 0, error: '' };
+function renderConnStatus() {
+  const el = document.getElementById('connStatus');
+  if (!el) return;
+  const t = connState.when ? connState.when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  if (connState.ok === true) {
+    el.className = 'conn-status ok';
+    el.textContent = '✔ Connected · ' + connState.count + ' entries · loaded ' + t;
+  } else if (connState.ok === false) {
+    el.className = 'conn-status bad';
+    el.textContent = '⚠ Not connected (' + t + ') — ' + connState.error;
+  } else {
+    el.className = 'conn-status unk';
+    el.textContent = 'Connection not checked yet';
+  }
+}
+
+/** Loads entries/config from the sheet and records the connection status. */
 async function loadEntries() {
+  const r = await loadEntriesInner();
+  connState = r && r.ok
+    ? { ok: true, when: new Date(), count: (r.entries || []).length, error: '' }
+    : { ok: false, when: new Date(), count: getEntries().length, error: (r && r.error) || 'Could not load data' };
+  renderConnStatus();
+  return r;
+}
+
+async function loadEntriesInner() {
   const url = getApiUrl();
   if (!url) {
     dataLoadOk = false;
@@ -1013,12 +1074,12 @@ function selectEntrySite(siteId) {
 function renderSitePicker() {
   const panel = document.getElementById('sitePickerPanel');
   if (!panel) return;
-  if (!config.locations.length) {
+  if (!config.locations.filter(l => !l.archived).length) {
     panel.innerHTML = '<div class="empty-state"><p>No sites configured. Add sites in Settings.</p></div>';
     return;
   }
   let html = '<p class="site-pick-hint">Choose a site to enter takings</p><div class="site-picker">';
-  config.locations.forEach(loc => {
+  config.locations.filter(l => !l.archived).forEach(loc => {
     const cats = (loc.categories || []).map(c => c.name).join(' · ') || 'No categories';
     const pool = loc.hasPool ? ' · Pool' : '';
     html += `<button type="button" class="site-pick-btn" data-site-id="${esc(String(loc.id))}">
@@ -1529,7 +1590,7 @@ function render21DayTotals() {
   const recent = getEntries().filter(e => e.date >= cutoffStr);
 
   const locTotals = {};
-  for (const loc of config.locations) {
+  for (const loc of config.locations.filter(l => !l.archived)) {
     locTotals[loc.id] = { id: loc.id, name: formatSiteName(loc), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
   }
 
@@ -1581,8 +1642,20 @@ function render21DayTotals() {
   el.innerHTML = html;
 }
 
+// ===== PREFERENCES (per device) =====
+const PREFS_DEFAULT = { histPeriod: '3m', showLow: true, lowPct: 50 };
+function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem('3bb_prefs') || 'null');
+    if (p && typeof p === 'object') return Object.assign({}, PREFS_DEFAULT, p);
+  } catch (e) {}
+  return Object.assign({}, PREFS_DEFAULT);
+}
+let prefs = loadPrefs();
+function savePrefs() { try { localStorage.setItem('3bb_prefs', JSON.stringify(prefs)); } catch (e) {} }
+
 // ===== HISTORY =====
-const HIST_DEFAULT = { period: '3m', site: 'all', cat: 'all', limit: 40 };
+const HIST_DEFAULT = { period: prefs.histPeriod, site: 'all', cat: 'all', limit: 40 };
 let histState = (function () {
   try {
     const saved = JSON.parse(localStorage.getItem('3bb_hist') || 'null');
@@ -1652,7 +1725,8 @@ function periodLabel(p) {
 /** Rows (flat) for the current filters; also returns everything needed to render. */
 function histCompute() {
   const today = todayStr();
-  const all = markLow(buildRows(getEntries(), histSiteInfo, entryKey));
+  const all = buildRows(getEntries(), histSiteInfo, entryKey);
+  if (prefs.showLow) markLow(all, { ratio: prefs.lowPct / 100 });
   const sites = groupRows(all, 'siteKey', 'siteName').sort((a, b) => a.label.localeCompare(b.label));
   if (histState.site !== 'all' && !sites.some(x => x.key === histState.site)) histState.site = 'all';
   const siteRows = histState.site === 'all' ? all : all.filter(r => r.siteKey === histState.site);
@@ -1891,23 +1965,33 @@ async function deleteEntryByKey(key) {
   render21DayTotals();
 }
 
-async function deleteLastSubmission() {
+function lastEntryOf() {
   const entries = getEntries();
-  if (!entries.length) {
-    showMsg('deleteLastMsg', 'No entries', 'error');
-    return;
-  }
-  const last = [...entries].sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))[0];
+  if (!entries.length) return null;
+  return [...entries].sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))[0];
+}
+function describeEntry(e) {
+  const sites = [...new Set((e.locations || []).map(l => histSiteInfo(l).label))].join(', ') || '—';
+  return histDateLabel(e.date) + ' · ' + sites + ' · net ' + gbp(e.grandTotal || 0);
+}
+
+async function deleteLastSubmission() {
+  const last = lastEntryOf();
+  if (!last) { showMsg('deleteLastMsg', 'No entries', 'error'); return; }
   const confirmed = await confirmPermanent(
-    'Delete last submission?',
-    'This is a <strong>permanent change</strong> — the most recent entry (<strong>' + esc(last.date) + '</strong>) and its receipts will be deleted from the sheet.',
+    'Delete most recent collection?',
+    'This is a <strong>permanent change</strong> — <strong>' + esc(describeEntry(last)) + '</strong> and its receipts will be deleted from the sheet.',
     'Delete'
   );
   if (!confirmed) return;
   await deleteEntryFromSheet(last);
+  logChange('Collection deleted: ' + describeEntry(last));
+  saveConfigLocal();
+  saveConfigToSheet({ silent: true });
   showMsg('deleteLastMsg', 'Deleted ' + last.date, 'success');
   updateHistoryCount();
   render21DayTotals();
+  renderDangerCard();
 }
 
 function confirmPermanent(title, body, okLabel) {
@@ -2111,7 +2195,7 @@ function renderSummaryPage() {
 /** Month x site totals for the current filters. */
 function exportSummaryCSV() {
   const c = histCompute();
-  if (!c.rows.length) { alert('Nothing to export for these filters'); return; }
+  if (!c.rows.length) { showAppAlert('Nothing to export', 'No collections match the current filters.'); return; }
   const out = [['Business month', 'Site', 'Collections', 'Net', 'MGD', 'Supplier', 'Site Share']];
   const months = groupRows(c.rows, 'bm', 'bm').sort((a, b) => a.key.localeCompare(b.key));
   months.forEach(m => groupRows(c.rows.filter(r => r.bm === m.key), 'siteKey', 'siteName').forEach(g =>
@@ -2148,6 +2232,109 @@ function resetDraftForm() {
   draftEditingId = null;
 }
 
+// ===== Data tab: export + backup/restore =====
+function renderExportCard() {
+  const el = document.getElementById('exportCard');
+  if (!el) return;
+  el.innerHTML = `<div class="settings-card"><h2>Export</h2>
+    <p class="hint">Filtered exports (this view, summary) are on the History and Summary pages.</p>
+    <button type="button" class="btn btn-success" onclick="exportCSV()">Export all entries (CSV)</button></div>`;
+}
+
+function renderBackupCard() {
+  const el = document.getElementById('backupCard');
+  if (!el) return;
+  el.innerHTML = `<div class="settings-card"><h2>Settings backup</h2>
+    <p class="hint">Sites, rates, dated changes and MGD as a JSON file — handy for a new phone or after clearing a browser. Collections are not included (they live on the sheet).</p>
+    <div class="toolbar">
+      <button type="button" class="btn btn-outline" onclick="exportSettingsJson()">Download settings backup</button>
+      <button type="button" class="btn btn-outline" onclick="document.getElementById('settingsFileInput').click()">Restore from backup…</button>
+      <span class="msg" id="backupMsg"></span>
+    </div></div>`;
+}
+
+function exportSettingsJson() {
+  downloadJson({ app: '3barbros', kind: 'settings', exportedAt: new Date().toISOString(), config }, '3barbros_settings_' + todayStr() + '.json');
+  showMsg('backupMsg', 'Backup downloaded', 'success');
+}
+
+async function importSettingsFile(file) {
+  if (!file) return;
+  let obj;
+  try { obj = JSON.parse(await file.text()); } catch (e) { showMsg('backupMsg', 'That file is not valid JSON', 'error'); return; }
+  const cfg = obj && (obj.config || obj);
+  if (!cfg || !Array.isArray(cfg.locations) || cfg.locations.some(l => !l || typeof l !== 'object' || !l.name)) {
+    showMsg('backupMsg', 'This does not look like a 3BarBros settings backup', 'error');
+    return;
+  }
+  const names = cfg.locations.map(l => l.name).slice(0, 8).join(', ') + (cfg.locations.length > 8 ? '…' : '');
+  const when = obj.exportedAt ? new Date(obj.exportedAt).toLocaleDateString('en-GB') : 'unknown date';
+  const ok = await confirmPermanent('Restore settings?',
+    'Replace the sites, rates and MGD on this device <strong>and in the Google Sheet</strong> with the backup from <strong>' + esc(when) + '</strong> (' + cfg.locations.length + ' site' + (cfg.locations.length === 1 ? '' : 's') + ': ' + esc(names) + ')? A backup of your current settings downloads first. Collections are not changed.',
+    'Restore');
+  if (!ok) return;
+  downloadJson({ app: '3barbros', kind: 'settings', exportedAt: new Date().toISOString(), config }, '3barbros_settings_before_restore_' + todayStr() + '.json');
+  const prevLog = Array.isArray(config.changeLog) ? config.changeLog : [];
+  config = migrateConfig(JSON.parse(JSON.stringify(cfg)));
+  config.changeLog = (Array.isArray(config.changeLog) ? config.changeLog : []).concat(prevLog).slice(0, 100);
+  logChange('Settings restored from backup dated ' + when);
+  const sheetOk = await persistConfigAndRefresh('Restoring…');
+  showMsg('backupMsg', sheetOk ? 'Settings restored' : 'Restored on this device; sheet sync failed', sheetOk ? 'success' : 'error');
+}
+
+// ===== Preferences tab =====
+function renderPrefsCard() {
+  const el = document.getElementById('prefsCard');
+  if (!el) return;
+  const periods = [['m0', 'This business month'], ['m1', 'Last business month'], ['21d', 'Last 21 days'], ['3m', 'Last 3 months'], ['6m', 'Last 6 months'], ['12m', 'Last 12 months'], ['all', 'All time']];
+  el.innerHTML = `<div class="settings-card"><h2>Preferences <span class="hint" style="font-weight:400">· this device only</span></h2>
+    <label>Default History / Summary period<br>
+      <select style="padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;min-height:44px" onchange="setPref('histPeriod', this.value)">
+        ${periods.map(p => `<option value="${p[0]}"${prefs.histPeriod === p[0] ? ' selected' : ''}>${p[1]}</option>`).join('')}
+      </select></label>
+    <label style="margin-top:12px"><input type="checkbox" ${prefs.showLow ? 'checked' : ''} onchange="setPref('showLow', this.checked)"> Show “Below usual” flags on collections</label>
+    <label>Flag a collection when it is under <input type="number" min="10" max="90" step="5" value="${prefs.lowPct}" style="width:70px;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:16px" onchange="setPref('lowPct', this.value, this)"> % of that machine’s usual</label>
+    <span class="msg" id="prefsMsg"></span></div>`;
+}
+
+function setPref(k, v, el) {
+  if (k === 'lowPct') { v = Math.max(10, Math.min(90, parseInt(v, 10) || 50)); if (el) el.value = v; }
+  if (k === 'showLow') v = !!v;
+  prefs[k] = v;
+  savePrefs();
+  if (k === 'histPeriod') {
+    HIST_DEFAULT.period = v;
+    histState.period = v;
+    try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
+  }
+  showMsg('prefsMsg', 'Saved on this device', 'success');
+}
+
+function renderAboutCard() {
+  const el = document.getElementById('aboutCard');
+  if (!el) return;
+  el.innerHTML = `<div class="settings-card"><h2>About</h2>
+    <p class="rate-line">App version <strong>${esc(window.LOGIC_VERSION || '?')}</strong> · ${esc(location.host || 'local file')}</p>
+    <p class="hint" style="margin-top:8px">If a phone shows old pages, a different version here is the clue: fully refresh or reopen the tab.</p>
+    <p class="hint">The login password only keeps casual visitors out — it can be read in the page source. Real protection is the <strong>API token</strong> (Connection tab) plus keeping the sheet private.</p></div>`;
+}
+
+// ===== Danger zone =====
+function renderDangerCard() {
+  const el = document.getElementById('dangerCard');
+  if (!el) return;
+  const last = lastEntryOf();
+  el.innerHTML = `<div class="settings-card danger-zone"><h2>Delete most recent collection</h2>
+      <p class="hint">${last ? 'Most recent: <strong>' + esc(describeEntry(last)) + '</strong>. It and its receipts are removed from the sheet. Use this for a collection entered by mistake.' : 'No collections to delete.'}</p>
+      <button type="button" class="btn btn-danger" ${last ? '' : 'disabled'} onclick="deleteLastSubmission()">Delete most recent collection</button>
+      <span id="deleteLastMsg" class="msg"></span></div>
+    <div class="settings-card danger-zone"><h2>Clear this device</h2>
+      <p class="hint">Removes the saved settings, API URL, token, preferences and login <strong>from this browser only</strong>. <strong>Nothing on the Google Sheet is deleted</strong>; settings re-download after you reconnect.</p>
+      <button type="button" class="btn btn-danger" onclick="resetLocalData()">Clear this device</button>
+      <span id="resetLocalMsg" class="msg"></span></div>
+    <p class="hint">To delete <em>every</em> collection use History → Data tools → Clear All.</p>`;
+}
+
 function renderSettings() {
   document.getElementById('apiUrlInput').value = getApiUrl();
   document.getElementById('apiTokenInput').value = getApiToken();
@@ -2155,7 +2342,7 @@ function renderSettings() {
   const loc = draftSite;
   const mode = loc.poolMode || 'fifty';
   const editing = !!draftEditingId;
-  const title = editing ? 'Edit site' : 'New site';
+  const title = editing ? 'Edit site' : (draftSite && draftSite.name && draftSite.name.endsWith('(copy)') ? 'Duplicate site' : 'New site');
 
   let html = `<div class="settings-card" id="siteDraftCard">
     <h3 style="margin:0 0 10px">${title}</h3>
@@ -2182,7 +2369,7 @@ function renderSettings() {
     const clPct = Math.round((parseFloat(cat.rate) || 0.5) * 100);
     const ssPct = 100 - clPct;
     html += `<div class="cat-row">
-      <label>Name<br><input type="text" value="${esc(cat.name)}" onchange="draftSite.categories[${ci}].name=this.value"></label>
+      <label>Name<br><input type="text" value="${esc(cat.name)}" oninput="onCatNameInput(${ci}, this)" onchange="draftSite.categories[${ci}].name=this.value"><span class="type-tag" id="cat_type_${ci}">${esc(typeTagText(cat.name))}</span></label>
       <label>Site share %<br><input type="number" min="0" max="100" step="1" value="${clPct}" oninput="onDraftRatePct(${ci}, this.value)" onchange="onDraftRatePct(${ci}, this.value)"></label>
       <div class="rate-summary" id="draft_rate_sum_${ci}">Site ${clPct}% · Supplier ${ssPct}%${cat.flatFee > 0 ? ' · Fee £' + cat.flatFee : ''}</div>
       <label>Float?<br><input type="checkbox" ${cat.hasFloat ? 'checked' : ''} onchange="draftSite.categories[${ci}].hasFloat=this.checked;renderSettings()"></label>
@@ -2207,63 +2394,284 @@ function renderSettings() {
     <button class="btn btn-sm" onclick="draftAddCategory()">+ Category</button>
     <button class="btn btn-primary" onclick="saveSiteFromDraft()">Save site</button>
     <button class="btn btn-outline btn-sm" onclick="resetDraftForm();renderSettings()">Clear form</button>
+    <button class="btn btn-outline btn-sm" onclick="closeSiteForm()">Close</button>
     <span class="msg" id="settingsMsg"></span>
   </div></div>`;
 
-  document.getElementById('settingsContainer').innerHTML = html;
+  document.getElementById('settingsContainer').innerHTML = siteFormOpen ? html : '';
   renderMgdCard();
+  renderChangeLog();
   renderFloatRecalc();
   renderSavedSitesList();
   renderMergeSites();
+  renderExportCard();
+  renderBackupCard();
+  renderPrefsCard();
+  renderAboutCard();
+  renderDangerCard();
+  renderConnStatus();
 }
 
-/** Small note listing dated changes for a site (shares, fee, pool). */
-function termsSummaryHtml(loc) {
-  const lines = [];
-  (loc.categories || []).forEach(c => {
-    const t = sortTerms(c.terms || []);
-    t.slice(1).forEach(row => lines.push(`${esc(c.name)}: site ${Math.round(row.rate * 100)}%${row.flatFee > 0 ? ' · fee £' + row.flatFee : ''} from ${esc(row.from)}`));
+
+
+function ratePct(r) { return Math.round((parseFloat(r) || 0) * 100); }
+function termLabel(from) { return from === EPOCH ? 'From the start' : 'From ' + monthShort(from); }
+function catRateText(row) { return 'site ' + ratePct(row.rate) + '% · supplier ' + (100 - ratePct(row.rate)) + '%' + (row.flatFee > 0 ? ' · flat fee £' + row.flatFee + ' (no MGD)' : ''); }
+function poolRateText(row) { return row.poolMode === 'rent' ? 'rent £' + (row.poolRent || 0) : row.poolMode === 'percent' ? (row.poolPercent) + '% supplier' : '50/50'; }
+
+/** Rates in force today + any scheduled (future) changes + removable rate history, for one site. */
+function siteRatesHtml(loc) {
+  const today = todayStr();
+  const nowKey = businessMonthKey(today);
+  const eff = resolveLoc(loc, today);
+  let html = '';
+  (eff.categories || []).forEach(c => {
+    html += `<div class="rate-line"><strong>${esc(c.name)}</strong> <span class="type-tag">${esc(typeTagText(c.name))}</span> · ${esc(catRateText(c))}${c.hasFloat && c.floatRequired > 0 ? ' · float £' + c.floatRequired : ''}</div>`;
   });
-  sortTerms(loc.poolTerms || []).slice(1).forEach(row => {
-    const lbl = row.poolMode === 'rent' ? 'rent £' + row.poolRent : row.poolMode === 'percent' ? row.poolPercent + '% supplier' : '50/50';
-    lines.push('Pool: ' + esc(lbl) + ' from ' + esc(row.from));
-  });
-  return lines.length ? `<br><span style="font-size:11px;color:#b36b00">Dated changes: ${lines.join(' · ')}</span>` : '';
+  if (loc.hasPool) html += `<div class="rate-line"><strong>Pool</strong> · ${esc(poolRateText(eff))}</div>`;
+  const sched = [];
+  (loc.categories || []).forEach(c => sortTerms(c.terms || []).filter(t => t.from > nowKey).forEach(t =>
+    sched.push(`${esc(c.name)}: ${esc(catRateText(t))} — from ${esc(monthShort(t.from))}`)));
+  if (loc.hasPool) sortTerms(loc.poolTerms || []).filter(t => t.from > nowKey).forEach(t =>
+    sched.push(`Pool: ${esc(poolRateText(t))} — from ${esc(monthShort(t.from))}`));
+  sched.forEach(x => { html += `<div class="sched">Scheduled · ${x}</div>`; });
+
+  const hasHist = (loc.categories || []).some(c => (c.terms || []).length > 1) || (loc.poolTerms || []).length > 1;
+  if (hasHist) {
+    const sid = esc(String(loc.id));
+    let h = '';
+    (loc.categories || []).forEach(c => {
+      const t = sortTerms(c.terms || []);
+      if (t.length < 2) return;
+      h += `<div style="margin-top:6px"><strong>${esc(c.name)}</strong></div>` + t.map((row, i) => `<div class="term-row"><span>${esc(termLabel(row.from))} — ${esc(catRateText(row))}</span>${i > 0 ? `<button type="button" class="btn btn-danger btn-sm" data-act="rmterm" data-site-id="${sid}" data-kind="cat" data-cat-id="${esc(String(c.id))}" data-from="${esc(row.from)}">Remove</button>` : ''}</div>`).join('');
+    });
+    const pt = sortTerms(loc.poolTerms || []);
+    if (loc.hasPool && pt.length > 1) {
+      h += `<div style="margin-top:6px"><strong>Pool</strong></div>` + pt.map((row, i) => `<div class="term-row"><span>${esc(termLabel(row.from))} — ${esc(poolRateText(row))}</span>${i > 0 ? `<button type="button" class="btn btn-danger btn-sm" data-act="rmterm" data-site-id="${sid}" data-kind="pool" data-from="${esc(row.from)}">Remove</button>` : ''}</div>`).join('');
+    }
+    html += `<details><summary>Rate history</summary>${h}<p class="hint" style="margin:6px 0 0">Removing a dated change never alters saved collections; it only affects new or back-dated ones.</p></details>`;
+  }
+  return html;
 }
 
 function renderSavedSitesList() {
   const el = document.getElementById('savedSitesList');
   if (!el) return;
-  if (!config.locations.length) {
-    el.innerHTML = '<div class="settings-card"><p class="hint" style="margin:0">No sites saved yet.</p></div>';
-    return;
-  }
-  let html = `<div class="settings-card"><h3 style="margin:0 0 10px">Saved sites (${config.locations.length})</h3>`;
-  config.locations.forEach((loc) => {
+  const active = config.locations.filter(l => !l.archived);
+  const archived = config.locations.filter(l => l.archived);
+  let html = `<div class="settings-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+      <h3 style="margin:0">Sites (${active.length})</h3>
+      <button type="button" class="btn btn-primary" data-act="add">+ Add site</button>
+    </div>`;
+  if (!active.length) html += '<p class="hint" style="margin:0">No sites yet. Tap <strong>+ Add site</strong>.</p>';
+  active.forEach(loc => {
     const realHist = (loc.nameHistory || []).filter(n => n && !isPlaceholderSiteName(n) && n !== loc.name);
     const hist = realHist.length ? ` <span style="color:#888;font-size:11px">(was ${esc(realHist.join(', '))})</span>` : '';
-    const cats = (loc.categories || []).map(c => c.name).join(', ') || '—';
-    const sid = String(loc.id || '');
-    html += `<div class="saved-site-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee">
-      <div>
-        <strong>${esc(loc.name || 'Unnamed')}</strong>${hist}<br>
-        <span style="font-size:12px;color:#888">${esc(cats)}${loc.hasPool ? ' · Pool (' + esc(poolModeLabel(loc)) + ')' : ''}</span>${termsSummaryHtml(loc)}
-      </div>
-      <div style="display:flex;gap:6px">
-        <button type="button" class="btn btn-sm btn-edit-site" data-site-id="${esc(sid)}">Edit</button>
-        <button type="button" class="btn btn-danger btn-sm btn-remove-site" data-site-id="${esc(sid)}">Remove</button>
+    const sid = esc(String(loc.id || ''));
+    html += `<div class="site-row">
+      <strong style="font-size:15px">${esc(loc.name || 'Unnamed')}</strong>${hist}
+      ${siteRatesHtml(loc)}
+      <div class="site-actions">
+        <button type="button" class="btn btn-sm" data-act="edit" data-site-id="${sid}">Edit</button>
+        <button type="button" class="btn btn-sm btn-outline" data-act="dup" data-site-id="${sid}">Duplicate</button>
+        <button type="button" class="btn btn-sm btn-outline" data-act="archive" data-site-id="${sid}">Archive</button>
+        <button type="button" class="btn btn-danger btn-sm" data-act="remove" data-site-id="${sid}">Remove</button>
       </div>
     </div>`;
   });
-  html += `</div>`;
+  html += '</div>';
+  if (archived.length) {
+    html += `<details class="settings-card"><summary style="cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center">Archived sites (${archived.length})</summary>
+      <p class="hint">Hidden from Daily Entry. Their history stays in History and Summary.</p>
+      ${archived.map(loc => `<div class="site-row"><strong>${esc(loc.name || 'Unnamed')}</strong>
+        <div class="site-actions"><button type="button" class="btn btn-sm" data-act="restore" data-site-id="${esc(String(loc.id))}">Restore</button>
+        <button type="button" class="btn btn-danger btn-sm" data-act="remove" data-site-id="${esc(String(loc.id))}">Remove</button></div></div>`).join('')}
+    </details>`;
+  }
   el.innerHTML = html;
+}
 
-  el.querySelectorAll('.btn-edit-site').forEach(btn => {
-    btn.addEventListener('click', () => editSavedSite(btn.getAttribute('data-site-id')));
+/** Tag shown next to a category name: which filter type it falls under. */
+function typeTagText(name) {
+  const t = machineType(name);
+  return ['Reels', 'Digital', 'Pool'].includes(t) ? 'Type: ' + t : 'Own type: ' + t;
+}
+function onCatNameInput(ci, el) {
+  const tag = document.getElementById('cat_type_' + ci);
+  if (tag) tag.textContent = typeTagText(el.value);
+}
+
+// ===== settings sections =====
+const SET_SECTIONS = ['sites', 'data', 'conn', 'prefs', 'danger'];
+function setSection(name) {
+  if (!SET_SECTIONS.includes(name)) name = 'sites';
+  try { localStorage.setItem('3bb_set_sec', name); } catch (e) {}
+  SET_SECTIONS.forEach(sec => {
+    const el = document.getElementById('sec-' + sec);
+    if (el) el.classList.toggle('hidden', sec !== name);
+    const tab = document.querySelector('.set-tab[data-sec="' + sec + '"]');
+    if (tab) { tab.classList.toggle('active', sec === name); tab.setAttribute('aria-selected', sec === name ? 'true' : 'false'); }
   });
-  el.querySelectorAll('.btn-remove-site').forEach(btn => {
-    btn.addEventListener('click', () => removeLocationById(btn.getAttribute('data-site-id')));
-  });
+}
+function openSettingsSection() {
+  let sec = 'sites';
+  try { sec = localStorage.getItem('3bb_set_sec') || 'sites'; } catch (e) {}
+  if (!getApiUrl()) sec = 'conn'; // first run: connect first
+  const nav = document.querySelector('.nav');
+  const tabs = document.getElementById('setTabs');
+  if (nav && tabs) tabs.style.top = nav.offsetHeight + 'px';
+  setSection(sec);
+}
+
+// ===== change log (synced with the config) =====
+function logChange(text) {
+  if (!Array.isArray(config.changeLog)) config.changeLog = [];
+  config.changeLog.unshift({ ts: new Date().toISOString(), text: String(text) });
+  config.changeLog = config.changeLog.slice(0, 100);
+}
+function renderChangeLog() {
+  const el = document.getElementById('changeLogCard');
+  if (!el) return;
+  const log = (config.changeLog || []).slice(0, 20);
+  el.innerHTML = `<div class="settings-card"><h3 style="margin:0 0 6px">Recent changes</h3>
+    ${log.length ? log.map(l => `<div class="log-row"><time>${esc(new Date(l.ts).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }))}</time><span>${esc(l.text)}</span></div>`).join('')
+      : '<p class="hint" style="margin:0">No changes recorded yet.</p>'}
+    <p class="hint" style="margin:8px 0 0">Shared app, so changes show when and what, not who. Stored with your settings.</p></div>`;
+}
+
+// ===== site form open/close, duplicate, archive, remove, rate-history removal =====
+let siteFormOpen = false;
+function scrollToSiteForm() {
+  const card = document.getElementById('siteDraftCard');
+  if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); const n = document.getElementById('draft_name'); if (n) n.focus(); }
+}
+function openSiteForm() {
+  resetDraftForm();
+  siteFormOpen = true;
+  renderSettings();
+  scrollToSiteForm();
+}
+function closeSiteForm() {
+  siteFormOpen = false;
+  resetDraftForm();
+  renderSettings();
+}
+
+function duplicateSite(id) {
+  const loc = config.locations.find(l => String(l.id) === String(id));
+  if (!loc) return;
+  const eff = resolveLoc(loc, todayStr());
+  const copy = JSON.parse(JSON.stringify(eff));
+  copy.id = uid();
+  copy.name = (loc.name || 'Site') + ' (copy)';
+  copy.nameHistory = [];
+  copy.archived = false;
+  delete copy.poolTerms;
+  copy.categories = (copy.categories || []).map(c => { const n = Object.assign({}, c, { id: uid() }); delete n.terms; return n; });
+  draftSite = copy;
+  draftEditingId = null; // new site
+  siteFormOpen = true;
+  renderSettings();
+  scrollToSiteForm();
+}
+
+async function persistConfigAndRefresh(loadingMsg) {
+  config = migrateConfig(config);
+  saveConfigLocal();
+  if (loadingMsg) showLoading(loadingMsg);
+  let ok = false;
+  try { ok = await saveConfigToSheet({ silent: true }); } catch (e) { console.error(e); }
+  if (loadingMsg) hideLoading();
+  renderSettings();
+  renderForm();
+  render21DayTotals();
+  updateHistoryCount();
+  if (document.getElementById('page-history')?.classList.contains('active')) showHistory();
+  if (document.getElementById('page-monthly')?.classList.contains('active')) showMonthlySummary();
+  return ok;
+}
+
+async function archiveSite(id, archive) {
+  const loc = config.locations.find(l => String(l.id) === String(id));
+  if (!loc) return;
+  if (archive) {
+    const ok = await confirmPermanent('Archive site?', '<strong>' + esc(loc.name) + '</strong> will be hidden from Daily Entry. Its collections stay in History and Summary, and you can restore it any time.', 'Archive');
+    if (!ok) return;
+  }
+  loc.archived = !!archive;
+  if (archive && String(activeEntrySiteId) === String(id)) activeEntrySiteId = null;
+  logChange('Site "' + loc.name + '" ' + (archive ? 'archived' : 'restored'));
+  await persistConfigAndRefresh(archive ? 'Archiving…' : 'Restoring…');
+}
+
+function countEntriesForSite(site) {
+  return getEntries().filter(e => (e.locations || []).some(l => locMatches(l, site))).length;
+}
+
+async function removeLocationById(id) {
+  id = String(id || '');
+  const loc = config.locations.find(l => String(l.id) === id);
+  if (!loc) { showAppAlert('Site not found', 'Could not find that site. Try refreshing the page.'); return; }
+  const n = countEntriesForSite(loc);
+  const ok = await confirmPermanent(
+    'Remove site?',
+    'Remove <strong>' + esc(loc.name || 'Unnamed') + '</strong> from Settings and Daily Entry? Its <strong>' + n + ' collection' + (n === 1 ? '' : 's') + '</strong> ' + (n === 1 ? 'stays' : 'stay') + ' on the Google Sheet and in History/Summary, but you will no longer be able to change this site\'s rates. <strong>Archive</strong> is usually better if you may want it back.',
+    'Remove site'
+  );
+  if (!ok) return;
+  config.locations = config.locations.filter(l => String(l.id) !== id);
+  if (String(draftEditingId) === id) { siteFormOpen = false; resetDraftForm(); }
+  logChange('Site "' + (loc.name || 'Unnamed') + '" removed');
+  const sheetOk = await persistConfigAndRefresh('Removing site…');
+  if (!sheetOk) showAppAlert('Removed locally', '"' + (loc.name || 'Unnamed') + '" was removed on this device, but the sheet may not have updated. Check your API URL and try again.');
+}
+
+async function removeTerm(siteId, kind, catId, from) {
+  const loc = config.locations.find(l => String(l.id) === String(siteId));
+  if (!loc || from === EPOCH) return;
+  const ok = await confirmPermanent('Remove dated change?', 'Remove the change effective <strong>' + esc(monthShort(from)) + '</strong> for <strong>' + esc(loc.name) + '</strong>? Collections from that month use the previous rates if edited or back-dated. Saved collections are not changed.', 'Remove');
+  if (!ok) return;
+  if (kind === 'pool') {
+    loc.poolTerms = sortTerms(loc.poolTerms || []).filter(t => t.from !== from);
+    const last = lastTerm(loc.poolTerms);
+    if (last) { loc.poolMode = last.poolMode; loc.poolRent = last.poolRent; loc.poolPercent = last.poolPercent; }
+    logChange('Site "' + loc.name + '": pool change from ' + from + ' removed');
+  } else {
+    const c = (loc.categories || []).find(x => String(x.id) === String(catId));
+    if (!c) return;
+    c.terms = sortTerms(c.terms || []).filter(t => t.from !== from);
+    const last = lastTerm(c.terms);
+    if (last) { c.rate = last.rate; c.flatFee = last.flatFee; }
+    logChange('Site "' + loc.name + '": ' + c.name + ' change from ' + from + ' removed');
+  }
+  await persistConfigAndRefresh('Saving…');
+}
+
+// ===== connection test =====
+async function testConnection() {
+  const url = document.getElementById('apiUrlInput').value.trim();
+  const token = document.getElementById('apiTokenInput').value.trim();
+  if (!url) { showMsg('apiUrlMsg', 'Paste an API URL first', 'error'); return; }
+  showMsg('apiUrlMsg', 'Testing…', 'success');
+  const full = url + (token ? (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) : '');
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
+  try {
+    const r = await fetch(full, ctrl ? { signal: ctrl.signal } : undefined);
+    if (!r.ok) { showMsg('apiUrlMsg', 'The server answered HTTP ' + r.status + '. Check the deployment (Who has access: Anyone) and the URL.', 'error'); return; }
+    const d = await r.json();
+    if (d && d.error === 'Unauthorized') { showMsg('apiUrlMsg', 'Reached the server, but the token was rejected. Check it matches the API_TOKEN script property.', 'error'); return; }
+    if (!d || typeof d !== 'object') { showMsg('apiUrlMsg', 'Unexpected reply. Make sure the URL ends with /exec and Code.gs is deployed.', 'error'); return; }
+    const n = Array.isArray(d.entries) ? d.entries.length : (Array.isArray(d) ? d.length : 0);
+    const sites = d.config && Array.isArray(d.config.locations) ? d.config.locations.length : 0;
+    showMsg('apiUrlMsg', '✔ Reachable — ' + n + ' entries, ' + sites + ' site' + (sites === 1 ? '' : 's') + ' in the sheet. Not saved yet.', 'success');
+  } catch (e) {
+    const aborted = e && (e.name === 'AbortError');
+    showMsg('apiUrlMsg', aborted ? 'Timed out after 20 s. Check your connection and the deployment.' : 'Could not reach the URL. Check it is spelled correctly and you are online.', 'error');
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function renderMgdCard() {
@@ -2293,8 +2701,10 @@ async function addMgdRow() {
   if (isNaN(pct) || pct < 0 || pct > 100) { showMsg('mgdMsg', 'Enter a rate between 0 and 100', 'error'); return; }
   if (!/^\d{4}-\d{2}$/.test(from)) { showMsg('mgdMsg', 'Pick the month it applies from', 'error'); return; }
   if (getEntries().some(e => businessMonthKey(e.date) >= from) &&
-      !confirm('Entries already exist in or after ' + from + '. They keep their saved MGD; only new or back-dated entries from that month use the new rate. Continue?')) return;
+      !(await confirmPermanent('Change MGD from ' + monthShort(from) + '?',
+        'Entries already exist in or after <strong>' + esc(monthShort(from)) + '</strong>. They keep the MGD they were saved with; only new or back-dated collections from that month use the new rate.', 'Continue'))) return;
   config.mgd = addTerm(config.mgd || [], from, { value: pct / 100 });
+  logChange('MGD set to ' + (pct) + '% from ' + from);
   saveConfigLocal();
   const ok = await saveConfigToSheet();
   renderMgdCard();
@@ -2303,8 +2713,9 @@ async function addMgdRow() {
 }
 
 async function removeMgdRow(from) {
-  if (!confirm('Remove the MGD change from ' + from + '?')) return;
+  if (!(await confirmPermanent('Remove MGD change?', 'Remove the MGD change effective from <strong>' + esc(from) + '</strong>? Collections from that month onward will use the previous rate if edited or back-dated. Saved entries are not changed.', 'Remove'))) return;
   config.mgd = sortTerms(config.mgd || []).filter(r => r.from !== from);
+  logChange('MGD change from ' + from + ' removed');
   saveConfigLocal();
   await saveConfigToSheet();
   renderMgdCard();
@@ -2341,13 +2752,14 @@ function editSavedSite(id) {
   id = String(id || '');
   const loc = config.locations.find(l => String(l.id) === id);
   if (!loc) {
-    alert('Site not found. Try Save site again or reload the page.');
+    showAppAlert('Site not found', 'Try again or reload the page.');
     console.warn('editSavedSite: no loc for', id, config.locations.map(l => l.id));
     return;
   }
   draftSite = JSON.parse(JSON.stringify(loc));
   if (!Array.isArray(draftSite.categories)) draftSite.categories = [];
   draftEditingId = String(loc.id);
+  siteFormOpen = true;
   renderSettings();
   const card = document.getElementById('siteDraftCard');
   if (card) {
@@ -2362,52 +2774,7 @@ function editSavedSite(id) {
   }
 }
 
-async function removeLocationById(id) {
-  id = String(id || '');
-  const loc = config.locations.find(l => String(l.id) === id);
-  if (!loc) {
-    showAppAlert('Site not found', 'Could not find that site. Try refreshing the page.');
-    return;
-  }
-  const ok = confirm(
-    'Remove site "' + (loc.name || 'Unnamed') + '"?\n\n' +
-    '• It will disappear from Daily Entry and Settings\n' +
-    '• Collection history on the Google Sheet is NOT deleted\n\n' +
-    'Continue?'
-  );
-  if (!ok) return;
 
-  config.locations = config.locations.filter(l => String(l.id) !== id);
-  if (String(draftEditingId) === id) resetDraftForm();
-  saveConfigLocal();
-
-  showLoading('Removing site…');
-  let sheetOk = false;
-  try {
-    sheetOk = await saveConfigToSheet({ silent: true });
-  } catch (e) {
-    console.error(e);
-  } finally {
-    hideLoading();
-  }
-
-  // Refresh all UI that lists sites
-  renderSettings();
-  renderForm();
-  render21DayTotals();
-  updateHistoryCount();
-  if (document.getElementById('page-history')?.classList.contains('active')) showHistory();
-  if (document.getElementById('page-monthly')?.classList.contains('active')) showMonthlySummary();
-
-  if (sheetOk) {
-    showAppAlert('Site removed', '"' + (loc.name || 'Unnamed') + '" was removed from Settings. History on the sheet was kept.');
-  } else {
-    showAppAlert(
-      'Removed locally',
-      '"' + (loc.name || 'Unnamed') + '" was removed on this device, but the sheet may not have updated. Check your API URL and try again.'
-    );
-  }
-}
 
 function readDraftFromDom() {
   ensureDraft();
@@ -2460,7 +2827,7 @@ async function saveSiteFromDraft() {
       const changedTerms = JSON.stringify(draftSite.categories.map(c => c.terms)) !== JSON.stringify(prev.categories.map(c => c.terms)) ||
         JSON.stringify(draftSite.poolTerms) !== JSON.stringify(prev.poolTerms);
       if (changedTerms && effMonth && getEntries().some(e => businessMonthKey(e.date) >= effMonth)) {
-        if (!confirm('Entries already exist in or after ' + effMonth + '. They keep the figures they were saved with; only new or back-dated entries from that month will use the new rates. Continue?')) return;
+        if (!(await confirmPermanent('Apply rates from ' + monthShort(effMonth) + '?', 'Entries already exist in or after <strong>' + esc(monthShort(effMonth)) + '</strong>. They keep the figures they were saved with; only new or back-dated collections from that month use the new rates.', 'Continue'))) return;
       }
       // preserve name history if renamed
       if (prev.name && prev.name !== name && !isPlaceholderSiteName(prev.name)) {
@@ -2483,19 +2850,21 @@ async function saveSiteFromDraft() {
   } else {
     // new site — avoid duplicate names silently stacking
     if (config.locations.some(l => l.name === name)) {
-      if (!confirm('A site named "' + name + '" already exists. Add another anyway?')) return;
+      if (!(await confirmPermanent('Site already exists', 'A site named <strong>' + esc(name) + '</strong> already exists. Add another with the same name anyway?', 'Add anyway'))) return;
     }
     draftSite.id = draftSite.id || uid();
     applyTermChanges(null, draftSite, '');
     config.locations.push(JSON.parse(JSON.stringify(draftSite)));
   }
 
+  logChange('Site "' + name + '" ' + (draftEditingId ? 'updated' : 'added') + (effMonth && draftEditingId ? ' (rate changes from ' + effMonth + ')' : ''));
   config = migrateConfig(config);
   saveConfigLocal();
   const ok = await saveConfigToSheet();
-  showMsg('settingsMsg', ok ? 'Site saved — form cleared for next' : (!getApiUrl() ? 'Saved locally only' : 'Local OK; sheet sync failed'), ok ? 'success' : 'error');
+  showMsg('settingsMsg', ok ? 'Site saved' : (!getApiUrl() ? 'Saved locally only' : 'Local OK; sheet sync failed'), ok ? 'success' : 'error');
 
-  // Clear form for next entry
+  // Close the form after saving
+  siteFormOpen = false;
   resetDraftForm();
   renderSettings();
   renderForm();
@@ -2610,8 +2979,12 @@ async function applyFloatRecalc() {
     showLoading('Updating ' + (done + failed) + ' / ' + n + '…');
   }
   hideLoading();
+  logChange('Float recalculated from ' + fromDate + ': ' + done + ' collection' + (done === 1 ? '' : 's') + ' updated' + (failed ? ', ' + failed + ' failed' : ''));
+  saveConfigLocal();
+  saveConfigToSheet({ silent: true });
   floatPreview = null;
   renderFloatRecalc();
+  renderChangeLog();
   showMsg('frMsg', failed ? done + ' updated, ' + failed + ' failed — run Preview again to retry the rest' : done + ' collection' + (done === 1 ? '' : 's') + ' updated', failed ? 'error' : 'success');
   render21DayTotals();
   updateHistoryCount();
@@ -2695,7 +3068,7 @@ async function mergeSites() {
     return;
   }
 
-  if (!confirm('Merge all history from "' + from.name + '" into "' + keep.name + '"?\n\nThis rewrites entries on the Google Sheet and removes "' + from.name + '" from Settings.')) return;
+  if (!(await confirmPermanent('Merge sites?', 'Merge all history from <strong>' + esc(from.name) + '</strong> into <strong>' + esc(keep.name) + '</strong>? This <strong>rewrites entries on the Google Sheet</strong> and removes ' + esc(from.name) + ' from Settings.', 'Merge'))) return;
 
   showLoading('Merging sites…');
   try {
@@ -2731,6 +3104,7 @@ async function mergeSites() {
     }
 
     // remove from site from config
+    logChange('Sites merged: "' + from.name + '" into "' + keep.name + '" (' + updated + ' collections)');
     config.locations = config.locations.filter(l => l.id !== from.id);
     config = migrateConfig(config);
     saveConfigLocal();
@@ -2754,28 +3128,29 @@ async function saveApiUrl() {
   const url = document.getElementById('apiUrlInput').value.trim();
   if (!url) {
     showMsg('apiUrlMsg', 'Paste an API URL first', 'error');
-    showAppAlert('API URL required', 'Paste your Apps Script web app URL, then save again.');
     return;
   }
   setApiUrl(url);
   setApiToken(document.getElementById('apiTokenInput').value.trim());
-  showMsg('apiUrlMsg', 'Testing connection…', 'success');
+  showMsg('apiUrlMsg', 'Saving and loading…', 'success');
   const result = await loadEntries();
   if (!result || !result.ok) {
-    failToSettings((result && result.error) || 'Could not connect to the API.');
+    showMsg('apiUrlMsg', (result && result.error) || 'Could not connect to the API.', 'error');
     return;
   }
-  showMsg('apiUrlMsg', 'API connected — data loaded', 'success');
+  showMsg('apiUrlMsg', '✔ Saved — ' + (result.entries || []).length + ' entries loaded', 'success');
   updateHistoryCount();
+  renderSettings();
   renderForm();
   render21DayTotals();
-  showPage('entry');
 }
 
-function resetLocalData() {
-  localStorage.removeItem('3bb_config');
-  localStorage.removeItem('3bb_api_url');
-  localStorage.removeItem('3bb_api_token');
+async function resetLocalData() {
+  const ok = await confirmPermanent('Clear this device?',
+    'This removes the saved sites, API URL, token, preferences and login <strong>stored in this browser only</strong>. <strong>Nothing on the Google Sheet is deleted.</strong> You will need the API URL (and token) again to reconnect, and settings re-download from the sheet.',
+    'Clear this device');
+  if (!ok) return;
+  ['3bb_config', '3bb_api_url', '3bb_api_token', '3bb_prefs', '3bb_hist', '3bb_set_sec'].forEach(k => localStorage.removeItem(k));
   sessionStorage.removeItem('3bb_logged_in');
   location.reload();
 }
@@ -2802,7 +3177,7 @@ function downloadCsv(rows, name) {
 /** Export exactly what the History filters currently show. */
 function exportRowsCSV() {
   const c = histCompute();
-  if (!c.rows.length) { alert('Nothing to export for these filters'); return; }
+  if (!c.rows.length) { showAppAlert('Nothing to export', 'No collections match the current filters.'); return; }
   const rows = [['Date', 'Business month', 'Site', 'Type', 'Machine', 'Gross', 'Float Taken', 'Net', 'MGD', 'Supplier', 'Site Share']];
   [...c.rows].sort((a, b) => a.date.localeCompare(b.date)).forEach(r =>
     rows.push([r.date, r.bm, r.siteName, r.type, r.cat, r.gross, r.floatTaken, r.net, r.mgd, r.ss, r.cl]));
@@ -2811,7 +3186,7 @@ function exportRowsCSV() {
 
 function exportCSV() {
   const entries = getEntries();
-  if (!entries.length) { alert('No entries'); return; }
+  if (!entries.length) { showAppAlert('Nothing to export', 'There are no entries yet.'); return; }
   const rows = [['Date', 'Location', 'Category', 'Gross', 'Float Taken', 'Float Owed After', 'Net', 'MGD', 'Supplier', 'Site Share']];
   for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
     for (const loc of e.locations || []) {
@@ -2851,7 +3226,7 @@ function showPage(name) {
   document.querySelector(`.nav a[onclick*="${name}"]`)?.classList.add('active');
   if (name === 'history') showHistory();
   if (name === 'monthly') showMonthlySummary();
-  if (name === 'settings') renderSettings();
+  if (name === 'settings') { renderSettings(); openSettingsSection(); }
   if (name === 'entry') {
     // Always land on site picker when opening Daily Entry
     activeEntrySiteId = null;
@@ -2901,6 +3276,27 @@ startApp();
 // Recalc float carry when date changes
 document.getElementById('entryDate').addEventListener('change', () => {
   renderForm();
+});
+
+document.getElementById('sec-sites').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const id = b.getAttribute('data-site-id');
+  switch (b.getAttribute('data-act')) {
+    case 'add': openSiteForm(); break;
+    case 'edit': editSavedSite(id); break;
+    case 'dup': duplicateSite(id); break;
+    case 'archive': archiveSite(id, true); break;
+    case 'restore': archiveSite(id, false); break;
+    case 'remove': removeLocationById(id); break;
+    case 'rmterm': removeTerm(id, b.getAttribute('data-kind'), b.getAttribute('data-cat-id'), b.getAttribute('data-from')); break;
+  }
+});
+
+document.getElementById('settingsFileInput').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  importSettingsFile(f);
 });
 
 document.getElementById('receiptFileInput').addEventListener('change', (e) => {
