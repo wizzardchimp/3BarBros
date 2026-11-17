@@ -67,8 +67,15 @@ Uses the same Period / Site / Machine filters as History (shared and remembered)
 - Takings and float amounts are entered per collection and are not dated.
 - Logic lives in `logic.js`; run the tests with `node tests/logic.test.js`.
 
+## Recalculate float from a date
+Settings → *Recalculate float from a date*. Pick a from date (and optionally one site), press **Preview changes**, and you'll see every collection that would change (float carried in, net, site share) with before/after totals. **Apply** then saves them to the sheet, after downloading a JSON backup of the original entries.
+- Re-runs the float rules in date order per site and machine, starting from the float carried out of the last collection *before* the date.
+- Gross takings are never changed. Each collection keeps its saved share %, flat fee and float required; MGD uses the dated rate for each collection's date.
+- Safe to re-run: when the data is already consistent it reports *Nothing to change*.
+- The MasterLog audit sheet is append-only and keeps the figures as first submitted.
+
 ## Known limitations
-- Editing/back-dating an entry does not recalculate `floatOwedAfter` on later entries.
+- Editing, deleting or back-dating an entry does not automatically fix the float carried into later entries — run *Recalculate float from a date* in Settings afterwards.
 - Receipt photos upload before the entry saves; if the save then fails, the uploaded files stay in Drive.
 - Flat fees below the day's gross are not carried forward.
 

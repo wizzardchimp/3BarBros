@@ -361,6 +361,7 @@ h3{font-size:14px;margin:0 0 8px}
   <div id="settingsContainer"></div>
   <div id="savedSitesList"></div>
   <div id="mergeSitesContainer"></div>
+  <div id="floatRecalcCard"></div>
 </div>
 
 
@@ -2163,6 +2164,7 @@ function renderSettings() {
 
   document.getElementById('settingsContainer').innerHTML = html;
   renderMgdCard();
+  renderFloatRecalc();
   renderSavedSitesList();
   renderMergeSites();
 }
@@ -2450,6 +2452,121 @@ async function saveSiteFromDraft() {
   renderSettings();
   renderForm();
   render21DayTotals();
+}
+
+// ===== FLOAT RECALCULATION =====
+let floatPreview = null; // { fromDate, siteKey, result }
+
+function renderFloatRecalc() {
+  const el = document.getElementById('floatRecalcCard');
+  if (!el) return;
+  const p = floatPreview;
+  const fromVal = p ? p.fromDate : '';
+  const siteVal = p ? p.siteKey : '';
+  let html = `<div class="settings-card" style="margin-top:16px">
+    <h2>Recalculate float from a date</h2>
+    <p class="hint">Float owed is carried from one collection to the next. If an entry was deleted, edited or back-dated, later collections can carry the wrong amount.
+      This re-runs the float rules in date order from the date you choose. It keeps each collection's gross takings, share % and flat fee as saved, and uses the MGD rate in force on each date.
+      You'll see exactly what would change before anything is saved.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+      <label>From date<br><input type="date" id="fr_date" value="${esc(fromVal)}"></label>
+      <label>Site<br><select id="fr_site" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px">
+        <option value="">All sites</option>
+        ${config.locations.map(l => `<option value="${esc(l.id)}"${l.id === siteVal ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}
+      </select></label>
+      <button type="button" class="btn btn-primary" onclick="previewFloatRecalc()">Preview changes</button>
+      <span class="msg" id="frMsg"></span>
+    </div>`;
+  if (p) html += floatPreviewHtml(p.result);
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function floatPreviewHtml(res) {
+  const n = res.changed.length;
+  const skipNote = res.skipped ? `<p class="hint">${res.skipped} older collection${res.skipped === 1 ? '' : 's'} had no saved share rate and ${res.skipped === 1 ? 'was' : 'were'} left as is.</p>` : '';
+  if (!n) {
+    return `<div style="margin-top:12px;padding:10px;background:#eafaf1;border-radius:8px"><strong>Nothing to change.</strong> Float carry-forward is already consistent from that date.</div>${skipNote}`;
+  }
+  const t = res.totals;
+  const arrow = (a, b) => `${gbp(a)} → <strong>${gbp(b)}</strong>`;
+  const shown = res.changed.slice(0, 30);
+  const rows = shown.map(c => c.changes.map(ch => `<tr>
+      <td>${esc(histDateLabel(c.date))}</td><td>${esc(ch.siteName)} · ${esc(ch.cat)}</td>
+      <td class="ro">${gbp(ch.before.floatOwedIn)} → <strong>${gbp(ch.after.floatOwedIn)}</strong></td>
+      <td class="ro">${gbp(ch.before.net)} → <strong>${gbp(ch.after.net)}</strong></td>
+      <td class="ro">${gbp(ch.before.cashLeft)} → <strong>${gbp(ch.after.cashLeft)}</strong></td></tr>`).join('')).join('');
+  return `<div style="margin-top:14px">
+    <p><strong>${n} collection${n === 1 ? '' : 's'} would change.</strong> Gross takings are not touched.</p>
+    <div class="hist-kpis" style="margin:8px 0">
+      <div class="hist-kpi"><div class="lbl">Net</div><div class="val" style="font-size:13px">${arrow(t.netBefore, t.netAfter)}</div></div>
+      <div class="hist-kpi"><div class="lbl">Site share</div><div class="val" style="font-size:13px">${arrow(t.clBefore, t.clAfter)}</div></div>
+      <div class="hist-kpi"><div class="lbl">Supplier</div><div class="val" style="font-size:13px">${arrow(t.ssBefore, t.ssAfter)}</div></div>
+    </div>
+    <div class="table-scroll"><table class="tbl"><thead><tr><th>Date</th><th>Site · machine</th><th class="num">Float carried in</th><th class="num">Net</th><th class="num">Site share</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${res.changed.length > shown.length ? `<p class="hint">…and ${res.changed.length - shown.length} more collection${res.changed.length - shown.length === 1 ? '' : 's'}.</p>` : ''}
+    ${skipNote}
+    <p class="hint">A backup of the original entries downloads automatically before saving. The MasterLog audit sheet is append-only and keeps the figures as first submitted.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn btn-danger" onclick="applyFloatRecalc()">Apply ${n} change${n === 1 ? '' : 's'}</button>
+      <button type="button" class="btn btn-outline" onclick="floatPreview=null;renderFloatRecalc()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+async function previewFloatRecalc() {
+  const fromDate = (document.getElementById('fr_date').value || '').trim();
+  const siteKey = document.getElementById('fr_site').value || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) { showMsg('frMsg', 'Pick a from date', 'error'); return; }
+  // Work from the latest sheet data, never a stale tab
+  const fresh = await loadEntries();
+  if (!fresh.ok || !dataLoadOk) { showMsg('frMsg', 'Could not load the latest data: ' + (fresh.error || ''), 'error'); return; }
+  const result = recalcFloat(getEntries(), histSiteInfo, fromDate, d => mgdAt(config, d), { siteKey });
+  floatPreview = { fromDate, siteKey, result };
+  renderFloatRecalc();
+}
+
+function downloadJson(obj, name) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const href = URL.createObjectURL(blob);
+  a.href = href; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
+async function applyFloatRecalc() {
+  if (!floatPreview || !floatPreview.result.changed.length) return;
+  const { result, fromDate } = floatPreview;
+  const n = result.changed.length;
+  const ok = await confirmPermanent(
+    'Apply float recalculation?',
+    'This is a <strong>permanent change</strong> — ' + n + ' collection' + (n === 1 ? '' : 's') + ' from <strong>' + esc(fromDate) + '</strong> will be updated on the sheet. A backup of the originals downloads first.',
+    'Apply ' + n + ' change' + (n === 1 ? '' : 's')
+  );
+  if (!ok) return;
+
+  downloadJson(result.changed.map(c => c.original), '3barbros_backup_before_float_recalc_' + todayStr() + '.json');
+
+  let done = 0, failed = 0;
+  showLoading('Updating 0 / ' + n + '…');
+  for (const c of result.changed) {
+    const saved = await updateEntryOnSheet(c.entry);
+    if (saved) {
+      done++;
+      const key = entryKey(c.original);
+      const idx = cachedEntries.findIndex(e => entryKey(e) === key);
+      if (idx >= 0) cachedEntries[idx] = c.entry;
+    } else {
+      failed++;
+    }
+    showLoading('Updating ' + (done + failed) + ' / ' + n + '…');
+  }
+  hideLoading();
+  floatPreview = null;
+  renderFloatRecalc();
+  showMsg('frMsg', failed ? done + ' updated, ' + failed + ' failed — run Preview again to retry the rest' : done + ' collection' + (done === 1 ? '' : 's') + ' updated', failed ? 'error' : 'success');
+  render21DayTotals();
+  updateHistoryCount();
 }
 
 function renderMergeSites() {

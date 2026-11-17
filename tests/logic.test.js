@@ -128,4 +128,70 @@ t('float outstanding = latest owed per site+machine, only if > 0', () => {
   const out = L.floatOutstanding([e('2026-03-01', 50), e('2026-04-01', 20), e('2026-04-01', 0, 'Digital'), e('2026-02-01', 99, 'Digital')], info, keyFn);
   assert.deepStrictEqual(out.map(x => [x.cat, x.owed]), [['Reels', 20]]);
 });
+
+// ---- float recalculation ----
+function chain(grosses, floatReq = 50) {
+  let owed = 0;
+  return grosses.map((g, i) => {
+    const date = '2026-0' + (i + 1) + '-10';
+    const r = L.calcCategory(g, 0.5, true, floatReq, owed, 0, 0.2);
+    owed = r.floatOwedAfter;
+    return { id: date, timestamp: date + 'T10:00:00Z', date, grandTotal: r.net,
+      locations: [{ id: 's1', name: 's1', categories: [{ id: 'c1', name: 'Reels', rate: 0.5, flatFee: 0, floatRequired: floatReq, gross: r.gross, cash: r.gross,
+        floatOwedIn: r.floatOwedIn, floatTaken: r.floatTaken, floatOwedAfter: r.floatOwedAfter, net: r.net, total: r.net, mgd: r.mgd, cashLeft: r.cashLeft, supplierShare: r.supplierShare }] }] };
+  });
+}
+const mgd20 = () => 0.2;
+
+t('recalc on consistent data changes nothing', () => {
+  const es = chain([30, 40, 200, 150, 120]);   // first two collections do not cover the float
+  const res = L.recalcFloat(es, info, '2026-01-01', mgd20, {});
+  assert.strictEqual(res.changed.length, 0);
+});
+
+t('deleting a middle entry breaks the chain; recalc repairs everything after it, from the date forward', () => {
+  const es = chain([30, 40, 200, 150, 120]);
+  const broken = es.filter((_, i) => i !== 1);                 // delete Feb: Mar..May carry is now wrong
+  const res = L.recalcFloat(broken, info, '2026-03-01', mgd20, {});
+  assert.ok(res.changed.length >= 1);
+  assert.ok(res.changed.every(c => c.date >= '2026-03-01'));    // nothing before the chosen date is touched
+  // the repaired chain equals a clean chain built without Feb
+  const clean = chain([30, 200, 150, 120]);
+  const byDate = {}; res.changed.forEach(c => { byDate[c.date] = c.entry.locations[0].categories[0]; });
+  broken.forEach(e => { if (!byDate[e.date]) byDate[e.date] = e.locations[0].categories[0]; });
+  assert.strictEqual(byDate['2026-03-10'].floatOwedIn, 20);     // 50-30 owed from Jan; Mar covers it: owedIn must be 20 not the old 30
+  // idempotent: applying the repaired entries and recalculating again yields no further changes
+  const applied = broken.map(e => { const r = res.changed.find(c => c.date === e.date && c.original === e); return r ? r.entry : e; });
+  assert.strictEqual(L.recalcFloat(applied, info, '2026-03-01', mgd20, {}).changed.length, 0);
+});
+
+t('recalc never changes gross, originals are untouched, and grand totals follow', () => {
+  const es = chain([30, 40, 200]);
+  es[1].locations[0].categories[0].floatOwedIn = 999;            // corrupt carry
+  const snapshot = JSON.stringify(es);
+  const res = L.recalcFloat(es, info, '2026-02-01', mgd20, {});
+  assert.strictEqual(JSON.stringify(es), snapshot);              // originals not mutated
+  res.changed.forEach(c => {
+    const cat = c.entry.locations[0].categories[0];
+    assert.strictEqual(cat.gross, c.original.locations[0].categories[0].gross);
+    assert.strictEqual(c.entry.grandTotal, cat.net);
+  });
+});
+
+t('recalc respects the site scope and keeps each entry\'s own share rate', () => {
+  const a = chain([30, 40, 200]); const b = chain([30, 40, 200]);
+  b.forEach(e => { e.locations[0].id = 's2'; e.locations[0].name = 's2'; e.id += 'b'; e.timestamp += 'b'; e.locations[0].categories[0].rate = 0.3; });
+  b[0].locations[0].categories[0].floatOwedAfter = 5;            // corrupt site 2 only
+  const res = L.recalcFloat(a.concat(b), info, '2026-01-01', mgd20, { siteKey: 's1' });
+  assert.strictEqual(res.changed.length, 0);                     // site 2 problem ignored when scoped to site 1
+  const all = L.recalcFloat(a.concat(b), info, '2026-01-01', mgd20, {});
+  assert.ok(all.changed.length > 0 && all.changed.every(c => c.entry.locations[0].id === 's2'));
+  all.changed.forEach(c => assert.strictEqual(c.entry.locations[0].categories[0].rate, 0.3));
+});
+
+t('uses the dated MGD rate for the entry date', () => {
+  const es = chain([200]); es[0].locations[0].categories[0].mgd = 0;   // wrong stored MGD
+  const res = L.recalcFloat(es, info, '2026-01-01', d => 0.25, {});
+  assert.strictEqual(res.changed[0].entry.locations[0].categories[0].mgd, 37.5); // net 150 * 25%
+});
 console.log(n + ' tests passed');

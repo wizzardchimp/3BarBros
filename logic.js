@@ -335,6 +335,104 @@
     return rows;
   }
 
+  /* ---------- float recalculation ---------- */
+
+  var FLOAT_FIELDS = ['floatOwedIn', 'floatTaken', 'floatOwedAfter', 'net', 'mgd', 'cashLeft', 'supplierShare'];
+
+  function catKeyOf(c) { return c.id || c.name || ''; }
+
+  /** Recompute grand totals on an entry from its (updated) locations/categories/pool. */
+  function recomputeGrands(e) {
+    var gt = 0, gcl = 0, gmgd = 0, gss = 0, gf = 0;
+    (e.locations || []).forEach(function (loc) {
+      (loc.categories || []).forEach(function (c) {
+        gt += c.net || 0; gcl += c.cashLeft || 0; gmgd += c.mgd || 0; gss += c.supplierShare || 0; gf += c.floatTaken || 0;
+      });
+      if (loc.poolGross != null && loc.poolGross !== '') {
+        gt += parseFloat(loc.poolGross) || 0; gcl += loc.poolCL || 0; gss += loc.poolSS || 0;
+      }
+    });
+    e.grandTotal = round(gt); e.grandCL = round(gcl); e.grandMGD = round(gmgd); e.grandSS = round(gss); e.grandFloat = round(gf);
+    return e;
+  }
+
+  /**
+   * Recalculate the float carry-forward chain (per site + machine) for entries dated fromDate onward.
+   * Opening balance = floatOwedAfter of the last entry before fromDate (0 if none).
+   * Each category keeps the share rate / flat fee / float required it was saved with; MGD uses mgdAtFn(date).
+   * Gross takings are never changed. Returns changed entries as clones (originals untouched).
+   *   opts: { siteKey: only this site, or '' for all }
+   */
+  function recalcFloat(entries, siteInfo, fromDate, mgdAtFn, opts) {
+    opts = opts || {};
+    var chains = {};
+    (entries || []).forEach(function (e) {
+      if (!e || !e.date || !e.locations) return;
+      e.locations.forEach(function (loc, li) {
+        var si = siteInfo(loc);
+        if (opts.siteKey && si.key !== opts.siteKey) return;
+        (loc.categories || []).forEach(function (c, ci) {
+          var k = si.key + '|' + catKeyOf(c);
+          (chains[k] = chains[k] || []).push({ e: e, li: li, ci: ci, si: si });
+        });
+      });
+    });
+
+    var clones = {}; // entry -> clone (by identity via index)
+    var cloneList = [];
+    function cloneOf(e) {
+      var i = cloneList.findIndex(function (x) { return x.orig === e; });
+      if (i < 0) { cloneList.push({ orig: e, copy: JSON.parse(JSON.stringify(e)), changes: [] }); i = cloneList.length - 1; }
+      return cloneList[i];
+    }
+
+    var skipped = 0;
+    Object.keys(chains).forEach(function (k) {
+      var list = chains[k].sort(function (a, b) {
+        return a.e.date.localeCompare(b.e.date) || String(a.e.timestamp || '').localeCompare(String(b.e.timestamp || ''));
+      });
+      var owed = 0;
+      for (var i = 0; i < list.length; i++) {
+        var it = list[i];
+        var c = it.e.locations[it.li].categories[it.ci];
+        if (it.e.date < fromDate) { owed = parseFloat(c.floatOwedAfter) || 0; continue; }
+        var gross = c.gross != null ? c.gross : (c.cash != null ? c.cash : 0);
+        var rate = c.rate != null ? parseFloat(c.rate) : ((c.net > 0) ? (c.cashLeft || 0) / c.net : NaN);
+        if (isNaN(rate)) { skipped++; owed = parseFloat(c.floatOwedAfter) || 0; continue; }
+        var r = calcCategory(gross, rate, true, c.floatRequired || 0, owed, c.flatFee || 0, mgdAtFn(it.e.date));
+        var after = { floatOwedIn: r.floatOwedIn, floatTaken: r.floatTaken, floatOwedAfter: r.floatOwedAfter,
+                      net: r.net, mgd: r.mgd, cashLeft: r.cashLeft, supplierShare: r.supplierShare };
+        var changed = FLOAT_FIELDS.some(function (f) { return Math.abs((+c[f] || 0) - after[f]) >= 0.005; });
+        if (changed) {
+          var cl = cloneOf(it.e);
+          var cc = cl.copy.locations[it.li].categories[it.ci];
+          var before = {}; FLOAT_FIELDS.forEach(function (f) { before[f] = +c[f] || 0; });
+          FLOAT_FIELDS.forEach(function (f) { cc[f] = after[f]; });
+          cc.total = after.net;
+          cl.changes.push({ siteName: it.si.label, cat: c.name || '', before: before, after: after });
+        }
+        owed = r.floatOwedAfter;
+      }
+    });
+
+    var out = cloneList.map(function (x) {
+      recomputeGrands(x.copy);
+      return { entry: x.copy, original: x.orig, date: x.orig.date, changes: x.changes };
+    }).sort(function (a, b) { return a.date.localeCompare(b.date) || String(a.entry.timestamp || '').localeCompare(String(b.entry.timestamp || '')); });
+
+    var tot = { netBefore: 0, netAfter: 0, clBefore: 0, clAfter: 0, ssBefore: 0, ssAfter: 0, mgdBefore: 0, mgdAfter: 0 };
+    out.forEach(function (o) {
+      o.changes.forEach(function (ch) {
+        tot.netBefore += ch.before.net; tot.netAfter += ch.after.net;
+        tot.clBefore += ch.before.cashLeft; tot.clAfter += ch.after.cashLeft;
+        tot.ssBefore += ch.before.supplierShare; tot.ssAfter += ch.after.supplierShare;
+        tot.mgdBefore += ch.before.mgd; tot.mgdAfter += ch.after.mgd;
+      });
+    });
+    Object.keys(tot).forEach(function (k) { tot[k] = round(tot[k]); });
+    return { changed: out, skipped: skipped, totals: tot };
+  }
+
   var api = {
     MGD_RATE: MGD_RATE, BUSINESS_MONTH_CUTOFF_DAY: BUSINESS_MONTH_CUTOFF_DAY, EPOCH: EPOCH,
     round: round, businessMonthKey: businessMonthKey, sortTerms: sortTerms, termAt: termAt,
@@ -342,7 +440,7 @@
     applyTermChanges: applyTermChanges, seedCatTerms: seedCatTerms, seedPoolTerms: seedPoolTerms,
     calcCategory: calcCategory, calcPool: calcPool,
     shiftMonth: shiftMonth, daysBefore: daysBefore, buildRows: buildRows, periodTest: periodTest,
-    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding
+    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, recomputeGrands: recomputeGrands
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.keys(api).forEach(function (k) { root[k] = api[k]; });
