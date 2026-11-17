@@ -189,12 +189,139 @@
     return { poolGross: round(g), poolSS: round(poolSS), poolCL: round(poolCL), poolMode: mode };
   }
 
+
+  /* ---------- history / review helpers (pure) ---------- */
+
+  function shiftMonth(key, n) {
+    var y = parseInt(String(key).slice(0, 4), 10), m = parseInt(String(key).slice(5, 7), 10);
+    var idx = y * 12 + (m - 1) + n;
+    return Math.floor(idx / 12) + '-' + String((idx % 12) + 1).padStart(2, '0');
+  }
+
+  function daysBefore(dateStr, n) {
+    var y = parseInt(dateStr.slice(0, 4), 10), m = parseInt(dateStr.slice(5, 7), 10), d = parseInt(dateStr.slice(8, 10), 10);
+    var t = new Date(Date.UTC(y, m - 1, d - n));
+    return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');
+  }
+
+  /** One flat row per entry x site x category (pool as category 'Pool'). */
+  function buildRows(entries, siteInfo, keyFn) {
+    var rows = [];
+    (entries || []).forEach(function (e) {
+      if (!e || !e.date || !e.locations) return;
+      var bm = businessMonthKey(e.date);
+      var ek = keyFn(e);
+      e.locations.forEach(function (loc) {
+        var si = siteInfo(loc);
+        (loc.categories || []).forEach(function (c) {
+          var gross = c.gross != null ? c.gross : (c.cash != null ? c.cash : 0);
+          var net = c.net != null ? c.net : (c.total != null ? c.total : gross);
+          rows.push({ entry: e, entryKey: ek, date: e.date, bm: bm, siteKey: si.key, siteName: si.label,
+            cat: c.name || '', gross: +gross || 0, floatTaken: +c.floatTaken || 0, net: +net || 0,
+            mgd: +c.mgd || 0, ss: +c.supplierShare || 0, cl: +c.cashLeft || 0, low: null });
+        });
+        if (loc.poolGross != null && loc.poolGross !== '' && (parseFloat(loc.poolGross) > 0 || loc.poolSS != null || loc.poolCL != null)) {
+          var pg = parseFloat(loc.poolGross) || 0;
+          rows.push({ entry: e, entryKey: ek, date: e.date, bm: bm, siteKey: si.key, siteName: si.label,
+            cat: 'Pool', gross: pg, floatTaken: 0, net: pg, mgd: 0, ss: +loc.poolSS || 0, cl: +loc.poolCL || 0, low: null });
+        }
+      });
+    });
+    return rows;
+  }
+
+  /** Predicate for a period id: 'm0' this business month, 'm1' last, '21d', '3m','6m','12m','all', or 'YYYY-MM'. */
+  function periodTest(period, today) {
+    var cur = businessMonthKey(today);
+    if (period === 'all') return function () { return true; };
+    if (period === 'm0') return function (r) { return r.bm === cur; };
+    if (period === 'm1') { var p = shiftMonth(cur, -1); return function (r) { return r.bm === p; }; }
+    if (period === '21d') { var from = daysBefore(today, 21); return function (r) { return r.date >= from && r.date <= today; }; }
+    var mm = /^(\d+)m$/.exec(period);
+    if (mm) { var start = shiftMonth(cur, -(parseInt(mm[1], 10) - 1)); return function (r) { return r.bm >= start && r.bm <= cur; }; }
+    if (/^\d{4}-\d{2}$/.test(period)) return function (r) { return r.bm === period; };
+    return function () { return true; };
+  }
+
+  /** The single business month a period means (for vs-last-month deltas), else ''. */
+  function periodMonth(period, today) {
+    var cur = businessMonthKey(today);
+    if (period === 'm0') return cur;
+    if (period === 'm1') return shiftMonth(cur, -1);
+    return /^\d{4}-\d{2}$/.test(period) ? period : '';
+  }
+
+  function sumRows(rows) {
+    var t = { net: 0, gross: 0, ss: 0, cl: 0, mgd: 0, floatTaken: 0, collections: 0 };
+    var seen = {};
+    rows.forEach(function (r) {
+      t.net += r.net; t.gross += r.gross; t.ss += r.ss; t.cl += r.cl; t.mgd += r.mgd; t.floatTaken += r.floatTaken;
+      var k = r.entryKey + '|' + r.siteKey;
+      if (!seen[k]) { seen[k] = 1; t.collections++; }
+    });
+    ['net', 'gross', 'ss', 'cl', 'mgd', 'floatTaken'].forEach(function (k) { t[k] = round(t[k]); });
+    return t;
+  }
+
+  /** Group rows by a field -> [{key,label,...sums}] sorted by net desc. */
+  function groupRows(rows, field, labelField) {
+    var map = {}, order = [];
+    rows.forEach(function (r) {
+      var k = r[field];
+      if (!map[k]) { map[k] = { key: k, label: r[labelField || field], rows: [] }; order.push(k); }
+      map[k].rows.push(r);
+    });
+    return order.map(function (k) {
+      var g = map[k]; var s = sumRows(g.rows); s.key = g.key; s.label = g.label; return s;
+    }).sort(function (a, b) { return b.net - a.net; });
+  }
+
+  /** Net per business month for the last n months ending endKey (zero-filled). */
+  function monthSeries(rows, endKey, n) {
+    var out = [];
+    for (var i = n - 1; i >= 0; i--) out.push({ key: shiftMonth(endKey, -i), net: 0, ss: 0 });
+    var idx = {}; out.forEach(function (m, i) { idx[m.key] = i; });
+    rows.forEach(function (r) { if (idx[r.bm] != null) { out[idx[r.bm]].net += r.net; out[idx[r.bm]].ss += r.ss + 0 * r.cl; } });
+    out.forEach(function (m) { m.net = round(m.net); m.ss = round(m.ss); });
+    return out;
+  }
+
+  /**
+   * Flag collections well below that site+category's recent norm.
+   * Needs >= minPrior earlier collections; compares gross with the mean of up to `window` prior ones.
+   * Sets row.low = average, or null. Pool rows are never flagged (fixed rent).
+   */
+  function markLow(rows, opts) {
+    opts = opts || {};
+    var ratio = opts.ratio || 0.5, minPrior = opts.minPrior || 5, win = opts.window || 8;
+    var groups = {};
+    rows.forEach(function (r) {
+      r.low = null;
+      if (r.cat === 'Pool') return;
+      var k = r.siteKey + '|' + r.cat;
+      (groups[k] = groups[k] || []).push(r);
+    });
+    Object.keys(groups).forEach(function (k) {
+      var list = groups[k].slice().sort(function (a, b) {
+        return a.date.localeCompare(b.date) || String(a.entry.timestamp || '').localeCompare(String(b.entry.timestamp || ''));
+      });
+      for (var i = minPrior; i < list.length; i++) {
+        var prior = list.slice(Math.max(0, i - win), i);
+        var avg = prior.reduce(function (s, r) { return s + r.gross; }, 0) / prior.length;
+        if (avg > 0 && list[i].gross < avg * ratio) list[i].low = round(avg);
+      }
+    });
+    return rows;
+  }
+
   var api = {
     MGD_RATE: MGD_RATE, BUSINESS_MONTH_CUTOFF_DAY: BUSINESS_MONTH_CUTOFF_DAY, EPOCH: EPOCH,
     round: round, businessMonthKey: businessMonthKey, sortTerms: sortTerms, termAt: termAt,
     addTerm: addTerm, lastTerm: lastTerm, mgdAt: mgdAt, resolveLoc: resolveLoc,
     applyTermChanges: applyTermChanges, seedCatTerms: seedCatTerms, seedPoolTerms: seedPoolTerms,
-    calcCategory: calcCategory, calcPool: calcPool
+    calcCategory: calcCategory, calcPool: calcPool,
+    shiftMonth: shiftMonth, daysBefore: daysBefore, buildRows: buildRows, periodTest: periodTest,
+    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.keys(api).forEach(function (k) { root[k] = api[k]; });

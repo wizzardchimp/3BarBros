@@ -53,6 +53,9 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 - `floatOwedAfter` carries to the next collection for that **location + category**  
 - Pool: no float (rent or 50/50 as configured)  
 
+## History page
+Filter by period (this/last business month, 21 days, 3/6/12 months, all, or any specific month), site and machine (Reels/Digital). Shows KPI tiles (with change vs the previous month when a single month is selected), a 12-month net chart (tap a bar to view that month), a breakdown by site or machine, and collapsible collection cards grouped by business month. A collection is marked *Below usual* when its gross is under half the average of that site and machine's previous collections (needs at least 5 earlier ones). "Export this view" downloads exactly what the filters show. Filters are remembered per device.
+
 ## Dated rates (effective dating)
 - **MGD** is a global rate with a dated schedule (Settings → *MGD rate*). Add a change with an *Apply from* month; earlier months keep the old rate.
 - **Site shares, flat fee, pool rent / pool %** are dated per site: when editing a site, set *apply from* (a business month). Leave it blank only to correct a mistake in the current value.

@@ -110,6 +110,63 @@ h3{font-size:14px;margin:0 0 8px}
 .site-pick-hint{font-size:13px;color:#666;margin:0 0 4px}
 .entry-site-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
 .entry-site-bar.hidden{display:none!important}
+/* ===== History / review ===== */
+.hist-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:flex-end}
+.hist-filters label{display:flex;flex-direction:column;font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.3px;flex:1 1 140px;min-width:120px}
+.hist-filters select{margin-top:3px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;background:#fff;color:#1a1a2e;min-height:44px}
+.hist-filters .btn{min-height:44px}
+.hist-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.hist-kpi{background:#fff;border-radius:10px;padding:10px 10px;min-width:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hist-kpi .val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.hist-kpi .lbl{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.hist-kpi .delta{font-size:12px;margin-top:4px;font-weight:600}
+.delta.up{color:#1e8449}.delta.down{color:#b03a2e}.delta.flat{color:#777}
+.hist-panel{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hist-panel h2{margin:0 0 8px;font-size:14px}
+.hist-chart svg{width:100%;max-width:640px;height:auto;display:block;margin:0 auto}
+.hist-chart .bar{cursor:pointer}
+.hist-chart .bar:focus{outline:none}
+.hist-chart .bar:focus rect,.hist-chart .bar:hover rect{stroke:#f7b731;stroke-width:2}
+.hist-hint{font-size:11px;color:#888;margin-top:4px;text-align:center}
+.bd-row{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;font:inherit;color:inherit;min-height:44px}
+.bd-row:last-child{border-bottom:0}
+.bd-top{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:600}
+.bd-top span:last-child{font-variant-numeric:tabular-nums}
+.bd-bar{height:8px;background:#eef0f4;border-radius:4px;margin-top:6px;overflow:hidden}
+.bd-bar i{display:block;height:100%;background:#1a1a2e;border-radius:4px}
+.bd-sub{font-size:11px;color:#777;margin-top:3px}
+.hist-month{font-size:13px;margin:16px 0 8px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;color:#1a1a2e}
+.hist-range{font-size:11px;font-weight:500;color:#888}
+.hist-month span{font-size:12px;font-weight:500;color:#666}
+.hcard{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:8px;overflow:hidden}
+.hcard summary{list-style:none;cursor:pointer;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;min-height:56px}
+.hcard summary::-webkit-details-marker{display:none}
+.hcard summary:focus-visible{outline:2px solid #f7b731;outline-offset:-2px}
+.hc-date{font-weight:700;font-size:15px}
+.hc-site{font-size:12px;color:#666}
+.hc-net{font-weight:700;font-size:16px;text-align:right;font-variant-numeric:tabular-nums}
+.hc-share{font-size:12px;color:#666;text-align:right;font-variant-numeric:tabular-nums}
+.hc-badges{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eef0f4;color:#444}
+.badge.low{background:#fdecea;color:#b03a2e}
+.hcard[open] summary{border-bottom:1px solid #eee;background:#fafafa}
+.hc-body{padding:10px 14px 14px}
+.hc-body .tbl th,.hc-body .tbl td{padding:6px 6px;font-size:12px}
+.hc-meta{font-size:11px;color:#888;margin:8px 0}
+.hc-body .tbl th,.hc-body .tbl td{white-space:nowrap}
+@media(max-width:520px){.c-opt{display:none}}
+.hc-low{font-size:12px;color:#b03a2e;margin:6px 0}
+.hist-tools{margin-top:16px;background:#fff;border-radius:10px;padding:10px 14px}
+.hist-tools summary{cursor:pointer;font-weight:600;font-size:13px;min-height:32px;display:flex;align-items:center;gap:8px}
+.hist-count{font-weight:400;color:#888}
+.hist-more{display:block;margin:10px auto;min-height:44px}
+@media(min-width:700px){
+  .hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  .hist-grid .hist-panel{margin-bottom:0}
+  .hist-kpi{padding:12px 14px}
+  .hist-kpi .val{font-size:22px}
+  .hist-kpi .lbl{font-size:11px}
+}
 .entry-site-bar .site-title{font-size:16px;font-weight:700;flex:1;min-width:120px}
 .entry-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 8px}
 .entry-actions .btn-primary{min-width:140px}
@@ -236,12 +293,19 @@ h3{font-size:14px;margin:0 0 8px}
 
 <div id="page-history" class="page">
   <h1>History</h1>
-  <div class="toolbar">
-    <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
-    <button class="btn btn-danger" onclick="clearHistory()">Clear All</button>
-    <span id="historyCount" style="font-size:14px;color:#888"></span>
-  </div>
+  <div id="histFilters" class="hist-filters"></div>
+  <div id="histKpis"></div>
+  <div id="histChart"></div>
+  <div id="histBreakdown"></div>
   <div id="historyTable"></div>
+  <details class="hist-tools">
+    <summary>Data tools <span id="historyCount" class="hist-count"></span></summary>
+    <div class="toolbar" style="margin:10px 0 0">
+      <button class="btn btn-success" onclick="exportRowsCSV()">Export this view (CSV)</button>
+      <button class="btn btn-outline" onclick="exportCSV()">Export everything (CSV)</button>
+      <button class="btn btn-danger" onclick="clearHistory()">Clear All</button>
+    </div>
+  </details>
 </div>
 
 <div id="page-monthly" class="page">
@@ -1488,45 +1552,262 @@ function render21DayTotals() {
 }
 
 // ===== HISTORY =====
-function showHistory() {
-  const entries = getEntries();
-  const container = document.getElementById('historyTable');
-  updateHistoryCount();
-  if (!entries.length) {
-    container.innerHTML = '<div class="empty-state"><p>No submissions yet.</p></div>';
+const HIST_DEFAULT = { period: '3m', site: 'all', cat: 'all', limit: 40 };
+let histState = (function () {
+  try {
+    const saved = JSON.parse(localStorage.getItem('3bb_hist') || 'null');
+    if (saved && typeof saved === 'object') return Object.assign({}, HIST_DEFAULT, saved, { limit: 40 });
+  } catch (e) {}
+  return Object.assign({}, HIST_DEFAULT);
+})();
+
+function histSiteInfo(loc) {
+  const cfg = config.locations.find(l => l.id === loc.id) ||
+    config.locations.find(l => l.name === loc.name || (l.nameHistory || []).includes(loc.name));
+  return { key: (cfg && cfg.id) || loc.id || loc.name || '?', label: (cfg && cfg.name) || loc.name || '—' };
+}
+
+function histSet(k, v) {
+  histState[k] = v;
+  if (k !== 'limit') histState.limit = HIST_DEFAULT.limit;
+  try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
+  showHistory();
+}
+
+function histReset() {
+  histState = Object.assign({}, HIST_DEFAULT);
+  try { localStorage.removeItem('3bb_hist'); } catch (e) {}
+  showHistory();
+}
+
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function monthShort(key) { return MONTH_ABBR[parseInt(key.slice(5, 7), 10) - 1] + ' ' + key.slice(0, 4); }
+function monthLong(key) {
+  const full = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return full[parseInt(key.slice(5, 7), 10) - 1] + ' ' + key.slice(0, 4);
+}
+function gbp(v) { return '£' + (v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function gbpShort(v) { return Math.abs(v) >= 1000 ? '£' + (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : '£' + Math.round(v); }
+function histDateLabel(d) {
+  const dt = new Date(parseInt(d.slice(0, 4), 10), parseInt(d.slice(5, 7), 10) - 1, parseInt(d.slice(8, 10), 10));
+  const sameYear = d.slice(0, 4) === todayStr().slice(0, 4);
+  return dt.toLocaleDateString('en-GB', sameYear ? { weekday: 'short', day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** e.g. '2026-10' -> '6 Oct – 5 Nov' */
+function monthRangeLabel(key) {
+  const nk = shiftMonth(key, 1);
+  return '6 ' + MONTH_ABBR[parseInt(key.slice(5, 7), 10) - 1] + ' – 5 ' + MONTH_ABBR[parseInt(nk.slice(5, 7), 10) - 1];
+}
+
+function periodLabel(p) {
+  return ({ m0: 'This business month', m1: 'Last business month', '21d': 'Last 21 days', '3m': 'Last 3 months',
+            '6m': 'Last 6 months', '12m': 'Last 12 months', all: 'All time' })[p] || (/^\d{4}-\d{2}$/.test(p) ? monthLong(p) : p);
+}
+
+/** Rows (flat) for the current filters; also returns everything needed to render. */
+function histCompute() {
+  const today = todayStr();
+  const all = markLow(buildRows(getEntries(), histSiteInfo, entryKey));
+  const sites = groupRows(all, 'siteKey', 'siteName').sort((a, b) => a.label.localeCompare(b.label));
+  if (histState.site !== 'all' && !sites.some(x => x.key === histState.site)) histState.site = 'all';
+  const siteRows = histState.site === 'all' ? all : all.filter(r => r.siteKey === histState.site);
+  const cats = [...new Set(siteRows.map(r => r.cat))].sort();
+  if (histState.cat !== 'all' && !cats.includes(histState.cat)) histState.cat = 'all';
+  const base = histState.cat === 'all' ? siteRows : siteRows.filter(r => r.cat === histState.cat);
+  const inPeriod = periodTest(histState.period, today);
+  const rows = base.filter(inPeriod);
+  return { today, all, sites, cats, base, rows };
+}
+
+function histRenderFilters(c) {
+  const months = [...new Set(c.all.map(r => r.bm))].sort().reverse();
+  const presets = ['m0', 'm1', '21d', '3m', '6m', '12m', 'all'];
+  const opt = (v, label, cur) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(label)}</option>`;
+  const dirty = histState.period !== HIST_DEFAULT.period || histState.site !== 'all' || histState.cat !== 'all';
+  document.getElementById('histFilters').innerHTML = `
+    <label>Period<select onchange="histSet('period', this.value)" aria-label="Period">
+      ${presets.map(p => opt(p, periodLabel(p), histState.period)).join('')}
+      ${months.length ? '<optgroup label="Business month">' + months.map(m => opt(m, monthLong(m), histState.period)).join('') + '</optgroup>' : ''}
+    </select></label>
+    <label>Site<select onchange="histSet('site', this.value)" aria-label="Site">
+      ${opt('all', 'All sites', histState.site)}${c.sites.map(x => opt(x.key, x.label, histState.site)).join('')}
+    </select></label>
+    <label>Machine<select onchange="histSet('cat', this.value)" aria-label="Machine">
+      ${opt('all', 'All machines', histState.cat)}${c.cats.map(x => opt(x, x, histState.cat)).join('')}
+    </select></label>
+    ${dirty ? '<button type="button" class="btn btn-outline" onclick="histReset()">Reset</button>' : ''}`;
+}
+
+function deltaHtml(cur, prev, prevLabel) {
+  if (prev == null) return '';
+  if (!prev) return `<div class="delta flat">no data in ${esc(prevLabel)}</div>`;
+  const pct = ((cur - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.5) return `<div class="delta flat">▬ same as ${esc(prevLabel)}</div>`;
+  return `<div class="delta ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}% vs ${esc(prevLabel)}</div>`;
+}
+
+function histRenderKpis(c) {
+  const t = sumRows(c.rows);
+  const pm = periodMonth(histState.period, c.today);
+  let prev = null, prevLabel = '';
+  if (pm) {
+    const pk = shiftMonth(pm, -1);
+    prev = sumRows(c.base.filter(r => r.bm === pk));
+    prevLabel = monthShort(pk).slice(0, 3);
+  }
+  const avg = t.collections ? t.net / t.collections : 0;
+  const tile = (val, lbl, extra) => `<div class="hist-kpi"><div class="val">${val}</div><div class="lbl">${lbl}</div>${extra || ''}</div>`;
+  document.getElementById('histKpis').innerHTML = `<div class="hist-kpis">
+    ${tile(gbp(t.net), 'Net', prev ? deltaHtml(t.net, prev.net, prevLabel) : '')}
+    ${tile(gbp(t.cl), 'Site share', prev ? deltaHtml(t.cl, prev.cl, prevLabel) : '')}
+    ${tile(gbp(t.ss), 'Supplier')}
+    ${tile(gbp(t.mgd), 'MGD')}
+    ${tile(String(t.collections), 'Collections')}
+    ${tile(gbp(avg), 'Avg / collection')}
+  </div>`;
+}
+
+function histRenderChart(c) {
+  const el = document.getElementById('histChart');
+  const end = businessMonthKey(c.today);
+  const N = 12;
+  const series = monthSeries(c.base, end, N);
+  const max = Math.max.apply(null, series.map(m => m.net).concat([1]));
+  const W = 360, H = 176, base = 140, top = 24, slot = W / N, bw = 20;
+  const isSel = key => histState.period !== '21d' && periodTest(histState.period, c.today)({ bm: key, date: key + '-15' });
+  let bars = '';
+  series.forEach((m, i) => {
+    const h = Math.round((m.net / max) * (base - top));
+    const x = i * slot + (slot - bw) / 2;
+    const sel = isSel(m.key);
+    const mon = MONTH_ABBR[parseInt(m.key.slice(5, 7), 10) - 1];
+    const yr = (i === 0 || m.key.slice(5) === '01') ? `<text x="${x + bw / 2}" y="${base + 26}" text-anchor="middle" font-size="9" fill="#888">${m.key.slice(0, 4)}</text>` : '';
+    const showVal = sel || m.net === max ? `<text x="${x + bw / 2}" y="${base - h - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="#1a1a2e">${gbpShort(m.net)}</text>` : '';
+    bars += `<g class="bar" role="button" tabindex="0" data-hset="period" data-v="${esc(m.key)}" aria-label="${esc(monthLong(m.key))}: ${esc(gbp(m.net))} net. Show this month">
+      <rect x="${i * slot}" y="0" width="${slot}" height="${base + 8}" fill="transparent"></rect>
+      <rect x="${x}" y="${base - Math.max(h, m.net > 0 ? 2 : 0)}" width="${bw}" height="${Math.max(h, m.net > 0 ? 2 : 0)}" rx="3" fill="${sel ? '#f7b731' : '#1a1a2e'}" opacity="${m.net > 0 ? 1 : 0.15}"></rect>
+      ${showVal}
+      <text x="${x + bw / 2}" y="${base + 15}" text-anchor="middle" font-size="10" fill="#555">${mon}</text>${yr}
+    </g>`;
+  });
+  const scope = [histState.site === 'all' ? 'all sites' : (c.sites.find(x => x.key === histState.site) || {}).label,
+                 histState.cat === 'all' ? 'all machines' : histState.cat].join(' · ');
+  const summary = series.filter(m => m.net > 0).map(m => monthShort(m.key) + ' ' + gbp(m.net)).join(', ') || 'no data';
+  el.innerHTML = `<div class="hist-panel hist-chart">
+    <h2>Net by business month <span style="font-weight:400;color:#777">· ${esc(scope)}</span></h2>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net per business month, last 12 months: ${esc(summary)}">
+      <line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#ccc"></line>
+      <line x1="0" y1="${top}" x2="${W}" y2="${top}" stroke="#eee" stroke-dasharray="3 3"></line>
+      <text x="2" y="${top - 5}" font-size="9" fill="#888">${gbpShort(max)}</text>
+      ${bars}
+    </svg>
+    <div class="hist-hint">Tap a bar to view that month. Business month = 6th → 5th of next month.</div>
+  </div>`;
+}
+
+function histRenderBreakdown(c) {
+  const el = document.getElementById('histBreakdown');
+  const bySite = histState.site === 'all';
+  const groups = bySite ? groupRows(c.rows, 'siteKey', 'siteName') : groupRows(c.rows, 'cat', 'cat');
+  if (groups.length < 2) { el.innerHTML = ''; return; }
+  const max = Math.max.apply(null, groups.map(g => g.net).concat([1]));
+  const field = bySite ? 'site' : 'cat';
+  el.innerHTML = `<div class="hist-panel"><h2>${bySite ? 'By site' : 'By machine'} <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>
+    ${groups.map(g => `<button type="button" class="bd-row" data-hset="${field}" data-v="${esc(g.key)}" aria-label="${esc(g.label)}: net ${esc(gbp(g.net))}. Filter to this ${bySite ? 'site' : 'machine'}">
+      <div class="bd-top"><span>${esc(g.label)}</span><span>${gbp(g.net)}</span></div>
+      <div class="bd-bar"><i style="width:${Math.max(2, Math.round((g.net / max) * 100))}%"></i></div>
+      <div class="bd-sub">Site ${gbp(g.cl)} · Supplier ${gbp(g.ss)} · ${g.collections} collection${g.collections === 1 ? '' : 's'}</div>
+    </button>`).join('')}
+  </div>`;
+}
+
+function histRenderCards(c) {
+  const el = document.getElementById('historyTable');
+  if (!getEntries().length) { el.innerHTML = '<div class="empty-state"><p>No submissions yet.</p></div>'; return; }
+  if (!c.rows.length) {
+    el.innerHTML = '<div class="empty-state"><p>No collections for these filters.</p><p style="margin-top:10px"><button type="button" class="btn btn-primary" data-hset="period" data-v="all">Show all time</button></p></div>';
     return;
   }
-  const sorted = [...entries].sort((a, b) => {
-    const d = b.date.localeCompare(a.date);
-    return d || String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+  // One card per entry + site
+  const cards = {};
+  const order = [];
+  c.rows.forEach(r => {
+    const k = r.entryKey + '|' + r.siteKey;
+    if (!cards[k]) { cards[k] = { key: k, entry: r.entry, entryKey: r.entryKey, siteKey: r.siteKey, siteName: r.siteName, date: r.date, bm: r.bm, rows: [] }; order.push(k); }
+    cards[k].rows.push(r);
   });
-  let html = `<div class="table-scroll"><table class="tbl"><thead><tr>
-    <th>Date</th><th>Submitted</th><th class="num">Net Total</th><th class="num">Site Share</th><th class="num">Float</th><th>Receipts</th><th></th>
-  </tr></thead><tbody>`;
-  for (const e of sorted) {
-    const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
-    let receiptsHtml = '—';
-    const withPhotos = (e.locations || []).filter(l => (l.photos || []).length);
-    if (withPhotos.length) {
-      receiptsHtml = withPhotos.map(l => {
-        const links = l.photos.map((p, i) =>
-          `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ');
-        return `<span class="hist-receipt">${esc(formatSiteName(l))}: ${links}</span>`;
-      }).join('<br>');
+  const list = order.map(k => cards[k]).sort((a, b) =>
+    b.date.localeCompare(a.date) || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || '')));
+  const shown = list.slice(0, histState.limit);
+  const showSite = histState.site === 'all';
+  let html = '';
+  let curMonth = null;
+  shown.forEach(card => {
+    if (card.bm !== curMonth) {
+      curMonth = card.bm;
+      const mt = sumRows(c.rows.filter(r => r.bm === curMonth));
+      html += `<h3 class="hist-month"><div>${esc(monthLong(curMonth))}<div class="hist-range">${esc(monthRangeLabel(curMonth))}</div></div><span>Net ${gbp(mt.net)} · Site ${gbp(mt.cl)} · ${mt.collections} collection${mt.collections === 1 ? '' : 's'}</span></h3>`;
     }
-    html += `<tr>
-      <td>${esc(e.date)}</td>
-      <td>${esc(ts)}</td>
-      <td class="ro">£${(e.grandTotal || 0).toFixed(2)}</td>
-      <td class="ro">£${(e.grandCL || 0).toFixed(2)}</td>
-      <td class="ro">£${(e.grandFloat || 0).toFixed(2)}</td>
-      <td>${receiptsHtml}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${jsAttr(entryKey(e))}')">Delete</button></td>
-    </tr>`;
+    const t = sumRows(card.rows);
+    const loc = (card.entry.locations || []).find(l => histSiteInfo(l).key === card.siteKey) || {};
+    const photos = loc.photos || [];
+    const low = card.rows.filter(r => r.low != null);
+    const ts = card.entry.timestamp ? new Date(card.entry.timestamp).toLocaleString('en-GB') : '—';
+    html += `<details class="hcard">
+      <summary>
+        <div><div class="hc-date">${esc(histDateLabel(card.date))}</div>${showSite ? `<div class="hc-site">${esc(card.siteName)}</div>` : ''}</div>
+        <div><div class="hc-net">${gbp(t.net)}</div><div class="hc-share">Site ${gbp(t.cl)}</div></div>
+        ${(photos.length || low.length || t.floatTaken > 0) ? `<div class="hc-badges">
+          ${low.length ? '<span class="badge low">Below usual</span>' : ''}
+          ${t.floatTaken > 0 ? `<span class="badge">Float ${gbp(t.floatTaken)}</span>` : ''}
+          ${photos.length ? `<span class="badge">Receipts ${photos.length}</span>` : ''}
+        </div>` : ''}
+      </summary>
+      <div class="hc-body">
+        <div class="table-scroll" style="box-shadow:none;margin-bottom:6px"><table class="tbl"><thead><tr>
+          <th>Machine</th><th class="num">Gross</th><th class="num c-opt">Float</th><th class="num">Net</th><th class="num c-opt">MGD</th><th class="num">Supplier</th><th class="num">Site</th>
+        </tr></thead><tbody>${card.rows.map(r => `<tr>
+          <td>${esc(r.cat)}</td><td class="ro">${gbp(r.gross)}</td><td class="ro c-opt">${gbp(r.floatTaken)}</td><td class="ro">${gbp(r.net)}</td>
+          <td class="ro c-opt">${gbp(r.mgd)}</td><td class="ro">${gbp(r.ss)}</td><td class="ro">${gbp(r.cl)}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${low.map(r => `<div class="hc-low">${esc(r.cat)}: ${gbp(r.gross)} gross vs usual about ${gbp(r.low)}</div>`).join('')}
+        ${photos.length ? `<div class="hc-meta">Receipts: ${photos.map((p, i) => `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ')}</div>` : ''}
+        <div class="hc-meta">Submitted ${esc(ts)}</div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${jsAttr(card.entryKey)}')">Delete entry</button>
+      </div>
+    </details>`;
+  });
+  if (list.length > shown.length) {
+    html += `<button type="button" class="btn btn-outline hist-more" data-hset="limit" data-v="${histState.limit + 40}">Show more (${list.length - shown.length} left)</button>`;
   }
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
+  el.innerHTML = html;
 }
+
+function showHistory() {
+  updateHistoryCount();
+  const c = histCompute();
+  histRenderFilters(c);
+  histRenderKpis(c);
+  histRenderChart(c);
+  histRenderBreakdown(c);
+  histRenderCards(c);
+}
+
+// One delegated handler for chart bars, breakdown rows and "show more" (keeps values out of inline JS)
+(function () {
+  const page = document.getElementById('page-history');
+  function act(t) {
+    const v = t.getAttribute('data-v');
+    histSet(t.getAttribute('data-hset'), t.getAttribute('data-hset') === 'limit' ? parseInt(v, 10) : v);
+  }
+  page.addEventListener('click', e => { const t = e.target.closest('[data-hset]'); if (t) act(t); });
+  page.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const t = e.target.closest('g[data-hset]');
+    if (t) { e.preventDefault(); act(t); }
+  });
+})();
 
 function updateHistoryCount() {
   const el = document.getElementById('historyCount');
@@ -2365,6 +2646,27 @@ function csvCell(v) {
   if (typeof v !== 'string') return v == null ? '' : String(v);
   if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
   return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+function downloadCsv(rows, name) {
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  const href = URL.createObjectURL(blob);
+  a.href = href;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
+/** Export exactly what the History filters currently show. */
+function exportRowsCSV() {
+  const c = histCompute();
+  if (!c.rows.length) { alert('Nothing to export for these filters'); return; }
+  const rows = [['Date', 'Business month', 'Site', 'Machine', 'Gross', 'Float Taken', 'Net', 'MGD', 'Supplier', 'Site Share']];
+  [...c.rows].sort((a, b) => a.date.localeCompare(b.date)).forEach(r =>
+    rows.push([r.date, r.bm, r.siteName, r.cat, r.gross, r.floatTaken, r.net, r.mgd, r.ss, r.cl]));
+  downloadCsv(rows, '3barbros_view_' + todayStr() + '.csv');
 }
 
 function exportCSV() {

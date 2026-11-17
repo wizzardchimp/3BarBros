@@ -79,4 +79,48 @@ t('float rules unchanged', () => {
   const s = L.calcCategory(20, 0.5, true, 30, 0, 0);
   assert.deepStrictEqual([s.floatTaken, s.floatOwedAfter, s.net], [20, 10, 0]);
 });
+
+const mkEntry = (date, gross, site = 's1', cat = 'Reels') => ({
+  id: date + gross, timestamp: date + 'T10:00:00Z', date,
+  locations: [{ id: site, name: site, categories: [{ name: cat, gross, net: gross, mgd: gross * 0.2, supplierShare: gross * 0.2, cashLeft: gross * 0.6, floatTaken: 0 }] }]
+});
+const info = loc => ({ key: loc.id, label: loc.name });
+const keyFn = e => e.id;
+
+t('shiftMonth and period filters (business months)', () => {
+  assert.strictEqual(L.shiftMonth('2026-01', -1), '2025-12');
+  assert.strictEqual(L.shiftMonth('2026-11', 3), '2027-02');
+  const rows = L.buildRows([mkEntry('2026-09-30', 10), mkEntry('2026-10-04', 20), mkEntry('2026-10-06', 30)], info, keyFn);
+  const sep = rows.filter(L.periodTest('2026-09', '2026-10-20'));
+  assert.deepStrictEqual(sep.map(r => r.gross), [10, 20]);          // 4 Oct is September
+  assert.deepStrictEqual(rows.filter(L.periodTest('m0', '2026-10-20')).map(r => r.gross), [30]);
+  assert.deepStrictEqual(rows.filter(L.periodTest('m1', '2026-10-20')).map(r => r.gross), [10, 20]);
+  assert.strictEqual(rows.filter(L.periodTest('all', '2026-10-20')).length, 3);
+  assert.strictEqual(L.periodMonth('m1', '2026-10-20'), '2026-09');
+  assert.strictEqual(L.periodMonth('3m', '2026-10-20'), '');
+});
+
+t('21 day window and N-month window', () => {
+  const rows = L.buildRows([mkEntry('2026-09-30', 1), mkEntry('2026-10-10', 2), mkEntry('2026-06-01', 4)], info, keyFn);
+  assert.deepStrictEqual(rows.filter(L.periodTest('21d', '2026-10-20')).map(r => r.gross), [1, 2]);
+  assert.deepStrictEqual(rows.filter(L.periodTest('3m', '2026-10-20')).map(r => r.gross), [1, 2]);
+});
+
+t('sums, grouping and month series', () => {
+  const rows = L.buildRows([mkEntry('2026-09-10', 100, 'a'), mkEntry('2026-10-10', 50, 'b'), mkEntry('2026-10-12', 25, 'a', 'Digital')], info, keyFn);
+  const s = L.sumRows(rows);
+  assert.deepStrictEqual([s.net, s.collections], [175, 3]);
+  const g = L.groupRows(rows, 'siteKey', 'siteName');
+  assert.deepStrictEqual(g.map(x => [x.key, x.net]), [['a', 125], ['b', 50]]);
+  const ms = L.monthSeries(rows, '2026-10', 3);
+  assert.deepStrictEqual(ms.map(m => [m.key, m.net]), [['2026-08', 0], ['2026-09', 100], ['2026-10', 75]]);
+});
+
+t('low-collection flag needs history and is relative to that site+category', () => {
+  const es = [100, 110, 90, 100, 105, 60, 40, 100].map((g, i) => mkEntry('2026-0' + (i + 1) + '-10', g));
+  const rows = L.markLow(L.buildRows(es, info, keyFn));
+  assert.deepStrictEqual(rows.map(r => r.low !== null), [false, false, false, false, false, false, true, false]); // 60 is normal variation, 40 is under half
+  const few = L.markLow(L.buildRows([mkEntry('2026-01-10', 100), mkEntry('2026-02-10', 1)], info, keyFn));
+  assert.ok(few.every(r => r.low === null));   // not enough history
+});
 console.log(n + ' tests passed');
