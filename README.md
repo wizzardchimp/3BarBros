@@ -56,6 +56,9 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 ## History page
 Filter by period (this/last business month, 21 days, 3/6/12 months, all, or any specific month), site and machine (Reels/Digital). Shows KPI tiles (with change vs the previous month when a single month is selected), a 12-month net chart (tap a bar to view that month), a breakdown by site or machine, and collapsible collection cards grouped by business month. A collection is marked *Below usual* when its gross is under half the average of that site and machine's previous collections (needs at least 5 earlier ones). "Export this view" downloads exactly what the filters show. Filters are remembered per device.
 
+## Summary page
+Uses the same Period / Site / Machine filters as History (shared and remembered), so both pages always agree. Shows the KPI tiles, a 12-month chart of net split into site share vs supplier (tap a bar to filter to that month), **month-end statements** (tap a month for a per-site table with totals and a *View these collections* shortcut to History), totals by site and by machine (tap a name to jump to its collections in History), and **float still to recover** per site and machine as of their latest collections. The month still in progress is labelled and has no % change, since it would be compared with a full month. *Export summary (CSV)* gives month × site totals for the current filters.
+
 ## Dated rates (effective dating)
 - **MGD** is a global rate with a dated schedule (Settings → *MGD rate*). Add a change with an *Apply from* month; earlier months keep the old rate.
 - **Site shares, flat fee, pool rent / pool %** are dated per site: when editing a site, set *apply from* (a business month). Leave it blank only to correct a mistake in the current value.

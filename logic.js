@@ -276,14 +276,35 @@
     }).sort(function (a, b) { return b.net - a.net; });
   }
 
-  /** Net per business month for the last n months ending endKey (zero-filled). */
+  /** Totals per business month for the last n months ending endKey (zero-filled). */
   function monthSeries(rows, endKey, n) {
     var out = [];
-    for (var i = n - 1; i >= 0; i--) out.push({ key: shiftMonth(endKey, -i), net: 0, ss: 0 });
+    for (var i = n - 1; i >= 0; i--) out.push({ key: shiftMonth(endKey, -i), net: 0, ss: 0, cl: 0, mgd: 0 });
     var idx = {}; out.forEach(function (m, i) { idx[m.key] = i; });
-    rows.forEach(function (r) { if (idx[r.bm] != null) { out[idx[r.bm]].net += r.net; out[idx[r.bm]].ss += r.ss + 0 * r.cl; } });
-    out.forEach(function (m) { m.net = round(m.net); m.ss = round(m.ss); });
+    rows.forEach(function (r) {
+      var m = out[idx[r.bm]];
+      if (m) { m.net += r.net; m.ss += r.ss; m.cl += r.cl; m.mgd += r.mgd; }
+    });
+    out.forEach(function (m) { m.net = round(m.net); m.ss = round(m.ss); m.cl = round(m.cl); m.mgd = round(m.mgd); });
     return out;
+  }
+
+  /** Latest outstanding float per site+category (from floatOwedAfter), only where > 0. */
+  function floatOutstanding(entries, siteInfo, keyFn) {
+    var sorted = (entries || []).filter(function (e) { return e && e.date && e.locations; }).slice().sort(function (a, b) {
+      return a.date.localeCompare(b.date) || String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
+    });
+    var map = {};
+    sorted.forEach(function (e) {
+      e.locations.forEach(function (loc) {
+        var si = siteInfo(loc);
+        (loc.categories || []).forEach(function (c) {
+          if (c.floatOwedAfter == null) return;
+          map[si.key + '|' + c.name] = { siteKey: si.key, siteName: si.label, cat: c.name, owed: round(c.floatOwedAfter), date: e.date };
+        });
+      });
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).filter(function (x) { return x.owed > 0; });
   }
 
   /**
@@ -321,7 +342,7 @@
     applyTermChanges: applyTermChanges, seedCatTerms: seedCatTerms, seedPoolTerms: seedPoolTerms,
     calcCategory: calcCategory, calcPool: calcPool,
     shiftMonth: shiftMonth, daysBefore: daysBefore, buildRows: buildRows, periodTest: periodTest,
-    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow
+    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.keys(api).forEach(function (k) { root[k] = api[k]; });

@@ -159,6 +159,10 @@ h3{font-size:14px;margin:0 0 8px}
 .hist-tools{margin-top:16px;background:#fff;border-radius:10px;padding:10px 14px}
 .hist-tools summary{cursor:pointer;font-weight:600;font-size:13px;min-height:32px;display:flex;align-items:center;gap:8px}
 .hist-count{font-weight:400;color:#888}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#555;margin-bottom:6px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.tbl tr.total td{font-weight:700;background:#fff8e6}
+.link-btn{background:none;border:0;color:#1a1a2e;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px;text-align:left}
 .hist-more{display:block;margin:10px auto;min-height:44px}
 @media(min-width:700px){
   .hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
@@ -310,15 +314,16 @@ h3{font-size:14px;margin:0 0 8px}
 
 <div id="page-monthly" class="page">
   <h1>Summary</h1>
-  <div class="toolbar">
-    <label style="font-size:13px">From: <input type="date" id="filterFrom" onchange="clearRangeRadios();showMonthlySummary()"></label>
-    <label style="font-size:13px">To: <input type="date" id="filterTo" onchange="clearRangeRadios();showMonthlySummary()"></label>
-    <label style="font-size:13px"><input type="radio" name="range" value="3" onchange="applyRangeFilter()"> 3m</label>
-    <label style="font-size:13px"><input type="radio" name="range" value="6" onchange="applyRangeFilter()"> 6m</label>
-    <label style="font-size:13px"><input type="radio" name="range" value="12" onchange="applyRangeFilter()"> 12m</label>
-    <label style="font-size:13px"><input type="radio" name="range" value="all" checked onchange="applyRangeFilter()"> All</label>
+  <div id="sumFilters" class="hist-filters"></div>
+  <div id="sumKpis"></div>
+  <div id="sumChart"></div>
+  <div id="sumMonths"></div>
+  <div class="hist-grid" id="sumTables"></div>
+  <div id="sumFloat"></div>
+  <div class="toolbar" style="margin-top:12px">
+    <button class="btn btn-success" onclick="exportSummaryCSV()">Export summary (CSV)</button>
+    <span class="hint" style="margin:0">Month × site totals for the current filters.</span>
   </div>
-  <div id="monthlySummary"></div>
 </div>
 
 <div id="page-settings" class="page">
@@ -358,13 +363,6 @@ h3{font-size:14px;margin:0 0 8px}
   <div id="mergeSitesContainer"></div>
 </div>
 
-<div id="monthModal" class="modal-overlay" onclick="if(event.target===this)closeMonthModal()">
-  <div class="modal-box">
-    <button class="modal-close" onclick="closeMonthModal()">&times;</button>
-    <h2 id="monthModalTitle"></h2>
-    <div id="monthModalEntries"></div>
-  </div>
-</div>
 
 <div id="alertOverlay" class="alert-overlay" onclick="if(event.target===this)closeAppAlert()">
   <div class="alert-box">
@@ -430,7 +428,6 @@ let configIsDefault = false; // true when config is the built-in sample, not use
 let dataLoadOk = false;   // true only after a successful load from the sheet
 let cachedEntries = [];
 let entriesLoaded = false;
-let _monthlyFiltered = [];
 /** Draft form for add/edit site — cleared after Save site */
 let draftSite = null;
 let draftEditingId = null; // null = new site; id = editing existing
@@ -1571,13 +1568,27 @@ function histSet(k, v) {
   histState[k] = v;
   if (k !== 'limit') histState.limit = HIST_DEFAULT.limit;
   try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
-  showHistory();
+  refreshReview();
 }
 
 function histReset() {
   histState = Object.assign({}, HIST_DEFAULT);
   try { localStorage.removeItem('3bb_hist'); } catch (e) {}
-  showHistory();
+  refreshReview();
+}
+
+/** Re-render whichever review page (History or Summary) is showing. */
+function refreshReview() {
+  if (document.getElementById('page-monthly').classList.contains('active')) showMonthlySummary();
+  else showHistory();
+}
+
+/** Jump to History with a filter applied (period / site / cat). */
+function histGo(k, v) {
+  histState[k] = v;
+  histState.limit = HIST_DEFAULT.limit;
+  try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
+  showPage('history');
 }
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1620,12 +1631,12 @@ function histCompute() {
   return { today, all, sites, cats, base, rows };
 }
 
-function histRenderFilters(c) {
+function histRenderFilters(c, targetId) {
   const months = [...new Set(c.all.map(r => r.bm))].sort().reverse();
   const presets = ['m0', 'm1', '21d', '3m', '6m', '12m', 'all'];
   const opt = (v, label, cur) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(label)}</option>`;
   const dirty = histState.period !== HIST_DEFAULT.period || histState.site !== 'all' || histState.cat !== 'all';
-  document.getElementById('histFilters').innerHTML = `
+  document.getElementById(targetId || 'histFilters').innerHTML = `
     <label>Period<select onchange="histSet('period', this.value)" aria-label="Period">
       ${presets.map(p => opt(p, periodLabel(p), histState.period)).join('')}
       ${months.length ? '<optgroup label="Business month">' + months.map(m => opt(m, monthLong(m), histState.period)).join('') + '</optgroup>' : ''}
@@ -1647,19 +1658,20 @@ function deltaHtml(cur, prev, prevLabel) {
   return `<div class="delta ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}% vs ${esc(prevLabel)}</div>`;
 }
 
-function histRenderKpis(c) {
+function histRenderKpis(c, targetId) {
   const t = sumRows(c.rows);
   const pm = periodMonth(histState.period, c.today);
   let prev = null, prevLabel = '';
-  if (pm) {
+  const inProgress = pm && pm === businessMonthKey(c.today);
+  if (pm && !inProgress) {
     const pk = shiftMonth(pm, -1);
     prev = sumRows(c.base.filter(r => r.bm === pk));
     prevLabel = monthShort(pk).slice(0, 3);
   }
   const avg = t.collections ? t.net / t.collections : 0;
   const tile = (val, lbl, extra) => `<div class="hist-kpi"><div class="val">${val}</div><div class="lbl">${lbl}</div>${extra || ''}</div>`;
-  document.getElementById('histKpis').innerHTML = `<div class="hist-kpis">
-    ${tile(gbp(t.net), 'Net', prev ? deltaHtml(t.net, prev.net, prevLabel) : '')}
+  document.getElementById(targetId || 'histKpis').innerHTML = `<div class="hist-kpis">
+    ${tile(gbp(t.net), 'Net', prev ? deltaHtml(t.net, prev.net, prevLabel) : (inProgress ? '<div class="delta flat">month in progress</div>' : ''))}
     ${tile(gbp(t.cl), 'Site share', prev ? deltaHtml(t.cl, prev.cl, prevLabel) : '')}
     ${tile(gbp(t.ss), 'Supplier')}
     ${tile(gbp(t.mgd), 'MGD')}
@@ -1796,16 +1808,19 @@ function showHistory() {
 
 // One delegated handler for chart bars, breakdown rows and "show more" (keeps values out of inline JS)
 (function () {
-  const page = document.getElementById('page-history');
   function act(t) {
     const v = t.getAttribute('data-v');
+    if (t.hasAttribute('data-hgo')) { histGo(t.getAttribute('data-hgo'), v); return; }
     histSet(t.getAttribute('data-hset'), t.getAttribute('data-hset') === 'limit' ? parseInt(v, 10) : v);
   }
-  page.addEventListener('click', e => { const t = e.target.closest('[data-hset]'); if (t) act(t); });
-  page.addEventListener('keydown', e => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const t = e.target.closest('g[data-hset]');
-    if (t) { e.preventDefault(); act(t); }
+  ['page-history', 'page-monthly'].forEach(id => {
+    const page = document.getElementById(id);
+    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo]'); if (t) act(t); });
+    page.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const t = e.target.closest('g[data-hset],g[data-hgo]');
+      if (t) { e.preventDefault(); act(t); }
+    });
   });
 })();
 
@@ -1913,186 +1928,146 @@ function formatBusinessMonthLabel(key) {
   return name + ' ' + y + ' (6 ' + name + ' – 5 ' + nextName + ')';
 }
 
-function applyRangeFilter() {
-  const val = document.querySelector('input[name="range"]:checked')?.value;
-  if (!val || val === 'all') {
-    document.getElementById('filterFrom').value = '';
-    document.getElementById('filterTo').value = '';
-  } else {
-    const months = parseInt(val, 10);
-    const d = new Date();
-    document.getElementById('filterTo').value = todayStr();
-    d.setMonth(d.getMonth() - months);
-    document.getElementById('filterFrom').value = d.toISOString().slice(0, 10);
-  }
-  showMonthlySummary();
+function pctDelta(cur, prev) {
+  if (prev == null) return '';
+  if (!prev) return '';
+  const pct = ((cur - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.5) return '<span class="delta flat">▬ 0%</span>';
+  return `<span class="delta ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
 }
-function clearRangeRadios() {
-  document.querySelectorAll('input[name="range"]').forEach(r => r.checked = false);
+
+/** Table of groups with a totals row. goField makes the first column a link to History. */
+function sumTableHtml(groups, firstLabel, goField, rows) {
+  const tot = sumRows(rows);
+  return `<div class="table-scroll"><table class="tbl"><thead><tr>
+      <th>${esc(firstLabel)}</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">MGD</th><th class="num c-opt">Coll.</th>
+    </tr></thead><tbody>${groups.map(g => `<tr>
+      <td>${goField ? `<button type="button" class="link-btn" data-hgo="${goField}" data-v="${esc(g.key)}">${esc(g.label)}</button>` : esc(g.label)}</td>
+      <td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td>
+      <td class="ro c-opt">${gbp(g.mgd)}</td><td class="ro c-opt">${g.collections}</td></tr>`).join('')}
+    <tr class="total"><td>Total</td><td class="ro">${gbp(tot.net)}</td><td class="ro">${gbp(tot.ss)}</td><td class="ro">${gbp(tot.cl)}</td>
+      <td class="ro c-opt">${gbp(tot.mgd)}</td><td class="ro c-opt">${tot.collections}</td></tr>
+    </tbody></table></div>`;
+}
+
+function sumRenderChart(c) {
+  const end = businessMonthKey(c.today);
+  const N = 12;
+  const series = monthSeries(c.base, end, N);
+  const max = Math.max.apply(null, series.map(m => m.net).concat([1]));
+  const W = 360, H = 176, base = 140, top = 24, slot = W / N, bw = 20;
+  const isSel = key => histState.period !== '21d' && periodTest(histState.period, c.today)({ bm: key, date: key + '-15' });
+  let bars = '';
+  series.forEach((m, i) => {
+    const hTot = Math.round((m.net / max) * (base - top));
+    const hSite = m.net > 0 ? Math.round(hTot * (m.cl / m.net)) : 0;
+    const x = i * slot + (slot - bw) / 2;
+    const mon = MONTH_ABBR[parseInt(m.key.slice(5, 7), 10) - 1];
+    const sel = isSel(m.key);
+    const yr = (i === 0 || m.key.slice(5) === '01') ? `<text x="${x + bw / 2}" y="${base + 26}" text-anchor="middle" font-size="9" fill="#888">${m.key.slice(0, 4)}</text>` : '';
+    bars += `<g class="bar" role="button" tabindex="0" data-hset="period" data-v="${esc(m.key)}" aria-label="${esc(monthLong(m.key))}: net ${esc(gbp(m.net))}, site share ${esc(gbp(m.cl))}, supplier ${esc(gbp(m.ss))}. Show this month">
+      <rect x="${i * slot}" y="0" width="${slot}" height="${base + 8}" fill="transparent"></rect>
+      <rect x="${x}" y="${base - hTot}" width="${bw}" height="${Math.max(hTot - hSite, 0)}" rx="2" fill="#1a1a2e" opacity="${m.net > 0 ? 1 : 0.15}"></rect>
+      <rect x="${x}" y="${base - hSite}" width="${bw}" height="${hSite}" rx="2" fill="#f7b731"></rect>
+      ${sel ? `<rect x="${x - 2}" y="${base - hTot - 2}" width="${bw + 4}" height="${hTot + 4}" rx="4" fill="none" stroke="#1a1a2e" stroke-width="1.5" stroke-dasharray="3 2"></rect>` : ''}
+      ${(sel || m.net === max) && m.net > 0 ? `<text x="${x + bw / 2}" y="${base - hTot - 6}" text-anchor="middle" font-size="10" font-weight="700" fill="#1a1a2e">${gbpShort(m.net)}</text>` : ''}
+      <text x="${x + bw / 2}" y="${base + 15}" text-anchor="middle" font-size="10" fill="#555">${mon}</text>${yr}
+    </g>`;
+  });
+  const summary = series.filter(m => m.net > 0).map(m => monthShort(m.key) + ' net ' + gbp(m.net)).join(', ') || 'no data';
+  document.getElementById('sumChart').innerHTML = `<div class="hist-panel hist-chart">
+    <h2>Net split by business month</h2>
+    <div class="legend"><span><i class="sw" style="background:#f7b731"></i>Site share</span><span><i class="sw" style="background:#1a1a2e"></i>Supplier</span><span>Bar height = net</span></div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net split into site share and supplier, last 12 business months: ${esc(summary)}">
+      <line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#ccc"></line>
+      <line x1="0" y1="${top}" x2="${W}" y2="${top}" stroke="#eee" stroke-dasharray="3 3"></line>
+      <text x="2" y="${top - 5}" font-size="9" fill="#888">${gbpShort(max)}</text>
+      ${bars}
+    </svg>
+    <div class="hist-hint">Tap a bar to filter to that month.</div>
+  </div>`;
+}
+
+function sumRenderMonths(c) {
+  const el = document.getElementById('sumMonths');
+  const months = groupRows(c.rows, 'bm', 'bm').sort((a, b) => b.key.localeCompare(a.key));
+  if (!months.length) { el.innerHTML = ''; return; }
+  const prevAll = {};
+  groupRows(c.base, 'bm', 'bm').forEach(g => { prevAll[g.key] = g; });
+  let html = '<h2>Month-end statements</h2>';
+  months.forEach(m => {
+    const inProgress = m.key === businessMonthKey(c.today); // part-way through: a % vs last full month would mislead
+    const prev = inProgress ? null : prevAll[shiftMonth(m.key, -1)];
+    const mrows = c.rows.filter(r => r.bm === m.key);
+    const sites = groupRows(mrows, 'siteKey', 'siteName');
+    html += `<details class="hcard">
+      <summary>
+        <div><div class="hc-date">${esc(monthLong(m.key))}</div><div class="hc-site">${esc(monthRangeLabel(m.key))} · ${m.collections} collection${m.collections === 1 ? '' : 's'}${inProgress ? ' · <strong>in progress</strong>' : ''}</div></div>
+        <div><div class="hc-net">${gbp(m.net)}</div><div class="hc-share">Site ${gbp(m.cl)} ${pctDelta(m.net, prev ? prev.net : null)}</div></div>
+      </summary>
+      <div class="hc-body">
+        ${sumTableHtml(sites, 'Site', 'site', mrows)}
+        <p class="hc-meta">Supplier ${gbp(m.ss)} · MGD ${gbp(m.mgd)}${m.floatTaken > 0 ? ' · Float taken ' + gbp(m.floatTaken) : ''}${prev ? ' · Net vs previous month ' + pctDelta(m.net, prev.net) : ''}</p>
+        <button type="button" class="btn btn-outline btn-sm" data-hgo="period" data-v="${esc(m.key)}">View these collections</button>
+      </div>
+    </details>`;
+  });
+  el.innerHTML = html;
+}
+
+function sumRenderTables(c) {
+  const el = document.getElementById('sumTables');
+  const sites = groupRows(c.rows, 'siteKey', 'siteName');
+  const cats = groupRows(c.rows, 'cat', 'cat');
+  if (!sites.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="hist-panel"><h2>By site <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(sites, 'Site', 'site', c.rows)}</div>
+    <div class="hist-panel"><h2>By machine <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(cats, 'Machine', 'cat', c.rows)}</div>`;
+}
+
+function sumRenderFloat(c) {
+  const el = document.getElementById('sumFloat');
+  let list = floatOutstanding(getEntries(), histSiteInfo, entryKey);
+  if (histState.site !== 'all') list = list.filter(x => x.siteKey === histState.site);
+  if (histState.cat !== 'all') list = list.filter(x => x.cat === histState.cat);
+  if (!list.length) { el.innerHTML = ''; return; }
+  list.sort((a, b) => b.owed - a.owed);
+  const total = list.reduce((s, x) => s + x.owed, 0);
+  el.innerHTML = `<div class="hist-panel"><h2>Float still to recover <span style="font-weight:400;color:#777">· as of latest collections</span></h2>
+    ${list.map(x => `<div class="bd-top" style="padding:8px 0;border-bottom:1px solid #eee"><span>${esc(x.siteName)} · ${esc(x.cat)}<br><span class="bd-sub">carried since ${esc(x.date)}</span></span><span>${gbp(x.owed)}</span></div>`).join('')}
+    <div class="bd-top" style="padding:8px 0"><span>Total owed</span><span>${gbp(total)}</span></div>
+  </div>`;
 }
 
 function showMonthlySummary() {
-  const fromVal = document.getElementById('filterFrom').value;
-  const toVal = document.getElementById('filterTo').value;
-  let filtered = getEntries();
-  if (fromVal) filtered = filtered.filter(e => e.date >= fromVal);
-  if (toVal) filtered = filtered.filter(e => e.date <= toVal);
-  filtered.sort((a, b) => a.date.localeCompare(b.date));
-  _monthlyFiltered = filtered;
-  const label = fromVal || toVal ? `${fromVal || '…'} to ${toVal || '…'}` : 'All time';
-
-  if (!filtered.length) {
-    document.getElementById('monthlySummary').innerHTML = '<div class="empty-state"><p>No entries for this period.</p></div>';
+  const c = histCompute();
+  histRenderFilters(c, 'sumFilters');
+  histRenderKpis(c, 'sumKpis');
+  sumRenderChart(c);
+  if (!getEntries().length) {
+    document.getElementById('sumMonths').innerHTML = '<div class="empty-state"><p>No entries yet.</p></div>';
+    document.getElementById('sumTables').innerHTML = '';
+    document.getElementById('sumFloat').innerHTML = '';
     return;
   }
-
-  let totalGrand = 0, totalCL = 0, totalSS = 0, totalMGD = 0, totalFloat = 0;
-  const locTotals = {};
-
-  for (const e of filtered) {
-    totalGrand += e.grandTotal || 0;
-    totalCL += e.grandCL || 0;
-    totalSS += e.grandSS || 0;
-    totalMGD += e.grandMGD || 0;
-    totalFloat += e.grandFloat || 0;
-    for (const loc of e.locations || []) {
-      const cfg = config.locations.find(l => l.id === loc.id) ||
-        config.locations.find(l => l.name === loc.name || (l.nameHistory || []).includes(loc.name));
-      const key = (cfg && cfg.id) || loc.id || loc.name;
-      if (!locTotals[key]) {
-        locTotals[key] = { id: key, label: formatSiteName(loc, cfg && cfg.id), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
-      }
-      for (const cat of loc.categories || []) {
-        const net = cat.net != null ? cat.net : (cat.total || 0);
-        locTotals[key].net += net;
-        locTotals[key].mgd += cat.mgd || 0;
-        locTotals[key].ss += cat.supplierShare || 0;
-        locTotals[key].cl += cat.cashLeft || 0;
-        locTotals[key].float += cat.floatTaken || 0;
-      }
-      if (loc.poolGross) {
-        locTotals[key].net += loc.poolGross;
-        locTotals[key].ss += loc.poolSS || 0;
-        locTotals[key].cl += loc.poolCL || 0;
-      }
-    }
+  if (!c.rows.length) {
+    document.getElementById('sumMonths').innerHTML = '<div class="empty-state"><p>No collections for these filters.</p><p style="margin-top:10px"><button type="button" class="btn btn-primary" data-hset="period" data-v="all">Show all time</button></p></div>';
+    document.getElementById('sumTables').innerHTML = '';
+  } else {
+    sumRenderMonths(c);
+    sumRenderTables(c);
   }
-
-  let html = `<div class="summary-card">
-    <div class="kpi"><div class="val">${filtered.length}</div><div class="lbl">Collections (${esc(label)})</div></div>
-    <div class="kpi"><div class="val">£${totalGrand.toFixed(2)}</div><div class="lbl">Net Total</div></div>
-    <div class="kpi"><div class="val">£${totalCL.toFixed(2)}</div><div class="lbl">Site Share</div></div>
-    <div class="kpi"><div class="val">£${totalSS.toFixed(2)}</div><div class="lbl">Supplier Share</div></div>
-    <div class="kpi"><div class="val">£${totalFloat.toFixed(2)}</div><div class="lbl">Float Taken</div></div>
-  </div>`;
-
-  html += `<p class="hint" style="margin-top:4px">Business months: collections on the 1st–${BUSINESS_MONTH_CUTOFF_DAY}th count toward the <strong>previous</strong> month (e.g. 3 Jul → June).</p>`;
-
-  html += `<div style="margin-top:12px"><h2>Totals per Location</h2><div class="table-scroll"><table class="tbl"><thead><tr>
-    <th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th><th></th>
-  </tr></thead><tbody>`;
-  for (const v of Object.values(locTotals)) {
-    const viewKey = jsAttr(v.id || v.label);
-    html += `<tr><td>${esc(v.label)}</td><td class="ro">£${v.net.toFixed(2)}</td><td class="ro">£${v.mgd.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td>
-      <td><button class="btn btn-sm" onclick="viewLocationTotals('${viewKey}')">View</button></td></tr>`;
-  }
-  html += `</tbody></table></div></div>`;
-
-  // Monthly breakdown (business month grouping)
-  const monthlyMap = {};
-  for (const e of filtered) {
-    const m = businessMonthKey(e.date);
-    if (!m) continue;
-    if (!monthlyMap[m]) monthlyMap[m] = { count: 0, grand: 0, cl: 0, ss: 0, float: 0 };
-    monthlyMap[m].count++;
-    monthlyMap[m].grand += e.grandTotal || 0;
-    monthlyMap[m].cl += e.grandCL || 0;
-    monthlyMap[m].ss += e.grandSS || 0;
-    monthlyMap[m].float += e.grandFloat || 0;
-  }
-  html += `<div style="margin-top:16px"><h2>Monthly Breakdown</h2><div class="table-scroll"><table class="tbl"><thead><tr>
-    <th>Business month</th><th class="num">Collections</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site Share</th><th class="num">Float</th><th></th>
-  </tr></thead><tbody>`;
-  for (const [m, v] of Object.entries(monthlyMap).sort()) {
-    html += `<tr><td>${esc(formatBusinessMonthLabel(m))}</td><td class="ro">${v.count}</td><td class="ro">£${v.grand.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td><td class="ro">£${v.float.toFixed(2)}</td>
-      <td><button class="btn btn-sm" onclick="viewMonth('${m}')">View</button></td></tr>`;
-  }
-  html += '</tbody></table></div></div>';
-
-  document.getElementById('monthlySummary').innerHTML = html;
+  sumRenderFloat(c);
 }
 
-function viewMonth(month) {
-  const entries = getEntries()
-    .filter(e => businessMonthKey(e.date) === month)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  document.getElementById('monthModalTitle').textContent = formatBusinessMonthLabel(month);
-  let html = '';
-  for (const e of entries) {
-    html += `<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:12px"><h3>${esc(e.date)}</h3>
-      <table class="tbl"><thead><tr><th>Location</th><th>Category</th><th class="num">Gross</th><th class="num">Float</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site Share</th></tr></thead><tbody>`;
-    for (const loc of e.locations || []) {
-      for (const cat of loc.categories || []) {
-        const siteLbl = formatSiteName(loc, loc.id);
-        html += `<tr><td>${esc(siteLbl)}</td><td>${esc(cat.name)}</td>
-          <td class="ro">£${(cat.gross ?? cat.cash ?? 0).toFixed(2)}</td>
-          <td class="ro">£${(cat.floatTaken || 0).toFixed(2)}</td>
-          <td class="ro">£${(cat.net ?? cat.total ?? 0).toFixed(2)}</td>
-          <td class="ro">£${(cat.supplierShare || 0).toFixed(2)}</td>
-          <td class="ro">£${(cat.cashLeft || 0).toFixed(2)}</td></tr>`;
-      }
-      if (loc.poolGross) {
-        html += `<tr><td>${esc(formatSiteName(loc, loc.id))}</td><td>Pool</td><td class="ro">£${loc.poolGross.toFixed(2)}</td><td class="ro">—</td>
-          <td class="ro">£${loc.poolGross.toFixed(2)}</td><td class="ro">£${(loc.poolSS||0).toFixed(2)}</td><td class="ro">£${(loc.poolCL||0).toFixed(2)}</td></tr>`;
-      }
-    }
-    html += `<tr style="font-weight:700;background:#fff8e6"><td colspan="4">TOTAL</td><td class="ro">£${(e.grandTotal||0).toFixed(2)}</td><td class="ro">£${(e.grandSS||0).toFixed(2)}</td><td class="ro">£${(e.grandCL||0).toFixed(2)}</td></tr>`;
-    html += '</tbody></table></div>';
-  }
-  document.getElementById('monthModalEntries').innerHTML = html || '<p>No entries</p>';
-  document.getElementById('monthModal').classList.add('active');
-}
-
-function viewLocationTotals(locKey) {
-  const entries = _monthlyFiltered;
-  const cfg = config.locations.find(l => l.id === locKey) ||
-    config.locations.find(l => l.name === locKey || (l.nameHistory || []).includes(locKey));
-  const title = cfg ? formatSiteName(cfg) : locKey;
-  document.getElementById('monthModalTitle').textContent = title + ' — monthly';
-  const monthData = {};
-  for (const e of entries) {
-    const loc = (e.locations || []).find(l =>
-      (cfg && (l.id === cfg.id || l.name === cfg.name || (cfg.nameHistory || []).includes(l.name))) ||
-      l.id === locKey || l.name === locKey
-    );
-    if (!loc) continue;
-    const m = businessMonthKey(e.date);
-    if (!m) continue;
-    if (!monthData[m]) monthData[m] = { net: 0, mgd: 0, ss: 0, cl: 0 };
-    for (const cat of loc.categories || []) {
-      const net = cat.net != null ? cat.net : (cat.total || 0);
-      monthData[m].net += net;
-      monthData[m].mgd += cat.mgd || 0;
-      monthData[m].ss += cat.supplierShare || 0;
-      monthData[m].cl += cat.cashLeft || 0;
-    }
-    if (loc.poolGross) {
-      monthData[m].net += loc.poolGross;
-      monthData[m].ss += loc.poolSS || 0;
-      monthData[m].cl += loc.poolCL || 0;
-    }
-  }
-  let html = `<table class="tbl"><thead><tr><th>Business month</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th></tr></thead><tbody>`;
-  for (const [m, v] of Object.entries(monthData).sort()) {
-    html += `<tr><td>${esc(formatBusinessMonthLabel(m))}</td><td class="ro">£${v.net.toFixed(2)}</td><td class="ro">£${v.mgd.toFixed(2)}</td><td class="ro">£${v.ss.toFixed(2)}</td><td class="ro">£${v.cl.toFixed(2)}</td></tr>`;
-  }
-  html += '</tbody></table>';
-  document.getElementById('monthModalEntries').innerHTML = html;
-  document.getElementById('monthModal').classList.add('active');
-}
-
-function closeMonthModal() {
-  document.getElementById('monthModal').classList.remove('active');
+/** Month x site totals for the current filters. */
+function exportSummaryCSV() {
+  const c = histCompute();
+  if (!c.rows.length) { alert('Nothing to export for these filters'); return; }
+  const out = [['Business month', 'Site', 'Collections', 'Net', 'MGD', 'Supplier', 'Site Share']];
+  const months = groupRows(c.rows, 'bm', 'bm').sort((a, b) => a.key.localeCompare(b.key));
+  months.forEach(m => groupRows(c.rows.filter(r => r.bm === m.key), 'siteKey', 'siteName').forEach(g =>
+    out.push([m.key, g.label, g.collections, g.net, g.mgd, g.ss, g.cl])));
+  downloadCsv(out, '3barbros_summary_' + todayStr() + '.csv');
 }
 
 // ===== SETTINGS CRUD =====

@@ -123,4 +123,9 @@ t('low-collection flag needs history and is relative to that site+category', () 
   const few = L.markLow(L.buildRows([mkEntry('2026-01-10', 100), mkEntry('2026-02-10', 1)], info, keyFn));
   assert.ok(few.every(r => r.low === null));   // not enough history
 });
+t('float outstanding = latest owed per site+machine, only if > 0', () => {
+  const e = (date, owed, cat = 'Reels') => ({ id: date, timestamp: date, date, locations: [{ id: 's1', name: 's1', categories: [{ name: cat, floatOwedAfter: owed }] }] });
+  const out = L.floatOutstanding([e('2026-03-01', 50), e('2026-04-01', 20), e('2026-04-01', 0, 'Digital'), e('2026-02-01', 99, 'Digital')], info, keyFn);
+  assert.deepStrictEqual(out.map(x => [x.cat, x.owed]), [['Reels', 20]]);
+});
 console.log(n + ' tests passed');
