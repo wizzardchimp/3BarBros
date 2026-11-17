@@ -53,6 +53,14 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 - `floatOwedAfter` carries to the next collection for that **location + category**  
 - Pool: no float (rent or 50/50 as configured)  
 
+## Dated rates (effective dating)
+- **MGD** is a global rate with a dated schedule (Settings → *MGD rate*). Add a change with an *Apply from* month; earlier months keep the old rate.
+- **Site shares, flat fee, pool rent / pool %** are dated per site: when editing a site, set *apply from* (a business month). Leave it blank only to correct a mistake in the current value.
+- **Business month:** collections on the 6th up to the 5th of the next month belong to that month (29 Sep, 30 Sep, 2 Oct, 4 Oct → September; 6 Oct → October).
+- A collection uses the rates in force for its own date, so back-dated entries pick up the right rates. Submitted entries store their calculated figures and are never recalculated.
+- Takings and float amounts are entered per collection and are not dated.
+- Logic lives in `logic.js`; run the tests with `node tests/logic.test.js`.
+
 ## Known limitations
 - Editing/back-dating an entry does not recalculate `floatOwedAfter` on later entries.
 - Receipt photos upload before the entry saves; if the save then fails, the uploaded files stay in Drive.

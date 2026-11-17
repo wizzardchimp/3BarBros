@@ -288,6 +288,7 @@ h3{font-size:14px;margin:0 0 8px}
     <h2 style="margin:0">Sites &amp; Rates</h2>
     <p class="hint">Fill in a site below, then <strong>Save site</strong> to commit rates to the sheet. The form clears for the next site.</p>
   </div>
+  <div id="mgdCard"></div>
   <div id="settingsContainer"></div>
   <div id="savedSitesList"></div>
   <div id="mergeSitesContainer"></div>
@@ -338,16 +339,17 @@ h3{font-size:14px;margin:0 0 8px}
 
 <input type="file" id="receiptFileInput" accept="image/*" capture="environment" multiple style="display:none">
 
+<script src="logic.js"></script>
 <script>
 // ===== DEFAULTS =====
 const APP_PASSWORD = 'bl26';
-const MGD_RATE = 0.2;
 
 function uid() {
   return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
 const DEFAULT_CONFIG = {
+  mgd: [{ from: EPOCH, value: MGD_RATE }],
   locations: [
     {
       id: 'site_a', name: 'Site A', nameHistory: [], hasPool: false,
@@ -484,6 +486,9 @@ function loadConfigLocal() {
 
 function migrateConfig(cfg) {
   if (!cfg || !Array.isArray(cfg.locations)) return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  // Dated global MGD schedule (rate as 0–1). Missing = the historic default for all time.
+  if (!Array.isArray(cfg.mgd) || !cfg.mgd.length) cfg.mgd = [{ from: EPOCH, value: MGD_RATE }];
+  cfg.mgd = sortTerms(cfg.mgd.map(t => ({ from: String(t.from || EPOCH), value: (parseFloat(t.value) > 1 ? parseFloat(t.value) / 100 : parseFloat(t.value)) })));
   cfg.locations.forEach(loc => {
     loc.id = loc.id || uid();
     loc.hasPool = !!loc.hasPool;
@@ -511,7 +516,10 @@ function migrateConfig(cfg) {
       c.floatRequired = parseFloat(c.floatRequired) || 0;
       c.flatFee = parseFloat(c.flatFee) || 0;
       if (c.flatFee < 0) c.flatFee = 0;
+      // Dated share/fee terms: seed one row from the beginning if none yet
+      if (!Array.isArray(c.terms) || !c.terms.length) c.terms = seedCatTerms(c);
     });
+    if (!Array.isArray(loc.poolTerms) || !loc.poolTerms.length) loc.poolTerms = seedPoolTerms(loc);
   });
   return cfg;
 }
@@ -854,69 +862,7 @@ async function deleteEntryFromSheet(entry) {
 }
 
 // ===== MATH =====
-function round(v) { return Math.round((parseFloat(v) || 0) * 100) / 100; }
-
-/**
- * Float + split calculation for one category.
- * floatOwedIn = amount still owed into float from prior collections (>= 0)
- * flatFee (e.g. Jukebox £20) is taken off gross first and goes to supplier; no MGD when set.
- * Returns net after float; MGD/SS/CL on net only.
- */
-function calcCategory(gross, rate, hasFloat, floatRequired, floatOwedIn, flatFee) {
-  gross = parseFloat(gross) || 0;
-  rate = parseFloat(rate);
-  if (isNaN(rate)) rate = 0.5;
-  floatRequired = hasFloat ? (parseFloat(floatRequired) || 0) : 0;
-  floatOwedIn = hasFloat ? (parseFloat(floatOwedIn) || 0) : 0;
-  flatFee = parseFloat(flatFee) || 0;
-  if (floatRequired < 0) floatRequired = 0;
-  if (floatOwedIn < 0) floatOwedIn = 0;
-
-  const fee = flatFee > 0 ? Math.min(flatFee, gross) : 0;
-  const afterFee = gross - fee;
-
-  const toRecover = hasFloat ? (floatRequired + floatOwedIn) : 0;
-  const floatTaken = Math.min(afterFee, toRecover);
-  const net = afterFee - floatTaken;
-  const floatOwedAfter = toRecover - floatTaken;
-
-  const mgd = flatFee > 0 ? 0 : net * MGD_RATE;
-  const cashLeft = net * rate;
-  const supplierShare = (net - cashLeft) + fee;
-
-  return {
-    gross: round(gross),
-    floatTaken: round(floatTaken),
-    floatOwedIn: round(floatOwedIn),
-    floatOwedAfter: round(floatOwedAfter),
-    net: round(net),
-    total: round(net),
-    mgd: round(mgd),
-    cashLeft: round(cashLeft),
-    supplierShare: round(supplierShare)
-  };
-}
-
-function calcPool(poolGross, loc) {
-  const g = parseFloat(poolGross) || 0;
-  const mode = (loc && loc.poolMode) || (loc && loc.poolRent > 0 ? 'rent' : 'fifty');
-  let poolSS, poolCL;
-  if (mode === 'rent') {
-    const rent = parseFloat(loc.poolRent) || 0;
-    poolSS = Math.min(rent, g);
-    poolCL = g - poolSS;
-  } else if (mode === 'percent') {
-    let pct = parseFloat(loc.poolPercent);
-    if (isNaN(pct)) pct = 50;
-    pct = Math.max(0, Math.min(100, pct));
-    poolSS = g * (pct / 100);
-    poolCL = g - poolSS;
-  } else {
-    poolSS = g * 0.5;
-    poolCL = g * 0.5;
-  }
-  return { poolGross: round(g), poolSS: round(poolSS), poolCL: round(poolCL), poolMode: mode };
-}
+// calcCategory / calcPool / round / businessMonthKey / dated-rate helpers live in logic.js
 
 /** Outstanding float owed for locationId+categoryId before a given date/timestamp */
 function getFloatOwedIn(locId, catId, beforeDate, beforeTs) {
@@ -949,10 +895,13 @@ function todayStr() {
 }
 
 // ===== RENDER FORM =====
-function getActiveEntryLocations() {
+/** Active site(s) with shares / flat fee / pool terms as they applied on the entry date. */
+function getActiveEntryLocations(dateStr) {
   if (!activeEntrySiteId) return [];
   const loc = config.locations.find(l => String(l.id) === String(activeEntrySiteId));
-  return loc ? [loc] : [];
+  if (!loc) return [];
+  const d = dateStr || document.getElementById('entryDate')?.value || todayStr();
+  return [resolveLoc(loc, d)];
 }
 
 function backToSitePicker() {
@@ -1128,8 +1077,9 @@ function updateFormCalcs() {
   const date = document.getElementById('entryDate').value || todayStr();
   let gNet = 0, gMgd = 0, gSs = 0, gCl = 0;
   let gtHtml = '';
-  const locs = getActiveEntryLocations();
+  const locs = getActiveEntryLocations(date);
   if (!locs.length) return;
+  const mgdRate = mgdAt(config, date);
 
   for (const loc of locs) {
     let locNet = 0, locMgd = 0, locSs = 0, locCl = 0, locFt = 0;
@@ -1142,7 +1092,7 @@ function updateFormCalcs() {
       const owed = getFloatOwedIn(loc.id, cat.id, date, null);
       // Apply float whenever a value is entered or there is carry-in (pool never uses this path)
       const useFloat = true;
-      const r = calcCategory(gross, cat.rate, useFloat, floatReq, owed, cat.flatFee);
+      const r = calcCategory(gross, cat.rate, useFloat, floatReq, owed, cat.flatFee, mgdRate);
 
       const netEl = document.getElementById('net_' + fid);
       const splitEl = document.getElementById('split_' + fid);
@@ -1201,8 +1151,9 @@ function updateFormCalcs() {
 function buildEntryFromForm() {
   const date = document.getElementById('entryDate').value;
   if (!date) return null;
-  const locs = getActiveEntryLocations();
+  const locs = getActiveEntryLocations(date);
   if (!locs.length) return null;
+  const mgdRate = mgdAt(config, date);
 
   const ts = new Date().toISOString();
   const entry = { date, timestamp: ts, id: ts, locations: [], grandTotal: 0, grandCL: 0, grandMGD: 0, grandSS: 0, grandFloat: 0 };
@@ -1214,7 +1165,7 @@ function buildEntryFromForm() {
       const gross = parseFloat(document.getElementById('gross_' + fid)?.value) || 0;
       const floatReq = parseFloat(document.getElementById('floatreq_' + fid)?.value) || 0;
       const owed = getFloatOwedIn(loc.id, cat.id, date, null);
-      const r = calcCategory(gross, cat.rate, true, floatReq, owed, cat.flatFee);
+      const r = calcCategory(gross, cat.rate, true, floatReq, owed, cat.flatFee, mgdRate);
       locData.categories.push({
         id: cat.id, name: cat.name, rate: cat.rate,
         hasFloat: true, floatRequired: floatReq, flatFee: cat.flatFee || 0,
@@ -1508,7 +1459,7 @@ function render21DayTotals() {
       for (const cat of loc.categories || []) {
         const net = cat.net != null ? cat.net : (cat.total || cat.cash || 0);
         t.net += net;
-        t.mgd += cat.mgd || (net * MGD_RATE);
+        t.mgd += cat.mgd != null ? cat.mgd : net * mgdAt(config, e.date);
         t.ss += cat.supplierShare || 0;
         t.cl += cat.cashLeft || 0;
         t.float += cat.floatTaken || 0;
@@ -1668,23 +1619,6 @@ async function clearHistory() {
 }
 
 // ===== MONTHLY =====
-/** Business month: days 1–5 count as previous calendar month (e.g. 5 Jul → June). */
-const BUSINESS_MONTH_CUTOFF_DAY = 5;
-
-function businessMonthKey(dateStr) {
-  if (!dateStr || String(dateStr).length < 10) return '';
-  const y = parseInt(String(dateStr).slice(0, 4), 10);
-  const mo = parseInt(String(dateStr).slice(5, 7), 10);
-  const day = parseInt(String(dateStr).slice(8, 10), 10);
-  if (!y || !mo || !day) return String(dateStr).slice(0, 7);
-  let yy = y, mm = mo;
-  if (day <= BUSINESS_MONTH_CUTOFF_DAY) {
-    mm -= 1;
-    if (mm < 1) { mm = 12; yy -= 1; }
-  }
-  return yy + '-' + String(mm).padStart(2, '0');
-}
-
 function formatBusinessMonthLabel(key) {
   if (!key || key.length < 7) return key || '';
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1954,6 +1888,16 @@ function renderSettings() {
     </div>`;
   });
 
+  if (editing) {
+    html += `<div style="margin-top:12px;padding:10px;background:#fff8e6;border:1px solid #f7b731;border-radius:8px">
+      <label style="font-weight:600">Changes to shares, flat fee, rent or pool % apply from<br>
+        <input type="month" id="draft_effective" value="${businessMonthKey(todayStr())}" style="margin-top:4px"></label>
+      <p class="hint" style="margin:6px 0 0">Business month: collections on the 6th up to the 5th of the next month count in that month
+        (e.g. 29 Sep, 30 Sep, 2 Oct and 4 Oct are all <strong>September</strong>; 6 Oct onward is <strong>October</strong>).
+        Past entries keep the figures they were saved with, and earlier dates keep the old rates.
+        Leave blank only to <strong>correct a mistake</strong> in the current rate (replaces it, no new date).</p>
+    </div>`;
+  }
   html += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px">
     <button class="btn btn-sm" onclick="draftAddCategory()">+ Category</button>
     <button class="btn btn-primary" onclick="saveSiteFromDraft()">Save site</button>
@@ -1962,8 +1906,23 @@ function renderSettings() {
   </div></div>`;
 
   document.getElementById('settingsContainer').innerHTML = html;
+  renderMgdCard();
   renderSavedSitesList();
   renderMergeSites();
+}
+
+/** Small note listing dated changes for a site (shares, fee, pool). */
+function termsSummaryHtml(loc) {
+  const lines = [];
+  (loc.categories || []).forEach(c => {
+    const t = sortTerms(c.terms || []);
+    t.slice(1).forEach(row => lines.push(`${esc(c.name)}: site ${Math.round(row.rate * 100)}%${row.flatFee > 0 ? ' · fee £' + row.flatFee : ''} from ${esc(row.from)}`));
+  });
+  sortTerms(loc.poolTerms || []).slice(1).forEach(row => {
+    const lbl = row.poolMode === 'rent' ? 'rent £' + row.poolRent : row.poolMode === 'percent' ? row.poolPercent + '% supplier' : '50/50';
+    lines.push('Pool: ' + esc(lbl) + ' from ' + esc(row.from));
+  });
+  return lines.length ? `<br><span style="font-size:11px;color:#b36b00">Dated changes: ${lines.join(' · ')}</span>` : '';
 }
 
 function renderSavedSitesList() {
@@ -1982,7 +1941,7 @@ function renderSavedSitesList() {
     html += `<div class="saved-site-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee">
       <div>
         <strong>${esc(loc.name || 'Unnamed')}</strong>${hist}<br>
-        <span style="font-size:12px;color:#888">${esc(cats)}${loc.hasPool ? ' · Pool (' + esc(poolModeLabel(loc)) + ')' : ''}</span>
+        <span style="font-size:12px;color:#888">${esc(cats)}${loc.hasPool ? ' · Pool (' + esc(poolModeLabel(loc)) + ')' : ''}</span>${termsSummaryHtml(loc)}
       </div>
       <div style="display:flex;gap:6px">
         <button type="button" class="btn btn-sm btn-edit-site" data-site-id="${esc(sid)}">Edit</button>
@@ -1999,6 +1958,50 @@ function renderSavedSitesList() {
   el.querySelectorAll('.btn-remove-site').forEach(btn => {
     btn.addEventListener('click', () => removeLocationById(btn.getAttribute('data-site-id')));
   });
+}
+
+function renderMgdCard() {
+  const el = document.getElementById('mgdCard');
+  if (!el) return;
+  const rows = sortTerms(config.mgd || []);
+  const list = rows.map((r, i) => `<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #eee">
+      <span style="flex:1">${(r.value * 100).toFixed(2).replace(/\.?0+$/, '')}% — ${r.from === EPOCH ? 'from the beginning' : 'from ' + esc(r.from)}</span>
+      ${i > 0 ? `<button type="button" class="btn btn-danger btn-sm" onclick="removeMgdRow('${esc(r.from)}')">Remove</button>` : ''}
+    </div>`).join('');
+  el.innerHTML = `<div class="settings-card">
+    <h3 style="margin:0 0 6px">MGD rate (all sites)</h3>
+    <p class="hint" style="margin:0 0 8px">Applies to net takings by collection date. Existing entries keep the MGD they were saved with.</p>
+    ${list}
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:10px">
+      <label>New rate %<br><input type="number" id="mgd_new" min="0" max="100" step="any" style="width:90px"></label>
+      <label>Apply from (business month)<br><input type="month" id="mgd_from" value="${businessMonthKey(todayStr())}"></label>
+      <button type="button" class="btn btn-primary btn-sm" onclick="addMgdRow()">Add MGD change</button>
+      <span class="msg" id="mgdMsg"></span>
+    </div>
+  </div>`;
+}
+
+async function addMgdRow() {
+  const pct = parseFloat(document.getElementById('mgd_new').value);
+  const from = String(document.getElementById('mgd_from').value || '').trim();
+  if (isNaN(pct) || pct < 0 || pct > 100) { showMsg('mgdMsg', 'Enter a rate between 0 and 100', 'error'); return; }
+  if (!/^\d{4}-\d{2}$/.test(from)) { showMsg('mgdMsg', 'Pick the month it applies from', 'error'); return; }
+  if (getEntries().some(e => businessMonthKey(e.date) >= from) &&
+      !confirm('Entries already exist in or after ' + from + '. They keep their saved MGD; only new or back-dated entries from that month use the new rate. Continue?')) return;
+  config.mgd = addTerm(config.mgd || [], from, { value: pct / 100 });
+  saveConfigLocal();
+  const ok = await saveConfigToSheet();
+  renderMgdCard();
+  showMsg('mgdMsg', ok ? 'MGD saved' : 'Saved locally; sheet sync failed', ok ? 'success' : 'error');
+  renderForm();
+}
+
+async function removeMgdRow(from) {
+  if (!confirm('Remove the MGD change from ' + from + '?')) return;
+  config.mgd = sortTerms(config.mgd || []).filter(r => r.from !== from);
+  saveConfigLocal();
+  await saveConfigToSheet();
+  renderMgdCard();
 }
 
 function onDraftRatePct(ci, val) {
@@ -2139,12 +2142,20 @@ async function saveSiteFromDraft() {
   }
 
   draftSite.name = name;
+  const effEl = document.getElementById('draft_effective');
+  const effMonth = effEl ? String(effEl.value || '').trim() : '';
   draftSite = migrateConfig({ locations: [draftSite] }).locations[0];
 
   if (draftEditingId) {
     const idx = config.locations.findIndex(l => l.id === draftEditingId);
     if (idx >= 0) {
       const prev = config.locations[idx];
+      applyTermChanges(prev, draftSite, effMonth);
+      const changedTerms = JSON.stringify(draftSite.categories.map(c => c.terms)) !== JSON.stringify(prev.categories.map(c => c.terms)) ||
+        JSON.stringify(draftSite.poolTerms) !== JSON.stringify(prev.poolTerms);
+      if (changedTerms && effMonth && getEntries().some(e => businessMonthKey(e.date) >= effMonth)) {
+        if (!confirm('Entries already exist in or after ' + effMonth + '. They keep the figures they were saved with; only new or back-dated entries from that month will use the new rates. Continue?')) return;
+      }
       // preserve name history if renamed
       if (prev.name && prev.name !== name && !isPlaceholderSiteName(prev.name)) {
         if (!Array.isArray(draftSite.nameHistory)) draftSite.nameHistory = [];
@@ -2169,6 +2180,7 @@ async function saveSiteFromDraft() {
       if (!confirm('A site named "' + name + '" already exists. Add another anyway?')) return;
     }
     draftSite.id = draftSite.id || uid();
+    applyTermChanges(null, draftSite, '');
     config.locations.push(JSON.parse(JSON.stringify(draftSite)));
   }
 
