@@ -382,7 +382,14 @@ function notifyEnabled() {
 
 function notifyAddress() {
   const p = PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL');
-  return p || Session.getEffectiveUser().getEmail();
+  if (p) return p;
+  try {
+    return Session.getEffectiveUser().getEmail();
+  } catch (err) {
+    // Needs the userinfo.email scope in appsscript.json (or set the NOTIFY_EMAIL Script Property instead)
+    Logger.log('notifyAddress: ' + err);
+    return '';
+  }
 }
 
 function maskEmail(addr) {
@@ -406,7 +413,7 @@ function sendNotification(subject, text, html) {
   try {
     if (!notifyEnabled()) return { sent: false, error: 'Notifications are switched off (Script Property NOTIFY=off)' };
     const to = notifyAddress();
-    if (!to) return { sent: false, error: 'No email address available' };
+    if (!to) return { sent: false, error: 'No email address available: add the userinfo.email scope to appsscript.json, or set the NOTIFY_EMAIL Script Property' };
     if (!takeEmailSlot()) return { sent: false, error: 'Daily email limit reached' };
     MailApp.sendEmail({ to: to, subject: subject, body: text, htmlBody: html, name: '3BarBros' });
     return { sent: true, error: '' };

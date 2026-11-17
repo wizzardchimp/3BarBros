@@ -190,4 +190,15 @@ t('unknown actions are rejected instead of being saved as collections', () => {
   assert.strictEqual(r.success, false); assert.ok(/Unknown action/.test(r.error));
   assert.ok(!e.sheets.Data || e.sheets.Data.rows.length <= 1);
 });
+t('address lookup blocked by a missing scope: clear message, NOTIFY_EMAIL works as a workaround', () => {
+  const e = makeEnv();
+  e.ctx.Session.getEffectiveUser = () => { throw new Error('Specified permissions are not sufficient to call Session.getEffectiveUser'); };
+  const r = e.post(Object.assign({ action: 'testNotify' }, ident));
+  assert.strictEqual(r.success, true); assert.strictEqual(r.sent, false);
+  assert.ok(/userinfo\.email/.test(r.error) && /NOTIFY_EMAIL/.test(r.error));
+  assert.strictEqual(e.post(Object.assign({ action: 'login' }, ident)).success, true);   // saving/logging unaffected
+  e.props.NOTIFY_EMAIL = 'me@example.com';
+  const r2 = e.post(Object.assign({ action: 'testNotify' }, ident));
+  assert.strictEqual(r2.sent, true); assert.strictEqual(e.mails[0].to, 'me@example.com');
+});
 console.log(n + ' backend tests passed');

@@ -2844,7 +2844,7 @@ async function testNotifyEmail() {
     if (d && d.success) {
       const why = String(d.error || '');
       const perm = /author|permission|scope/i.test(why);
-      showMsg('notifyMsg', 'Not sent: ' + why + (perm ? ' — run __authMail once in the Apps Script editor, accept the permissions, then deploy a new version.' : ''), 'error');
+      showMsg('notifyMsg', 'Not sent: ' + why + (perm ? ' — add any missing permission to appsscript.json (see the README), run __authMail once and accept, then deploy a new version.' : ''), 'error');
       return;
     }
     showMsg('notifyMsg', (d && d.error) || 'The server could not send the test email', 'error');

@@ -70,10 +70,11 @@ One-time setup:
 3. Deploy → Manage deployments → edit → **New version**.
 4. In the app: Settings → Connection → **Send test email**.
 
-Script Properties (optional): `NOTIFY_EMAIL` (send elsewhere), `NOTIFY` = `off` (pause emails; logging continues). A cap of 25 emails/day protects your Gmail quota. If emails can't be sent (e.g. permission not granted) saving is never affected. If running `__authMail` fails with *“Specified permissions are not sufficient … script.send_mail”*, your project has a manifest with a fixed `oauthScopes` list. In Apps Script: Project Settings (gear) → tick **Show “appsscript.json” manifest file in editor**, open `appsscript.json`, and either delete the whole `oauthScopes` block (Apps Script then works the permissions out from the code) or add these two lines to it (keep the others, mind the commas):
+Script Properties (optional): `NOTIFY_EMAIL` (send elsewhere), `NOTIFY` = `off` (pause emails; logging continues). A cap of 25 emails/day protects your Gmail quota. If emails can't be sent (e.g. permission not granted) saving is never affected. If running `__authMail` fails with *“Specified permissions are not sufficient … script.send_mail”*, your project has a manifest with a fixed `oauthScopes` list. In Apps Script: Project Settings (gear) → tick **Show “appsscript.json” manifest file in editor**, open `appsscript.json`, and either delete the whole `oauthScopes` block (Apps Script then works the permissions out from the code) or add these three lines to it (keep the others, mind the commas):
 ```
 "https://www.googleapis.com/auth/script.send_mail",
-"https://www.googleapis.com/auth/script.scriptapp"
+"https://www.googleapis.com/auth/script.scriptapp",
+"https://www.googleapis.com/auth/userinfo.email"
 ```
 Then run `__authMail` again and accept the new permissions.
 
