@@ -585,6 +585,27 @@ function sendActivityDigest() {
   }
 }
 
+/**
+ * Run from the Apps Script editor to see what is set up and what is blocked. Never throws.
+ * Check the "Execution log" (or the returned text) for each line.
+ */
+function __diagnoseNotify() {
+  const out = [];
+  const props = PropertiesService.getScriptProperties();
+  const configured = props.getProperty('NOTIFY_EMAIL');
+  out.push('NOTIFY_EMAIL script property: ' + (configured ? 'SET (' + maskEmail(configured) + ')' : 'NOT SET'));
+  out.push('NOTIFY script property: ' + (props.getProperty('NOTIFY') || '(not set, so emails are on)'));
+  try { out.push('Own address lookup: OK (' + maskEmail(Session.getEffectiveUser().getEmail()) + ')'); }
+  catch (e) { out.push('Own address lookup: BLOCKED (needs userinfo.email) — set NOTIFY_EMAIL instead'); }
+  try { out.push('Send email permission: OK (quota left today ' + MailApp.getRemainingDailyQuota() + ')'); }
+  catch (e) { out.push('Send email permission: BLOCKED (needs script.send_mail)'); }
+  try { out.push('Trigger permission: OK (' + ScriptApp.getProjectTriggers().length + ' triggers)'); }
+  catch (e) { out.push('Trigger permission: BLOCKED (needs script.scriptapp)'); }
+  out.push('Emails will go to: ' + (maskEmail(notifyAddress()) || 'NOWHERE (no address)'));
+  Logger.log(out.join('\n'));
+  return out.join(' | ');
+}
+
 /** Run once from the Apps Script editor to grant the Send-email and Triggers permissions. */
 function __authMail() {
   const quota = MailApp.getRemainingDailyQuota();

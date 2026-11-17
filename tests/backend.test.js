@@ -201,4 +201,13 @@ t('address lookup blocked by a missing scope: clear message, NOTIFY_EMAIL works 
   const r2 = e.post(Object.assign({ action: 'testNotify' }, ident));
   assert.strictEqual(r2.sent, true); assert.strictEqual(e.mails[0].to, 'me@example.com');
 });
+t('diagnose never throws and reports each blocked piece', () => {
+  const e = makeEnv();
+  e.ctx.Session.getEffectiveUser = () => { throw new Error('blocked'); };
+  e.ctx.MailApp.getRemainingDailyQuota = () => { throw new Error('blocked'); };
+  const txt = e.run('__diagnoseNotify()');
+  assert.ok(/NOT SET/.test(txt) && /Own address lookup: BLOCKED/.test(txt) && /Send email permission: BLOCKED/.test(txt) && /NOWHERE/.test(txt));
+  e.props.NOTIFY_EMAIL = 'me@example.com';
+  assert.ok(/SET \(m\*\*\*@example\.com\)/.test(e.run('__diagnoseNotify()')) && /Emails will go to: m\*\*\*@example\.com/.test(e.run('__diagnoseNotify()')));
+});
 console.log(n + ' backend tests passed');
