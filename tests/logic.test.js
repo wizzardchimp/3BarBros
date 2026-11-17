@@ -212,4 +212,32 @@ t('rows carry a type; grouping by type merges Digital + Inspire + GM but keeps r
   const g = L.groupRows(rows, 'type', 'type');
   assert.deepStrictEqual(g.map(x => [x.key, x.net]).sort(), [['Digital', 60], ['Pool', 40], ['Reels', 100]].sort());
 });
+
+t('21 day window is exactly 21 calendar days (today and the 20 before)', () => {
+  const rows = L.buildRows([mkEntry('2026-09-29', 1), mkEntry('2026-09-30', 2), mkEntry('2026-10-20', 4)], info, keyFn);
+  assert.deepStrictEqual(rows.filter(L.periodTest('21d', '2026-10-20')).map(r => r.gross), [2, 4]);   // 30 Sep..20 Oct = 21 days
+});
+
+t('day buckets zero-fill 21 days and count collections once per site visit', () => {
+  const es = [mkEntry('2026-10-18', 50), mkEntry('2026-10-20', 30), mkEntry('2026-10-20', 70, 's2')];
+  const b = L.dayBuckets(L.buildRows(es, info, keyFn), '2026-10-20', 21);
+  assert.strictEqual(b.length, 21);
+  assert.deepStrictEqual([b[0].date, b[20].date], ['2026-09-30', '2026-10-20']);
+  assert.deepStrictEqual([b[18].net, b[19].net, b[20].net, b[20].collections], [50, 0, 100, 2]);
+});
+
+t('days between, last collected per site, usual gross and typo check', () => {
+  assert.strictEqual(L.daysBetween('2026-10-10', '2026-10-20'), 10);
+  assert.strictEqual(L.daysBetween('2026-12-30', '2027-01-02'), 3);
+  const es = [100, 110, 90, 100, 120].map((g, i) => mkEntry('2026-0' + (i + 1) + '-10', g)).concat([mkEntry('2026-06-10', 5, 's2')]);
+  const rows = L.buildRows(es, info, keyFn);
+  assert.deepStrictEqual(L.lastCollectedBySite(rows), { s1: '2026-05-10', s2: '2026-06-10' });
+  assert.strictEqual(L.usualGross(rows, 's1', 'Reels', '2026-06-01'), 104);      // mean of last 5
+  assert.strictEqual(L.usualGross(rows, 's1', 'Reels', '2026-02-20'), null);       // only 2 earlier: not enough
+  assert.strictEqual(L.grossLooksOff(1000, 104), 'high');
+  assert.strictEqual(L.grossLooksOff(30, 104), 'low');
+  assert.strictEqual(L.grossLooksOff(150, 104), '');
+  assert.strictEqual(L.grossLooksOff(0, 104), '');
+  assert.strictEqual(L.grossLooksOff(50, null), '');
+});
 console.log(n + ' tests passed');

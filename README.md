@@ -53,6 +53,25 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 - `floatOwedAfter` carries to the next collection for that **location + category**  
 - Pool: no float (rent or 50/50 as configured)  
 
+## Daily Entry page (mobile-first)
+- **Last 21 days** panel at the top: net, site share and collections with change vs the prior 21 days, a bar chart of net per day, and a collapsible per-site breakdown (MGD, supplier, site share). *See in History →* jumps to that period.
+- **Site cards** show when each site was last collected (⏰ after 14 days, red after 21), its 21-day net with a share bar and trend, and any float still to recover.
+- **Form:** one card per machine with big numeric fields, live Net / Site / Supplier / MGD chips, "usual amount" hints and a ⚠ check when a figure is far from usual (e.g. an extra zero), float carried in, and a pool card. Enter jumps to the next field. Date chips (Today / Yesterday / pick) show which business month it counts toward and warn for future or long back-dated entries.
+- **Sticky bar** at the bottom keeps the live total and the **Review →** button in thumb reach. The review sheet shows the breakdown, any unusual-amount warnings and receipts before saving.
+- **After saving:** a *Saved* banner with **Undo** (deletes it again), and the dashboard updates immediately.
+- **Unsent figures are kept** on the phone (per site and date) if the signal drops or the tab closes, and restored when you come back.
+
+## Email notifications (login + what they did)
+The owner of the Google Sheet is emailed when someone **logs in** (name from the login box, device, time) and gets a **digest of what they did** (collections saved / edited / deleted, settings changed) about 5 minutes after it starts. **Clear all** is emailed immediately. Every action is also written to the **ActivityLog** tab. The names are entered at login so they say *who*, but they are not authentication (the password is shared).
+
+One-time setup:
+1. Apps Script → paste the latest `Code.gs`.
+2. Run **`__authMail`** once from the editor and accept the permissions (send email, triggers).
+3. Deploy → Manage deployments → edit → **New version**.
+4. In the app: Settings → Connection → **Send test email**.
+
+Script Properties (optional): `NOTIFY_EMAIL` (send elsewhere), `NOTIFY` = `off` (pause emails; logging continues). A cap of 25 emails/day protects your Gmail quota. If emails can't be sent (e.g. permission not granted) saving is never affected. If your project has an `appsscript.json` with explicit `oauthScopes`, add `https://www.googleapis.com/auth/script.send_email` and `https://www.googleapis.com/auth/script.scriptapp`.
+
 ## Settings page
 Five sections (sticky tabs): **Sites & rates**, **Data**, **Connection**, **Preferences**, **Danger zone**. A status line at the top shows whether the sheet is connected, how many entries loaded and when (or why it failed).
 - **Sites & rates:** the saved-sites list comes first, with **+ Add site** opening the form below it. Each site shows its rates in force today, any *scheduled* future changes, and a *Rate history* you can prune. Per site: **Edit**, **Duplicate** (copies the setup under a new name), **Archive** (hides it from Daily Entry but keeps its history; restore any time) and **Remove**. Category names show which filter type they fall under (Reels / Digital / Pool / own type). MGD schedule and a *Recent changes* log (when and what; stored with your settings) sit below.
@@ -86,7 +105,7 @@ Settings → *Recalculate float from a date*. Pick a from date (and optionally o
 - The MasterLog audit sheet is append-only and keeps the figures as first submitted.
 
 ## Releasing front-end changes
-`logic.js` is loaded as `logic.js?v=<version>` and `index.html` checks `REQUIRED_LOGIC_VERSION`. When you change `logic.js`, bump `LOGIC_VERSION` in `logic.js` **and** both values in `index.html` together (`node tests/version.test.js` fails if they drift). This stops a phone/browser that cached the old `logic.js` from rendering blank History/Summary pages. If it ever does mismatch, the page reloads once and then shows a red banner instead of failing silently.
+`logic.js` is loaded as `logic.js?v=<version>` and `index.html` checks `REQUIRED_LOGIC_VERSION`. When you change `logic.js`, bump `LOGIC_VERSION` in `logic.js` **and** both values in `index.html` together (`node tests/version.test.js` fails if they drift). Run all checks with `node tests/logic.test.js && node tests/backend.test.js && node tests/version.test.js`. This stops a phone/browser that cached the old `logic.js` from rendering blank History/Summary pages. If it ever does mismatch, the page reloads once and then shows a red banner instead of failing silently.
 
 ## Known limitations
 - Editing, deleting or back-dating an entry does not automatically fix the float carried into later entries — run *Recalculate float from a date* in Settings afterwards.

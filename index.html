@@ -181,6 +181,69 @@ h3{font-size:14px;margin:0 0 8px}
 .log-row{display:flex;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid #eee}
 .log-row time{color:#888;flex:0 0 auto;min-width:96px}
 .danger-zone{border:1px solid #f1b0a8}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.dash{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.dash-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.dash-head h2{margin:0;font-size:16px}
+.dash svg{width:100%;max-width:640px;height:auto;display:block;margin:6px auto 0}
+.dash details{margin-top:8px;font-size:13px}
+.dash summary::after,.site-row summary::after{content:'▾';margin-left:auto;padding-left:10px;color:#888;font-size:14px}
+.dash details[open]>summary::after,.site-row details[open]>summary::after{content:'▴'}
+.dash summary{cursor:pointer;color:#555;min-height:36px;display:flex;align-items:center}
+.site-grid{display:grid;grid-template-columns:1fr;gap:10px;margin:8px 0 16px}
+.site-card{display:block;width:100%;text-align:left;background:#fff;border:2px solid transparent;border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;font:inherit;color:inherit;min-height:84px}
+.site-card:active{transform:scale(.99)}
+.site-card:focus-visible,.site-card:hover{border-color:#f7b731;outline:none}
+.sc-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sc-name{font-size:18px;font-weight:700}
+.sc-last{font-size:12px;font-weight:600;color:#666;white-space:nowrap}
+.sc-last.late{color:#b36b00}.sc-last.vlate{color:#b03a2e}
+.sc-cats{font-size:12px;color:#888;margin-top:2px}
+.sc-bar{height:6px;background:#eef0f4;border-radius:3px;margin-top:10px;overflow:hidden}
+.sc-bar i{display:block;height:100%;background:#f7b731;border-radius:3px}
+.sc-stats{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#555;margin-top:6px;flex-wrap:wrap}
+.sc-float{font-size:12px;font-weight:600;color:#b36b00;margin-top:4px}
+.saved-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#eafaf1;border:1px solid #b7e4c7;color:#1b5e3a;border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.saved-banner .sb-actions{display:flex;gap:6px;flex:0 0 auto}
+.date-bar{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.date-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.date-row input[type=date]{flex:1;min-width:140px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;min-height:44px}
+.chip{border:1.5px solid #ccc;background:#fff;border-radius:20px;padding:10px 16px;font-size:14px;font-weight:600;min-height:44px;cursor:pointer;color:#333}
+.chip.active{background:#1a1a2e;border-color:#1a1a2e;color:#fff}
+.date-hint{font-size:12px;color:#666;margin-top:6px}
+.date-hint.warn{color:#b36b00;font-weight:600}
+.mcard{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.mcard-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.mcard-head h3{margin:0;font-size:17px}
+.field{display:block;margin:8px 0}
+.field>span{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:4px}
+.field input{width:100%;padding:12px;border:1.5px solid #ccc;border-radius:10px;font-size:22px;font-weight:600;min-height:52px;text-align:right;font-variant-numeric:tabular-nums}
+.field input:focus{border-color:#f7b731;outline:none}
+.field.sm input{font-size:17px;min-height:46px}
+.usual{font-size:12px;color:#888;min-height:16px}
+.usual.warn{color:#b36b00;font-weight:600}
+.float-info{font-size:12px;color:#555;line-height:1.5}
+.calc-chips{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+.cchip{background:#f4f5f8;border-radius:8px;padding:6px 10px;display:flex;justify-content:space-between;gap:6px;font-size:13px}
+.cchip b{font-variant-numeric:tabular-nums}
+.cchip.main{background:#fff8e6}
+.entry-bar{position:sticky;bottom:0;z-index:60;display:flex;align-items:center;gap:12px;background:#fff;border-top:1px solid #e3e6ec;box-shadow:0 -6px 16px rgba(0,0,0,.1);margin:16px -16px -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.eb-totals{display:flex;gap:16px;flex:1}
+.eb-totals>div{display:flex;flex-direction:column;line-height:1.2}
+.eb-lbl{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.3px}
+.eb-totals strong{font-size:18px;font-variant-numeric:tabular-nums}
+.eb-submit{min-height:48px;padding:0 22px;font-size:17px;white-space:nowrap}
+.eb-submit[disabled]{opacity:.45}
+.cf-list{margin:0 0 12px}
+.cf-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
+.cf-row small{display:block;color:#777;font-size:11px}
+.cf-warn{background:#fff3e0;border-radius:8px;padding:8px 10px;font-size:12px;color:#8a5200;margin:6px 0;font-weight:600}
+.cf-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.cf-tile{background:#f4f5f8;border-radius:10px;padding:8px 10px;text-align:center}
+.cf-tile b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.cf-tile span{font-size:10px;color:#777;text-transform:uppercase}
+@media(max-width:600px){.entry-bar{margin:16px -10px -12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}.eb-totals{gap:12px}.eb-totals strong{font-size:16px}}
+@media(min-width:700px){.site-grid{grid-template-columns:repeat(2,1fr)}.calc-chips{grid-template-columns:repeat(4,1fr)}.entry-bar{margin:16px 0 0;border-radius:12px}}
 .hist-more{display:block;margin:10px auto;min-height:44px}
 @media(min-width:700px){
   .hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
@@ -271,6 +334,7 @@ h3{font-size:14px;margin:0 0 8px}
     <h1>3BarBros</h1>
     <p>Enter password to continue</p>
     <input type="password" id="loginPwd" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="text" id="loginWho" placeholder="Your name (optional)" autocomplete="name" maxlength="40" style="margin-top:10px;font-size:16px" onkeydown="if(event.key==='Enter')doLogin()">
     <div id="loginError" class="login-error">Incorrect password</div>
     <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;font-size:16px" onclick="doLogin()">Log In</button>
   </div>
@@ -297,14 +361,21 @@ h3{font-size:14px;margin:0 0 8px}
 </div>
 
 <div id="page-entry" class="page active">
-  <h1>Daily Takings</h1>
+  <h1 class="sr-only">Daily Takings</h1>
+  <div id="savedBanner"></div>
   <div id="totals21Container"></div>
   <div class="entry-site-bar hidden" id="entrySiteBar">
+    <button type="button" class="btn btn-outline" onclick="backToSitePicker()" aria-label="Back to sites">← Sites</button>
     <div class="site-title" id="entrySiteTitle"></div>
+    <button type="button" class="btn btn-outline btn-sm" onclick="resetForm()">Clear</button>
   </div>
-  <div class="form-header" id="entryDateBar">
-    <label>Date:</label>
-    <input type="date" id="entryDate">
+  <div class="date-bar hidden" id="entryDateBar">
+    <div class="date-row">
+      <button type="button" class="chip" data-offset="0">Today</button>
+      <button type="button" class="chip" data-offset="1">Yesterday</button>
+      <input type="date" id="entryDate" aria-label="Collection date">
+    </div>
+    <div class="date-hint" id="dateHint"></div>
     <span id="submitMsg" class="msg"></span>
   </div>
   <div id="sitePickerPanel"></div>
@@ -385,6 +456,13 @@ h3{font-size:14px;margin:0 0 8px}
       </div>
       <p class="hint" style="margin-top:8px"><strong>Test connection</strong> only checks the URL and token you typed — nothing is saved or changed. <strong>Save &amp; load data</strong> stores them and loads your entries.</p>
     </div>
+    <div class="settings-card">
+      <h2>Email notifications</h2>
+      <p class="hint">The owner of the Google Sheet gets an email when someone <strong>logs in</strong>, and a short summary of <strong>what they did</strong> (collections saved, edited or deleted, settings changed) a few minutes later. “Clear all” is emailed straight away. Everything is also kept in the <strong>ActivityLog</strong> tab of the sheet.</p>
+      <p class="hint"><strong>One-time setup in Apps Script:</strong> 1) paste the latest <code>Code.gs</code>; 2) run <code>__authMail</code> once from the editor and accept the permissions (send email, triggers); 3) Deploy → Manage deployments → edit → <em>New version</em>. Emails go to the account that owns the script. Optional Script Properties: <code>NOTIFY_EMAIL</code> to send elsewhere, <code>NOTIFY</code> = <code>off</code> to pause.</p>
+      <p class="hint">Names come from the “Your name” box at login, so they identify who, but they are not proof — the password is shared.</p>
+      <div class="toolbar"><button type="button" class="btn btn-outline" onclick="testNotifyEmail()">Send test email</button><span id="notifyMsg" class="msg"></span></div>
+    </div>
   </section>
 
   <section id="sec-prefs" class="set-sec hidden">
@@ -407,7 +485,7 @@ h3{font-size:14px;margin:0 0 8px}
 
 <div id="confirmOverlay" class="alert-overlay">
   <div class="confirm-box">
-    <h3>Confirm submission</h3>
+    <h3>Check &amp; save</h3>
     <p class="confirm-meta" id="confirmMeta"></p>
     <div class="confirm-month" id="confirmMonth"></div>
     <div id="confirmBreakdown"></div>
@@ -415,7 +493,7 @@ h3{font-size:14px;margin:0 0 8px}
     <div class="confirm-receipts" id="confirmReceipts"></div>
     <div class="confirm-actions">
       <button type="button" class="btn btn-outline" id="confirmCancelBtn">Cancel</button>
-      <button type="button" class="btn btn-primary" id="confirmOkBtn">Confirm &amp; save</button>
+      <button type="button" class="btn btn-primary" id="confirmOkBtn">Save collection</button>
     </div>
   </div>
 </div>
@@ -434,11 +512,11 @@ h3{font-size:14px;margin:0 0 8px}
 
 <input type="file" id="receiptFileInput" accept="image/*" capture="environment" multiple style="display:none">
 
-<script src="logic.js?v=2026-11-18.1"></script>
+<script src="logic.js?v=2026-11-19.1"></script>
 <script>
 // If the browser served an older cached logic.js, reload it once (bypassing the cache);
 // if it is still out of date, say so instead of rendering blank pages.
-const REQUIRED_LOGIC_VERSION = '2026-11-18.1';
+const REQUIRED_LOGIC_VERSION = '2026-11-19.1';
 (function () {
   if (window.LOGIC_VERSION === REQUIRED_LOGIC_VERSION) return;
   let tried = false;
@@ -702,6 +780,38 @@ function applyRemoteConfig(remote) {
 // ===== API =====
 function getApiUrl() { return localStorage.getItem('3bb_api_url') || ''; }
 function setApiUrl(url) { localStorage.setItem('3bb_api_url', url); }
+function getWho() { try { return (localStorage.getItem('3bb_who') || '').trim(); } catch (e) { return ''; } }
+function setWho(v) {
+  try {
+    v = String(v || '').trim().slice(0, 40);
+    if (v) localStorage.setItem('3bb_who', v); else localStorage.removeItem('3bb_who');
+  } catch (e) {}
+}
+function getSessionId() {
+  try {
+    let id = sessionStorage.getItem('3bb_session');
+    if (!id) { id = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); sessionStorage.setItem('3bb_session', id); }
+    return id;
+  } catch (e) { return 'nosession'; }
+}
+/** e.g. "iPhone · Safari" for notification emails. */
+function deviceLabel() {
+  const ua = navigator.userAgent || '';
+  let dev = 'Computer';
+  if (/iPhone/.test(ua)) dev = 'iPhone';
+  else if (/iPad/.test(ua)) dev = 'iPad';
+  else if (/Android/.test(ua)) dev = /Mobile/.test(ua) ? 'Android phone' : 'Android tablet';
+  else if (/Windows/.test(ua)) dev = 'Windows';
+  else if (/Macintosh|Mac OS X/.test(ua)) dev = 'Mac';
+  else if (/Linux/.test(ua)) dev = 'Linux';
+  let br = 'Browser';
+  if (/Edg\//.test(ua)) br = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) br = 'Opera';
+  else if (/Firefox|FxiOS/.test(ua)) br = 'Firefox';
+  else if (/CriOS|Chrome/.test(ua)) br = 'Chrome';
+  else if (/Safari/.test(ua)) br = 'Safari';
+  return dev + ' · ' + br;
+}
 function getApiToken() { return localStorage.getItem('3bb_api_token') || ''; }
 function setApiToken(t) {
   if (t) localStorage.setItem('3bb_api_token', t);
@@ -710,17 +820,22 @@ function setApiToken(t) {
 /** Attach the optional shared secret to a request (GET query / POST JSON body). */
 function withToken(url, opts) {
   const token = getApiToken();
-  if (!token) return { url, opts };
   if (!opts || !opts.body) {
+    if (!token) return { url, opts };
     return { url: url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token), opts };
   }
-  let o = opts;
   try {
     const b = JSON.parse(opts.body);
-    b.token = token;
-    o = Object.assign({}, opts, { body: JSON.stringify(b) });
-  } catch (e) {}
-  return { url, opts: o };
+    if (token) b.token = token;
+    // Who/where: lets the owner's notification email say who did what (display only, not authentication)
+    b.session = getSessionId();
+    const who = getWho();
+    if (who) b.who = who;
+    b.device = deviceLabel();
+    return { url, opts: Object.assign({}, opts, { body: JSON.stringify(b) }) };
+  } catch (e) {
+    return { url, opts };
+  }
 }
 
 function showLoading(msg) {
@@ -1064,32 +1179,145 @@ function backToSitePicker() {
   renderForm();
 }
 
+let lastSaved = null; // { entry } shown in the "Saved" banner until dismissed
+let formRows = [];    // flat rows used for "usual amount" hints while a form is open
+
+function renderSavedBanner() {
+  const el = document.getElementById('savedBanner');
+  if (!el) return;
+  if (!lastSaved) { el.innerHTML = ''; return; }
+  const e = lastSaved.entry;
+  const sites = [...new Set((e.locations || []).map(l => l.name))].join(', ');
+  el.innerHTML = `<div class="saved-banner" role="status">
+    <div><strong>✔ Saved</strong> ${esc(sites)} · ${esc(histDateLabel(e.date))}<br><span style="font-size:13px">Net ${gbp(e.grandTotal || 0)} · Site share ${gbp(e.grandCL || 0)}</span></div>
+    <div class="sb-actions"><button type="button" class="btn btn-outline btn-sm" onclick="undoLastSaved()">Undo</button><button type="button" class="btn btn-sm" aria-label="Dismiss" onclick="dismissSaved()">✕</button></div>
+  </div>`;
+}
+function dismissSaved() { lastSaved = null; renderSavedBanner(); }
+
+async function undoLastSaved() {
+  if (!lastSaved) return;
+  const e = lastSaved.entry;
+  const ok = await confirmPermanent('Undo this collection?',
+    'This deletes <strong>' + esc(describeEntry(e)) + '</strong> and any receipt photos from the sheet.', 'Undo (delete)');
+  if (!ok) return;
+  const done = await deleteEntryFromSheet(e);
+  if (done) { lastSaved = null; showMsg('submitMsg', 'Collection removed', 'success'); }
+  else showAppAlert('Could not undo', 'The collection could not be deleted. Check your connection and try again, or delete it from Settings → Danger zone.');
+  renderSavedBanner();
+  render21DayTotals();
+  renderSitePicker();
+  updateHistoryCount();
+}
+
 function selectEntrySite(siteId) {
   activeEntrySiteId = String(siteId || '');
+  lastSaved = null;
   renderForm();
-  const panel = document.getElementById('entryFormPanel');
-  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** Set the collection date relative to today (0 = today, 1 = yesterday) and refresh. */
+function setEntryDate(offset) {
+  const el = document.getElementById('entryDate');
+  if (!el) return;
+  el.value = daysBefore(todayStr(), offset);
+  renderForm();
+}
+
+function syncDateChips() {
+  const el = document.getElementById('entryDate');
+  if (!el) return;
+  const v = el.value || todayStr();
+  document.querySelectorAll('#entryDateBar .chip').forEach(b => {
+    b.classList.toggle('active', v === daysBefore(todayStr(), parseInt(b.getAttribute('data-offset'), 10)));
+  });
+  const hint = document.getElementById('dateHint');
+  if (hint) {
+    const bm = businessMonthKey(v);
+    const today = todayStr();
+    let t = 'Counts toward ' + monthLong(bm) + ' (' + monthRangeLabel(bm) + ')';
+    let warn = false;
+    if (v > today) { t = 'This date is in the future. ' + t; warn = true; }
+    else if (daysBetween(v, today) > 35) { t = 'Back-dated ' + daysBetween(v, today) + ' days — the rates for that date apply. ' + t; warn = true; }
+    hint.textContent = t;
+    hint.classList.toggle('warn', warn);
+  }
+}
+
+// ===== draft values survive a dropped connection or a closed tab =====
+function draftKey() {
+  return '3bb_draft_' + activeEntrySiteId + '_' + ((document.getElementById('entryDate') || {}).value || todayStr());
+}
+function saveDraft() {
+  try {
+    const vals = {};
+    document.querySelectorAll('#formContainer input[data-draft]').forEach(i => { if (i.value !== '') vals[i.id] = i.value; });
+    if (Object.keys(vals).length) localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), v: vals }));
+    else localStorage.removeItem(draftKey());
+  } catch (e) {}
+}
+function restoreDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+    if (!d || Date.now() - d.t > 7 * 864e5) return 0;
+    let n = 0;
+    Object.keys(d.v).forEach(id => { const el = document.getElementById(id); if (el && el.hasAttribute('data-draft')) { el.value = d.v[id]; n++; } });
+    return n;
+  } catch (e) { return 0; }
+}
+function clearDraft() { try { localStorage.removeItem(draftKey()); } catch (e) {} }
+
+function formInput() { updateFormCalcs(); saveDraft(); }
+
+function lastCollectedText(last, today) {
+  if (!last) return { text: 'No collections yet', cls: '' };
+  const d = daysBetween(last, today);
+  const base = d <= 0 ? 'Collected today' : d === 1 ? 'Yesterday' : d + ' days ago';
+  if (d >= VERY_OVERDUE_DAYS) return { text: '⏰ ' + base, cls: 'vlate' };
+  if (d >= OVERDUE_DAYS) return { text: '⏰ ' + base, cls: 'late' };
+  return { text: base, cls: '' };
 }
 
 function renderSitePicker() {
   const panel = document.getElementById('sitePickerPanel');
   if (!panel) return;
-  if (!config.locations.filter(l => !l.archived).length) {
+  const active = config.locations.filter(l => !l.archived);
+  if (!active.length) {
     panel.innerHTML = '<div class="empty-state"><p>No sites configured. Add sites in Settings.</p></div>';
     return;
   }
-  let html = '<p class="site-pick-hint">Choose a site to enter takings</p><div class="site-picker">';
-  config.locations.filter(l => !l.archived).forEach(loc => {
-    const cats = (loc.categories || []).map(c => c.name).join(' · ') || 'No categories';
-    const pool = loc.hasPool ? ' · Pool' : '';
-    html += `<button type="button" class="site-pick-btn" data-site-id="${esc(String(loc.id))}">
-      <span>${esc(formatSiteName(loc))}</span>
-      <span class="site-pick-sub">${esc(cats + pool)}</span>
+  const o = entryOverview();
+  const owed = floatOutstanding(getEntries(), histSiteInfo, entryKey);
+  const dateVal = (document.getElementById('entryDate') || {}).value || o.today;
+  const stat = {};
+  active.forEach(loc => {
+    const key = histSiteInfo({ id: loc.id, name: loc.name }).key;
+    const cur = sumRows(o.cur.filter(r => r.siteKey === key));
+    const prev = sumRows(o.prev.filter(r => r.siteKey === key));
+    stat[loc.id] = { key, cur, prev, last: o.last[key], owed: owed.filter(x => x.siteKey === key).reduce((s, x) => s + x.owed, 0) };
+  });
+  const max = Math.max.apply(null, active.map(l => stat[l.id].cur.net).concat([1]));
+  let html = '';
+  if (dateVal !== o.today) {
+    html += `<div class="saved-banner" style="background:#fff8e6;border-color:#f7b731;color:#6b4a00"><div><strong>Date is set to ${esc(histDateLabel(dateVal))}</strong></div><button type="button" class="btn btn-sm" onclick="setEntryDate(0)">Use today</button></div>`;
+  }
+  html += '<p class="site-pick-hint" style="font-size:14px;font-weight:600;margin:4px 0 0">Choose a site to collect</p><div class="site-grid">';
+  active.forEach(loc => {
+    const st = stat[loc.id];
+    const lc = lastCollectedText(st.last, o.today);
+    const cats = (loc.categories || []).map(c => c.name).join(' · ') + (loc.hasPool ? ' · Pool' : '');
+    html += `<button type="button" class="site-card" data-site-id="${esc(String(loc.id))}">
+      <div class="sc-top"><span class="sc-name">${esc(formatSiteName(loc))}</span><span class="sc-last ${lc.cls}">${esc(lc.text)}</span></div>
+      <div class="sc-cats">${esc(cats || 'No categories')}</div>
+      <div class="sc-bar" aria-hidden="true"><i style="width:${st.cur.net > 0 ? Math.max(3, Math.round(st.cur.net / max * 100)) : 0}%"></i></div>
+      <div class="sc-stats"><span>21 days: <strong>${gbp(st.cur.net)}</strong> net</span>${st.prev.collections ? deltaHtml(st.cur.net, st.prev.net, 'prior') : ''}</div>
+      ${st.owed > 0 ? `<div class="sc-float">Float still to recover ${gbp(st.owed)}</div>` : ''}
     </button>`;
   });
   html += '</div>';
   panel.innerHTML = html;
-  panel.querySelectorAll('.site-pick-btn').forEach(btn => {
+  panel.querySelectorAll('.site-card').forEach(btn => {
     btn.addEventListener('click', () => selectEntrySite(btn.getAttribute('data-site-id')));
   });
 }
@@ -1100,119 +1328,96 @@ function renderForm() {
   const picker = document.getElementById('sitePickerPanel');
   const formPanel = document.getElementById('entryFormPanel');
   const siteBar = document.getElementById('entrySiteBar');
+  const dateBar = document.getElementById('entryDateBar');
+  const dash = document.getElementById('totals21Container');
+  const banner = document.getElementById('savedBanner');
   if (dateEl && !dateEl.value) dateEl.value = todayStr();
-  const date = dateEl ? dateEl.value : todayStr();
 
-  if (!config.locations.length) {
-    if (picker) picker.innerHTML = '<div class="empty-state"><p>No sites configured. Add sites in Settings.</p></div>';
-    if (formPanel) formPanel.classList.add('hidden');
-    if (siteBar) siteBar.classList.add('hidden');
-    if (container) container.innerHTML = '';
-    return;
-  }
-
-  // Site picker mode
-  if (!activeEntrySiteId) {
+  const pickerMode = () => {
     if (picker) picker.classList.remove('hidden');
-    if (formPanel) formPanel.classList.add('hidden');
-    if (siteBar) siteBar.classList.add('hidden');
+    [formPanel, siteBar, dateBar].forEach(x => x && x.classList.add('hidden'));
+    if (dash) dash.classList.remove('hidden');
+    if (banner) banner.classList.remove('hidden');
     renderSitePicker();
-    return;
-  }
+    renderSavedBanner();
+    render21DayTotals();
+  };
 
-  const locs = getActiveEntryLocations();
-  if (!locs.length) {
-    activeEntrySiteId = null;
-    renderForm();
+  if (!config.locations.filter(l => !l.archived).length) {
+    if (container) container.innerHTML = '';
+    pickerMode();
     return;
   }
+  if (!activeEntrySiteId) { pickerMode(); return; }
+
+  const date = dateEl ? dateEl.value : todayStr();
+  const locs = getActiveEntryLocations(date);
+  if (!locs.length) { activeEntrySiteId = null; pickerMode(); return; }
 
   if (picker) picker.classList.add('hidden');
-  if (formPanel) formPanel.classList.remove('hidden');
-  if (siteBar) siteBar.classList.remove('hidden');
+  if (dash) dash.classList.add('hidden');
+  if (banner) banner.classList.add('hidden');
+  [formPanel, siteBar, dateBar].forEach(x => x && x.classList.remove('hidden'));
 
   const loc = locs[0];
   const titleEl = document.getElementById('entrySiteTitle');
   if (titleEl) titleEl.textContent = formatSiteName(loc);
+  formRows = buildRows(getEntries(), histSiteInfo, entryKey);
 
-  let html = '';
-  const hasFloat = (loc.categories || []).some(c => c.hasFloat);
-  const cols = hasFloat ? 6 : 4;
-  html += `<div class="table-scroll"><table class="tbl entry-table"><thead>
-    <tr class="loc-header-row"><th colspan="${cols}" class="loc-header">${esc(formatSiteName(loc))}</th></tr>
-    <tr>${hasFloat ? '<th>Category</th><th>Gross (£)</th><th>Float req (£)</th><th>Float / Carried from last collection</th><th>Net</th><th>Split</th>' : '<th>Category</th><th>Gross (£)</th><th>Net</th><th>Split</th>'}</tr>
-  </thead><tbody>`;
-
+  let html = '<div class="mcards">';
   for (const cat of loc.categories) {
     const fid = fieldId(loc, cat);
-    const shares = `Site ${(cat.rate*100).toFixed(0)}% · Supp ${((1-cat.rate)*100).toFixed(0)}%`;
-    const floatCols = hasFloat
-      ? (cat.hasFloat
-          ? `<td><input type="number" step="any" min="0" id="floatreq_${fid}" oninput="updateFormCalcs()" placeholder="0"></td><td style="font-size:11px" id="float_${fid}">—</td>`
-          : '<td></td><td></td>')
-      : '';
-    html += `<tr>
-      <td><strong>${esc(cat.name)}</strong></td>
-      <td><input type="number" step="any" id="gross_${fid}" oninput="updateFormCalcs()" placeholder="0"></td>
-      ${floatCols}
-      <td class="ro net-val" id="net_${fid}">0.00</td>
-      <td style="font-size:11px" id="split_${fid}"><span class="split-shares">${esc(shares)}</span></td>
-    </tr>`;
+    const pct = Math.round((parseFloat(cat.rate) || 0) * 100);
+    const shares = `Site ${pct}% · Supplier ${100 - pct}%` + (cat.flatFee > 0 ? ` · Fee £${cat.flatFee}` : '');
+    html += `<section class="mcard" aria-label="${esc(cat.name)}">
+      <div class="mcard-head"><h3>${esc(cat.name)}</h3><span class="type-tag">${esc(shares)}</span></div>
+      <label class="field"><span>Gross takings (£)</span>
+        <input type="number" inputmode="decimal" step="any" min="0" id="gross_${fid}" class="js-next" data-draft enterkeyhint="next" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>
+      <div class="usual" id="usual_${fid}"></div>
+      ${cat.hasFloat ? `<label class="field sm"><span>Float to recover (£)</span>
+        <input type="number" inputmode="decimal" step="any" min="0" id="floatreq_${fid}" class="js-next" data-draft enterkeyhint="next" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>
+        <div class="float-info" id="float_${fid}"></div>` : ''}
+      <div class="calc-chips" id="split_${fid}"></div>
+    </section>`;
   }
 
   if (loc.hasPool) {
     const lid = loc.id;
     const poolMode = loc.poolMode || (parseFloat(loc.poolRent) > 0 ? 'rent' : 'fifty');
-    const grossCell = poolMode === 'rent'
-      ? `<span id="pool_${lid}">£${(parseFloat(loc.poolRent) || 0).toFixed(2)}</span>`
-      : `<input type="number" step="any" id="pool_${lid}" oninput="updateFormCalcs()" placeholder="Gross">`;
-    html += `<tr>
-      <td><strong>Pool</strong><br><span style="font-size:10px;color:#888">${esc(poolModeLabel(loc))}</span></td>
-      <td>${grossCell}</td>
-      ${hasFloat ? '<td></td><td></td>' : ''}
-      <td class="ro" id="pool_net_${lid}">0.00</td>
-      <td style="font-size:11px" id="pool_split_${lid}">—</td>
-    </tr>`;
+    html += `<section class="mcard" aria-label="Pool">
+      <div class="mcard-head"><h3>Pool</h3><span class="type-tag">${esc(poolModeLabel(loc))}</span></div>
+      ${poolMode === 'rent'
+        ? `<p style="margin:4px 0;font-size:14px">Fixed rent <strong id="pool_${lid}">£${(parseFloat(loc.poolRent) || 0).toFixed(2)}</strong> — added automatically.</p>`
+        : `<label class="field"><span>Pool gross takings (£)</span>
+            <input type="number" inputmode="decimal" step="any" min="0" id="pool_${lid}" class="js-next" data-draft enterkeyhint="done" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>`}
+      <div class="calc-chips" id="pool_split_${lid}"></div>
+    </section>`;
   }
-
-  html += `</tbody><tfoot><tr><td colspan="${cols}" class="loc-summary"><div class="loc-summary-inner">
-    <span><span class="ls-lbl">Net:</span> <span id="loc_net_${loc.id}">0.00</span></span>
-    <span><span class="ls-lbl">MGD:</span> <span id="loc_mgd_${loc.id}">0.00</span></span>
-      <span><span class="ls-lbl">Supplier:</span> <span id="loc_ss_${loc.id}">0.00</span></span>
-    <span><span class="ls-lbl">Site Share:</span> <span id="loc_cl_${loc.id}">0.00</span></span>
-    <span><span class="ls-lbl">Float taken:</span> <span id="loc_ft_${loc.id}">0.00</span></span>
-  </div></td></tr></tfoot></table></div>`;
+  html += '</div>';
 
   html += `<div class="receipt-panel">
-    <div class="receipt-header">
-      <strong>Receipt photos</strong>
-      <span class="receipt-count" id="receiptCount_${loc.id}"></span>
-    </div>
+    <div class="receipt-header"><strong>Receipt photos</strong><span class="receipt-count" id="receiptCount_${loc.id}"></span></div>
     <div class="receipt-thumbs" id="receiptThumbs_${loc.id}"></div>
-    <button type="button" class="btn btn-outline btn-sm" onclick="openReceiptPicker('${jsAttr(loc.id)}')">Add receipt photo</button>
+    <button type="button" class="btn btn-outline" style="min-height:44px" onclick="openReceiptPicker('${jsAttr(loc.id)}')">📷 Add receipt photo</button>
   </div>`;
 
-  html += `<div class="entry-actions" id="entryActions">
-    <button type="button" class="btn btn-primary" onclick="submitEntry()">Submit</button>
-    <button type="button" class="btn btn-outline" onclick="resetForm()">Reset</button>
-    <button type="button" class="btn btn-outline" onclick="backToSitePicker()">← Back</button>
-  </div>`;
+  html += `<details class="dash" style="padding:10px 14px"><summary style="cursor:pointer;min-height:36px;display:flex;align-items:center;font-weight:600">Totals breakdown</summary>
+    <div class="table-scroll" style="box-shadow:none"><table class="tbl"><thead>
+      <tr><th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site</th></tr>
+    </thead><tbody id="gtBody"></tbody>
+    <tfoot><tr class="total"><td>TOTAL</td><td class="ro" id="g_net">0.00</td><td class="ro" id="g_mgd">0.00</td><td class="ro" id="g_ss">0.00</td><td class="ro" id="g_cl">0.00</td></tr></tfoot></table></div></details>`;
 
-  html += `<div class="table-scroll"><table class="tbl"><thead>
-    <tr><th colspan="5" style="background:#1a1a2e;color:#fff">Live Collection Totals</th></tr>
-    <tr><th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site Share</th></tr>
-  </thead><tbody id="gtBody"></tbody>
-  <tfoot><tr style="font-weight:700;background:#fff8e6">
-    <td>TOTAL</td>
-    <td class="ro" id="g_net">0.00</td>
-    <td class="ro" id="g_mgd">0.00</td>
-    <td class="ro" id="g_ss">0.00</td>
-    <td class="ro" id="g_cl">0.00</td>
-  </tr></tfoot></table></div>`;
+  html += `<div class="entry-bar" id="entryBar">
+    <div class="eb-totals"><div><span class="eb-lbl">Net</span><strong id="eb_net">£0.00</strong></div><div><span class="eb-lbl">Site share</span><strong id="eb_cl">£0.00</strong></div></div>
+    <button type="button" class="btn btn-primary eb-submit" id="submitBtn" onclick="submitEntry()" aria-label="Review and submit" disabled>Review →</button>
+  </div>`;
 
   if (container) container.innerHTML = html;
+  const restored = restoreDraft();
+  syncDateChips();
   updateFormCalcs();
   renderReceipts(loc.id);
+  if (restored) showMsg('submitMsg', 'Restored your unsent figures', 'success');
 }
 
 function fieldId(loc, cat) {
@@ -1232,44 +1437,47 @@ function updateFormCalcs() {
   const date = document.getElementById('entryDate').value || todayStr();
   let gNet = 0, gMgd = 0, gSs = 0, gCl = 0;
   let gtHtml = '';
+  let anyAmount = false;
   const locs = getActiveEntryLocations(date);
   if (!locs.length) return;
   const mgdRate = mgdAt(config, date);
+  const chip = (l, v, main) => `<div class="cchip${main ? ' main' : ''}"><span>${l}</span><b>${gbp(v)}</b></div>`;
 
   for (const loc of locs) {
-    let locNet = 0, locMgd = 0, locSs = 0, locCl = 0, locFt = 0;
+    let locNet = 0, locMgd = 0, locSs = 0, locCl = 0;
+    const sk = histSiteInfo({ id: loc.id, name: loc.name }).key;
 
     for (const cat of loc.categories) {
       const fid = fieldId(loc, cat);
       const gross = parseFloat(document.getElementById('gross_' + fid)?.value) || 0;
-      const floatReqEl = document.getElementById('floatreq_' + fid);
-      const floatReq = parseFloat(floatReqEl?.value) || 0;
+      const floatReq = parseFloat(document.getElementById('floatreq_' + fid)?.value) || 0;
       const owed = getFloatOwedIn(loc.id, cat.id, date, null);
-      // Apply float whenever a value is entered or there is carry-in (pool never uses this path)
-      const useFloat = true;
-      const r = calcCategory(gross, cat.rate, useFloat, floatReq, owed, cat.flatFee, mgdRate);
+      const r = calcCategory(gross, cat.rate, true, floatReq, owed, cat.flatFee, mgdRate);
+      if (gross > 0 || floatReq > 0) anyAmount = true;
 
-      const netEl = document.getElementById('net_' + fid);
       const splitEl = document.getElementById('split_' + fid);
-      const floatEl = document.getElementById('float_' + fid);
-      if (netEl) netEl.textContent = r.net.toFixed(2);
       if (splitEl) {
         const fee = cat.flatFee > 0 ? Math.min(cat.flatFee, r.gross) : 0;
-        const shares = `Site ${(cat.rate*100).toFixed(0)}% · Supp ${((1-cat.rate)*100).toFixed(0)}%`;
-        splitEl.innerHTML = (cat.flatFee > 0 ? `Fee £${fee.toFixed(2)}<br>` : `MGD £${r.mgd.toFixed(2)}<br>`) + `SS £${r.supplierShare.toFixed(2)}<br>Site £${r.cashLeft.toFixed(2)}<br><span class="split-shares">${shares}</span>`;
+        splitEl.innerHTML = chip('Net', r.net, true) + chip('Site', r.cashLeft) + chip('Supplier', r.supplierShare) + (cat.flatFee > 0 ? chip('Fee', fee) : chip('MGD', r.mgd));
       }
+      const floatEl = document.getElementById('float_' + fid);
       if (floatEl) {
         const defF = cat.floatRequired || 0;
-        const diff = round(defF - floatReq);
-        const diffStr = (diff >= 0 ? '£' : '−£') + Math.abs(diff).toFixed(2);
-        let bits = [`float £${r.floatTaken.toFixed(2)}`];
-        if (owed > 0) bits.push(`<span class="float-owed">from last £${owed.toFixed(2)}</span>`);
-        if (r.floatOwedAfter > 0) bits.push(`<span class="float-owed">carry next £${r.floatOwedAfter.toFixed(2)}</span>`);
-        if (defF > 0 || floatReq > 0) bits.push(`diff ${diffStr}`);
-        floatEl.innerHTML = bits.join('<br>');
+        const bits = [];
+        if (r.floatTaken > 0) bits.push(`Float taken <strong>£${r.floatTaken.toFixed(2)}</strong>`);
+        if (owed > 0) bits.push(`<span class="float-owed">Carried in from last collection £${owed.toFixed(2)}</span>`);
+        if (r.floatOwedAfter > 0) bits.push(`<span class="float-owed">Still to recover next time £${r.floatOwedAfter.toFixed(2)}</span>`);
+        if (defF > 0) bits.push(`Usual float £${defF.toFixed(2)}`);
+        floatEl.innerHTML = bits.join(' · ');
       }
-
-      locNet += r.net; locMgd += r.mgd; locSs += r.supplierShare; locCl += r.cashLeft; locFt += r.floatTaken;
+      const usualEl = document.getElementById('usual_' + fid);
+      if (usualEl) {
+        const usual = usualGross(formRows, sk, cat.name, date);
+        const off = grossLooksOff(gross, usual);
+        usualEl.className = 'usual' + (off ? ' warn' : '');
+        usualEl.textContent = !usual ? '' : off ? '⚠ Check the amount — usual is about ' + gbp(usual) : 'Usually about ' + gbp(usual);
+      }
+      locNet += r.net; locMgd += r.mgd; locSs += r.supplierShare; locCl += r.cashLeft;
     }
 
     if (loc.hasPool) {
@@ -1277,21 +1485,12 @@ function updateFormCalcs() {
       const g = poolMode === 'rent'
         ? (parseFloat(loc.poolRent) || 0)
         : (parseFloat(document.getElementById('pool_' + loc.id)?.value) || 0);
+      if (g > 0) anyAmount = true;
       const p = calcPool(g, loc);
-      const pn = document.getElementById('pool_net_' + loc.id);
       const ps = document.getElementById('pool_split_' + loc.id);
-      if (pn) pn.textContent = p.poolGross.toFixed(2);
-      if (ps) ps.innerHTML = `SS £${p.poolSS.toFixed(2)}<br>CL £${p.poolCL.toFixed(2)}`;
+      if (ps) ps.innerHTML = chip('Pool', p.poolGross, true) + chip('Supplier', p.poolSS) + chip('Site', p.poolCL);
       locNet += p.poolGross; locSs += p.poolSS; locCl += p.poolCL;
     }
-
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = round(v).toFixed(2); };
-    set('loc_net_' + loc.id, locNet);
-    set('loc_mgd_' + loc.id, locMgd);
-    set('loc_ss_' + loc.id, locSs);
-    set('loc_cl_' + loc.id, locCl);
-    set('loc_ft_' + loc.id, locFt);
-
     gtHtml += `<tr><td>${esc(formatSiteName(loc))}</td><td class="ro">${round(locNet).toFixed(2)}</td><td class="ro">${round(locMgd).toFixed(2)}</td><td class="ro">${round(locSs).toFixed(2)}</td><td class="ro">${round(locCl).toFixed(2)}</td></tr>`;
     gNet += locNet; gMgd += locMgd; gSs += locSs; gCl += locCl;
   }
@@ -1300,6 +1499,10 @@ function updateFormCalcs() {
   if (gb) gb.innerHTML = gtHtml;
   const setg = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = round(v).toFixed(2); };
   setg('g_net', gNet); setg('g_mgd', gMgd); setg('g_ss', gSs); setg('g_cl', gCl);
+  const eb = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = gbp(round(v)); };
+  eb('eb_net', gNet); eb('eb_cl', gCl);
+  const btn = document.getElementById('submitBtn');
+  if (btn) btn.disabled = !anyAmount;
 }
 
 // ===== SUBMIT =====
@@ -1391,58 +1594,36 @@ function showSubmitConfirm(entry) {
     const cancelBtn = document.getElementById('confirmCancelBtn');
 
     const bKey = businessMonthKey(entry.date);
-    const bLabel = formatBusinessMonthLabel(bKey);
-
     confirmEntry = entry;
     updateConfirmReceipts();
 
-    if (meta) meta.textContent = 'Entry date: ' + entry.date;
-    if (monthEl) {
-      monthEl.innerHTML = 'This will count toward the <strong>' + esc(bLabel) + '</strong> collection on the Summary page.';
-    }
+    const siteNames = [...new Set((entry.locations || []).map(l => l.name))].join(', ');
+    if (meta) meta.innerHTML = '<strong>' + esc(siteNames) + '</strong> · ' + esc(histDateLabel(entry.date));
+    if (monthEl) monthEl.innerHTML = 'Counts toward <strong>' + esc(monthLong(bKey)) + '</strong> (' + esc(monthRangeLabel(bKey)) + ').';
 
-    let rows = '';
+    let rows = '', warns = '';
     for (const loc of entry.locations || []) {
+      const sk = histSiteInfo({ id: loc.id, name: loc.name }).key;
       for (const cat of loc.categories || []) {
-        const g = cat.gross || 0;
-        const f = cat.floatTaken || 0;
-        const n = cat.net || 0;
+        const g = cat.gross || 0, f = cat.floatTaken || 0, n = cat.net || 0;
         if (!g && !f && !n) continue;
-        rows += `<tr>
-          <td>${esc(loc.name)}</td>
-          <td>${esc(cat.name)}</td>
-          <td class="ro">£${g.toFixed(2)}</td>
-          <td class="ro">£${f.toFixed(2)}</td>
-          <td class="ro">£${n.toFixed(2)}</td>
-          <td class="ro">£${(cat.cashLeft || 0).toFixed(2)}</td>
-        </tr>`;
+        rows += `<div class="cf-row"><span>${esc(cat.name)}<small>Gross ${gbp(g)}${f ? ' · float ' + gbp(f) : ''}</small></span><b>Net ${gbp(n)}<small style="text-align:right">Site ${gbp(cat.cashLeft || 0)}</small></b></div>`;
+        const usual = usualGross(formRows, sk, cat.name, entry.date);
+        const off = grossLooksOff(g, usual);
+        if (off) warns += `<div class="cf-warn">⚠ ${esc(cat.name)}: ${gbp(g)} looks ${off === 'high' ? 'much higher' : 'much lower'} than usual (about ${gbp(usual)}). Check before saving.</div>`;
       }
       if (loc.poolGross) {
-        rows += `<tr>
-          <td>${esc(loc.name)}</td>
-          <td>Pool</td>
-          <td class="ro">£${loc.poolGross.toFixed(2)}</td>
-          <td class="ro">—</td>
-          <td class="ro">£${loc.poolGross.toFixed(2)}</td>
-          <td class="ro">£${(loc.poolCL || 0).toFixed(2)}</td>
-        </tr>`;
+        rows += `<div class="cf-row"><span>Pool<small>Gross ${gbp(loc.poolGross)}</small></span><b>Site ${gbp(loc.poolCL || 0)}</b></div>`;
       }
     }
-    if (!rows) {
-      rows = '<tr><td colspan="6" style="text-align:center;color:#888">No amounts entered</td></tr>';
-    }
-    if (breakdown) {
-      breakdown.innerHTML = `<div class="confirm-table-wrap"><table>
-        <thead><tr><th>Site</th><th>Category</th><th class="num">Gross</th><th class="num">Float</th><th class="num">Net</th><th class="num">Site Share</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>`;
-    }
+    if (!rows) rows = '<p style="text-align:center;color:#888">No amounts entered</p>';
+    if (breakdown) breakdown.innerHTML = '<div class="cf-list">' + rows + '</div>' + warns;
     if (totals) {
-      totals.innerHTML =
-        'Net <strong>£' + (entry.grandTotal || 0).toFixed(2) + '</strong> · ' +
-        'Site Share <strong>£' + (entry.grandCL || 0).toFixed(2) + '</strong> · ' +
-        'Supplier <strong>£' + (entry.grandSS || 0).toFixed(2) + '</strong> · ' +
-        'Float taken <strong>£' + (entry.grandFloat || 0).toFixed(2) + '</strong>';
+      totals.innerHTML = `<div class="cf-tiles">
+        <div class="cf-tile"><b>${gbp(entry.grandTotal || 0)}</b><span>Net</span></div>
+        <div class="cf-tile"><b>${gbp(entry.grandCL || 0)}</b><span>Site share</span></div>
+        <div class="cf-tile"><b>${gbp(entry.grandSS || 0)}</b><span>Supplier</span></div></div>` +
+        ((entry.grandFloat || 0) > 0 ? `<div style="text-align:center;font-size:12px;color:#666;margin-top:-6px">Float taken ${gbp(entry.grandFloat)}</div>` : '');
     }
 
     function cleanup(result) {
@@ -1509,18 +1690,16 @@ async function submitEntry() {
     for (const loc of entry.locations || []) {
       delete pendingPhotos[String(loc.id)];
     }
-    showMsg('submitMsg', failed.length
-      ? `Saved ${date} — ${failed.length} receipt upload failed (entry kept)`
-      : `Saved ${date}`, 'success');
-    // Return to site buttons for the next submission
+    clearDraft();
+    // Back to the site list (date kept for the next site), with a Saved banner + Undo
     activeEntrySiteId = null;
-    const keepDate = date;
+    lastSaved = { entry };
     renderForm();
-    const dateEl = document.getElementById('entryDate');
-    if (dateEl) dateEl.value = keepDate;
-    render21DayTotals();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (failed.length) showAppAlert('Saved — but a receipt did not upload', failed.length + ' receipt photo' + (failed.length === 1 ? '' : 's') + ' could not be uploaded. The collection itself was saved; you can add the receipt again from History.');
   } else {
-    showMsg('submitMsg', 'Save failed — check API URL', 'error');
+    showAppAlert('Not saved', 'The collection could not be saved. Your figures are kept on this phone — check your connection and press Review & submit again.');
+    showMsg('submitMsg', 'Save failed — nothing was lost, try again', 'error');
   }
   updateHistoryCount();
 }
@@ -1568,7 +1747,8 @@ async function deleteReceiptsOnDrive(entry) {
 }
 
 function resetForm() {
-  // Clear inputs for current site only (stay on site form)
+  // Clear typed values for this site/date (including the saved draft)
+  clearDraft();
   renderForm();
 }
 
@@ -1581,65 +1761,66 @@ function showMsg(id, text, type) {
 }
 
 // ===== 21 DAY TOTALS =====
+const OVERDUE_DAYS = 14;   // site cards turn amber after this many days without a collection
+const VERY_OVERDUE_DAYS = 21;
+
+/** Rows, last-21-days and prior-21-days windows, and last-collected per site. */
+function entryOverview() {
+  const today = todayStr();
+  const all = buildRows(getEntries(), histSiteInfo, entryKey);
+  const cur = all.filter(r => r.date >= daysBefore(today, 20) && r.date <= today);
+  const prev = all.filter(r => r.date >= daysBefore(today, 41) && r.date <= daysBefore(today, 21));
+  return { today, all, cur, prev, last: lastCollectedBySite(all) };
+}
+
+function dayLabelShort(d) {
+  return new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
 function render21DayTotals() {
   const el = document.getElementById('totals21Container');
   if (!el) return;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 21);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
-  const recent = getEntries().filter(e => e.date >= cutoffStr);
-
-  const locTotals = {};
-  for (const loc of config.locations.filter(l => !l.archived)) {
-    locTotals[loc.id] = { id: loc.id, name: formatSiteName(loc), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
+  if (!getEntries().length) {
+    el.innerHTML = '<div class="dash"><div class="dash-head"><h2>Last 21 days</h2></div><p class="hint" style="margin:0">No collections yet — your first one will appear here.</p></div>';
+    return;
   }
-
-  for (const e of recent) {
-    for (const loc of e.locations || []) {
-      let key = loc.id;
-      let t = key ? locTotals[key] : null;
-      if (!t) {
-        const cfg = config.locations.find(l => l.id === loc.id) ||
-          config.locations.find(l => l.name === loc.name || (l.nameHistory || []).includes(loc.name));
-        if (cfg) {
-          key = cfg.id;
-          t = locTotals[key];
-        }
-      }
-      if (!t) {
-        key = loc.id || loc.name;
-        locTotals[key] = { id: loc.id, name: formatSiteName(loc, loc.id), net: 0, mgd: 0, ss: 0, cl: 0, float: 0 };
-        t = locTotals[key];
-      }
-      for (const cat of loc.categories || []) {
-        const net = cat.net != null ? cat.net : (cat.total || cat.cash || 0);
-        t.net += net;
-        t.mgd += cat.mgd != null ? cat.mgd : net * mgdAt(config, e.date);
-        t.ss += cat.supplierShare || 0;
-        t.cl += cat.cashLeft || 0;
-        t.float += cat.floatTaken || 0;
-      }
-      if (loc.poolGross) {
-        t.net += loc.poolGross;
-        t.ss += loc.poolSS || 0;
-        t.cl += loc.poolCL || 0;
-      }
-    }
-  }
-
-  let html = `<div class="table-scroll"><table class="tbl"><thead>
-    <tr><th colspan="5" style="background:#1a1a2e;color:#fff">Last 21 Days — Totals</th></tr>
-    <tr><th>Location</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier Share</th><th class="num">Site Share</th></tr>
-  </thead><tbody>`;
-  let tn = 0, tm = 0, ts = 0, tc = 0;
-  for (const t of Object.values(locTotals)) {
-    html += `<tr><td>${esc(t.name)}</td><td class="ro">£${t.net.toFixed(2)}</td><td class="ro">£${t.mgd.toFixed(2)}</td><td class="ro">£${t.ss.toFixed(2)}</td><td class="ro">£${t.cl.toFixed(2)}</td></tr>`;
-    tn += t.net; tm += t.mgd; ts += t.ss; tc += t.cl;
-  }
-  html += `<tr style="font-weight:700;background:#fff8e6"><td>${recent.length} collections</td>
-    <td class="ro">£${tn.toFixed(2)}</td><td class="ro">£${tm.toFixed(2)}</td><td class="ro">£${ts.toFixed(2)}</td><td class="ro">£${tc.toFixed(2)}</td></tr>
-  </tbody></table></div>`;
-  el.innerHTML = html;
+  const o = entryOverview();
+  const tc = sumRows(o.cur), tp = sumRows(o.prev);
+  const days = dayBuckets(o.cur, o.today, 21);
+  const max = Math.max.apply(null, days.map(d => d.net).concat([1]));
+  const W = 360, H = 132, base = 100, top = 16, slot = W / 21, bw = 11;
+  let bars = '';
+  days.forEach((d, i) => {
+    const h = Math.round((d.net / max) * (base - top));
+    const x = i * slot + (slot - bw) / 2;
+    const isToday = i === 20;
+    const nice = new Date(+d.date.slice(0, 4), +d.date.slice(5, 7) - 1, +d.date.slice(8, 10)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    bars += d.net > 0
+      ? `<g><title>${esc(nice)}: ${esc(gbp(d.net))} net</title><rect x="${x}" y="${base - h}" width="${bw}" height="${h}" rx="2" fill="#f7b731" ${isToday ? 'stroke="#1a1a2e" stroke-width="1.5"' : ''}></rect>${d.net === max ? `<text x="${x + bw / 2}" y="${base - h - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="#1a1a2e">${gbpShort(d.net)}</text>` : ''}</g>`
+      : `<rect x="${x}" y="${base - 2}" width="${bw}" height="2" rx="1" fill="#d9dce3"></rect>`;
+  });
+  const lbl = (i, txt, anchor) => `<text x="${i * slot + slot / 2}" y="${base + 16}" text-anchor="${anchor || 'middle'}" font-size="10" fill="#666">${esc(txt)}</text>`;
+  const axis = lbl(0, dayLabelShort(days[0].date), 'start') + lbl(7, dayLabelShort(days[7].date)) + lbl(14, dayLabelShort(days[14].date)) + lbl(20, 'Today', 'end');
+  const groups = groupRows(o.cur, 'siteKey', 'siteName');
+  const sitesTable = groups.length ? `<div class="table-scroll" style="box-shadow:none;margin:8px 0 0"><table class="tbl"><thead><tr><th>Site</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">MGD</th></tr></thead><tbody>${groups.map(g => `<tr><td>${esc(g.label)}</td><td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td><td class="ro c-opt">${gbp(g.mgd)}</td></tr>`).join('')}
+    <tr class="total"><td>Total</td><td class="ro">${gbp(tc.net)}</td><td class="ro">${gbp(tc.ss)}</td><td class="ro">${gbp(tc.cl)}</td><td class="ro c-opt">${gbp(tc.mgd)}</td></tr></tbody></table></div>` : '';
+  const tile = (val, l, extra) => `<div class="hist-kpi"><div class="val">${val}</div><div class="lbl">${l}</div>${extra || ''}</div>`;
+  const hasPrev = tp.collections > 0;
+  el.innerHTML = `<div class="dash">
+    <div class="dash-head"><h2>Last 21 days</h2><button type="button" class="link-btn" onclick="histGo('period','21d')">See in History →</button></div>
+    <div class="hist-kpis" style="margin-bottom:6px">
+      ${tile(gbp(tc.net), 'Net', hasPrev ? deltaHtml(tc.net, tp.net, 'prior 21d') : '')}
+      ${tile(gbp(tc.cl), 'Site share', hasPrev ? deltaHtml(tc.cl, tp.cl, 'prior 21d') : '')}
+      ${tile(String(tc.collections), 'Collections', hasPrev ? deltaHtml(tc.collections, tp.collections, 'prior 21d') : '')}
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net takings per day for the last 21 days. Total ${esc(gbp(tc.net))} from ${tc.collections} collection${tc.collections === 1 ? '' : 's'}.">
+      <line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#ccc"></line>
+      <line x1="${7 * slot}" y1="${top}" x2="${7 * slot}" y2="${base}" stroke="#eee" stroke-dasharray="3 3"></line>
+      <line x1="${14 * slot}" y1="${top}" x2="${14 * slot}" y2="${base}" stroke="#eee" stroke-dasharray="3 3"></line>
+      ${bars}${axis}
+    </svg>
+    <details><summary>Breakdown by site (MGD, supplier, site share)</summary>${sitesTable}</details>
+  </div>`;
 }
 
 // ===== PREFERENCES (per device) =====
@@ -2292,6 +2473,8 @@ function renderPrefsCard() {
       <select style="padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;min-height:44px" onchange="setPref('histPeriod', this.value)">
         ${periods.map(p => `<option value="${p[0]}"${prefs.histPeriod === p[0] ? ' selected' : ''}>${p[1]}</option>`).join('')}
       </select></label>
+    <label>Your name <span class="hint" style="font-weight:400">(shown in the owner's notification emails)</span><br>
+      <input type="text" maxlength="40" value="${esc(getWho())}" placeholder="e.g. Sam" style="padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;min-height:44px;width:100%;max-width:300px" onchange="setWho(this.value);showMsg('prefsMsg','Saved on this device','success')"></label>
     <label style="margin-top:12px"><input type="checkbox" ${prefs.showLow ? 'checked' : ''} onchange="setPref('showLow', this.checked)"> Show “Below usual” flags on collections</label>
     <label>Flag a collection when it is under <input type="number" min="10" max="90" step="5" value="${prefs.lowPct}" style="width:70px;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:16px" onchange="setPref('lowPct', this.value, this)"> % of that machine’s usual</label>
     <span class="msg" id="prefsMsg"></span></div>`;
@@ -2646,6 +2829,28 @@ async function removeTerm(siteId, kind, catId, from) {
     logChange('Site "' + loc.name + '": ' + c.name + ' change from ' + from + ' removed');
   }
   await persistConfigAndRefresh('Saving…');
+}
+
+// ===== email notification test =====
+async function testNotifyEmail() {
+  const url = getApiUrl();
+  if (!url) { showMsg('notifyMsg', 'Save the API URL first', 'error'); return; }
+  showMsg('notifyMsg', 'Sending…', 'success');
+  try {
+    const r = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'testNotify' }) });
+    const d = await r.json();
+    if (d && d.success && d.sent === true) { showMsg('notifyMsg', '✔ Test email sent to ' + (d.to || 'the sheet owner') + '. Check the inbox (and spam).', 'success'); return; }
+    if (d && d.success && d.sent === undefined) { showMsg('notifyMsg', 'Your Apps Script has not been updated yet. Paste the new Code.gs and deploy a new version.', 'error'); return; }
+    if (d && d.success) {
+      const why = String(d.error || '');
+      const perm = /author|permission|scope/i.test(why);
+      showMsg('notifyMsg', 'Not sent: ' + why + (perm ? ' — run __authMail once in the Apps Script editor, accept the permissions, then deploy a new version.' : ''), 'error');
+      return;
+    }
+    showMsg('notifyMsg', (d && d.error) || 'The server could not send the test email', 'error');
+  } catch (e) {
+    showMsg('notifyMsg', 'Could not reach the server', 'error');
+  }
 }
 
 // ===== connection test =====
@@ -3244,6 +3449,8 @@ async function doLogin() {
   document.getElementById('loginError').style.display = 'none';
   document.getElementById('loginOverlay').classList.add('hidden');
   sessionStorage.setItem('3bb_logged_in', '1');
+  try { sessionStorage.removeItem('3bb_session'); } catch (e) {}
+  setWho((document.getElementById('loginWho') || {}).value);
 
   const ok = await bootApp();
   if (!ok) return;
@@ -3260,6 +3467,7 @@ async function doLogin() {
 
 // ===== INIT =====
 loadConfigLocal();
+{ const w = document.getElementById('loginWho'); if (w) w.value = getWho(); }
 
 async function startApp() {
   // Always verify API before using the app (except bare settings if already open)
@@ -3276,6 +3484,21 @@ startApp();
 // Recalc float carry when date changes
 document.getElementById('entryDate').addEventListener('change', () => {
   renderForm();
+});
+
+document.querySelectorAll('#entryDateBar .chip').forEach(b => {
+  b.addEventListener('click', () => setEntryDate(parseInt(b.getAttribute('data-offset'), 10)));
+});
+
+// Enter on a figure jumps to the next field (last one -> the submit button)
+document.getElementById('formContainer').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.classList || !e.target.classList.contains('js-next')) return;
+  e.preventDefault();
+  const all = [...document.querySelectorAll('#formContainer .js-next')];
+  const i = all.indexOf(e.target);
+  const next = all[i + 1];
+  if (next) next.focus();
+  else { e.target.blur(); const b = document.getElementById('submitBtn'); if (b && !b.disabled) b.focus(); }
 });
 
 document.getElementById('sec-sites').addEventListener('click', (e) => {

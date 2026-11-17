@@ -4,7 +4,7 @@
 
   // Bump together with the ?v= on the <script src> in index.html and REQUIRED_LOGIC_VERSION there
   // (tests/version.test.js fails if they drift). Prevents a stale cached logic.js breaking the pages.
-  var LOGIC_VERSION = '2026-11-18.1';
+  var LOGIC_VERSION = '2026-11-19.1';
 
   var MGD_RATE = 0.2;              // default / fallback MGD when no dated schedule exists
   var BUSINESS_MONTH_CUTOFF_DAY = 5; // collections on the 1st–5th belong to the PREVIOUS month
@@ -260,7 +260,7 @@
     if (period === 'all') return function () { return true; };
     if (period === 'm0') return function (r) { return r.bm === cur; };
     if (period === 'm1') { var p = shiftMonth(cur, -1); return function (r) { return r.bm === p; }; }
-    if (period === '21d') { var from = daysBefore(today, 21); return function (r) { return r.date >= from && r.date <= today; }; }
+    if (period === '21d') { var from = daysBefore(today, 20); return function (r) { return r.date >= from && r.date <= today; }; }
     var mm = /^(\d+)m$/.exec(period);
     if (mm) { var start = shiftMonth(cur, -(parseInt(mm[1], 10) - 1)); return function (r) { return r.bm >= start && r.bm <= cur; }; }
     if (/^\d{4}-\d{2}$/.test(period)) return function (r) { return r.bm === period; };
@@ -457,6 +457,60 @@
     return { changed: out, skipped: skipped, totals: tot };
   }
 
+  /* ---------- daily entry dashboard helpers ---------- */
+
+  /** Net per calendar day for the n days ending endDate (zero-filled): [{date, net, ss, cl, collections}] */
+  function dayBuckets(rows, endDate, n) {
+    var out = [], idx = {};
+    for (var i = n - 1; i >= 0; i--) { var d = daysBefore(endDate, i); idx[d] = out.length; out.push({ date: d, net: 0, ss: 0, cl: 0, collections: 0 }); }
+    var seen = {};
+    rows.forEach(function (r) {
+      var b = out[idx[r.date]];
+      if (!b) return;
+      b.net += r.net; b.ss += r.ss; b.cl += r.cl;
+      var k = r.entryKey + '|' + r.siteKey;
+      if (!seen[k]) { seen[k] = 1; b.collections++; }
+    });
+    out.forEach(function (b) { b.net = round(b.net); b.ss = round(b.ss); b.cl = round(b.cl); });
+    return out;
+  }
+
+  /** Whole days between two YYYY-MM-DD dates (b - a). */
+  function daysBetween(a, b) {
+    var pa = Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10));
+    var pb = Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10));
+    return Math.round((pb - pa) / 86400000);
+  }
+
+  /** Latest collection date per site: { siteKey: 'YYYY-MM-DD' } */
+  function lastCollectedBySite(rows) {
+    var m = {};
+    rows.forEach(function (r) { if (!m[r.siteKey] || r.date > m[r.siteKey]) m[r.siteKey] = r.date; });
+    return m;
+  }
+
+  /**
+   * "Usual" gross for a site + machine: mean of up to `n` most recent collections strictly before beforeDate.
+   * Returns null when there are fewer than minCount earlier collections.
+   */
+  function usualGross(rows, siteKey, cat, beforeDate, n, minCount) {
+    n = n || 8; minCount = minCount || 3;
+    var list = rows.filter(function (r) { return r.siteKey === siteKey && r.cat === cat && r.date < beforeDate; })
+      .sort(function (a, b) { return a.date.localeCompare(b.date) || String(a.entry.timestamp || '').localeCompare(String(b.entry.timestamp || '')); })
+      .slice(-n);
+    if (list.length < minCount) return null;
+    var avg = list.reduce(function (s, r) { return s + r.gross; }, 0) / list.length;
+    return avg > 0 ? round(avg) : null;
+  }
+
+  /** 'check' when an entered gross looks like a typo (far below/above usual), else ''. */
+  function grossLooksOff(gross, usual) {
+    if (!usual || !(gross > 0)) return '';
+    if (gross < usual * 0.4) return 'low';
+    if (gross > usual * 2.5) return 'high';
+    return '';
+  }
+
   var api = {
     LOGIC_VERSION: LOGIC_VERSION,
     MGD_RATE: MGD_RATE, BUSINESS_MONTH_CUTOFF_DAY: BUSINESS_MONTH_CUTOFF_DAY, EPOCH: EPOCH,
@@ -465,7 +519,7 @@
     applyTermChanges: applyTermChanges, seedCatTerms: seedCatTerms, seedPoolTerms: seedPoolTerms,
     calcCategory: calcCategory, calcPool: calcPool,
     shiftMonth: shiftMonth, daysBefore: daysBefore, buildRows: buildRows, periodTest: periodTest,
-    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, machineType: machineType, typeSort: typeSort, recomputeGrands: recomputeGrands
+    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, dayBuckets: dayBuckets, daysBetween: daysBetween, lastCollectedBySite: lastCollectedBySite, usualGross: usualGross, grossLooksOff: grossLooksOff, machineType: machineType, typeSort: typeSort, recomputeGrands: recomputeGrands
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.keys(api).forEach(function (k) { root[k] = api[k]; });
