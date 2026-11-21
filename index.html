@@ -163,17 +163,29 @@ h3{font-size:14px;margin:0 0 8px}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#555;margin-bottom:6px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 .tbl tr.total td{font-weight:700;background:#fff8e6}
-.exp-btn{background:none;border:0;font:inherit;font-weight:600;color:#1a1a2e;cursor:pointer;padding:6px 0;min-height:36px;text-align:left;display:inline-flex;gap:6px;align-items:center}
-.exp-btn::before{content:'▸';font-size:12px;color:#888}
-.exp-btn[aria-expanded=true]::before{content:'▾'}
-.sum-detail-row>td{padding:0!important;background:#fafafa}
-.sum-detail{padding:8px 6px 10px;border-left:3px solid #f7b731;min-width:0}
-.sum-detail .tbl th,.sum-detail .tbl td{padding:5px 4px;font-size:11.5px}
-.sum-detail .tbl th{font-size:9.5px}
-.sum-detail .table-scroll{max-width:100%}
-.sd-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#666;margin:2px 0 6px}
-.sd-coll{background:#fff;border-radius:8px;margin:8px 0;padding:6px;box-shadow:0 1px 2px rgba(0,0,0,.08);min-width:0}
-.sd-head{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px;flex-wrap:wrap}
+.ss-row{background:#fff;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}
+.ss-head{display:block;width:100%;text-align:left;background:none;border:0;padding:14px;cursor:pointer;font:inherit;color:inherit;min-height:64px}
+.ss-head:focus-visible{outline:2px solid #f7b731;outline-offset:-2px}
+.ss-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ss-name{font-size:17px;font-weight:700}
+.ss-name::before{content:'▸ ';color:#888;font-size:13px}
+.ss-head[aria-expanded=true] .ss-name::before{content:'▾ '}
+.ss-net{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.ss-bar{display:block;height:6px;background:#eef0f4;border-radius:3px;margin-top:8px;overflow:hidden}
+.ss-bar i{display:block;height:100%;background:#f7b731;border-radius:3px}
+.ss-sub{display:block;font-size:12px;color:#666;margin-top:6px}
+.ss-body{padding:0 4px 12px;border-top:1px solid #eee}
+.ss-body[hidden]{display:none}
+.ss-total{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#fff8e6;border-radius:10px;padding:10px 14px;font-weight:700;font-size:13px;margin-top:4px}
+.sd-table th,.sd-table td{padding:6px 3px;font-size:12px}
+.sd-table td:first-child,.sd-table th:first-child{padding-left:6px}
+.sd-table td:last-child,.sd-table th:last-child{padding-right:6px}
+.sd-table th{font-size:10px}
+.sd-table tr.sd-month td{background:#1a1a2e;color:#fff;font-size:12px;padding:8px 6px}
+.sd-table tr.sd-month td span{font-weight:400;opacity:.8;margin-left:6px}
+.sd-table tr.sd-date td{background:#f4f5f8;padding:6px}
+.sd-rowhead{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px}
+.sd-table tr.grand td{border-top:2px solid #1a1a2e}
 .link-btn{background:none;border:0;color:#1a1a2e;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px;text-align:left}
 .set-tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:46px;z-index:90;background:#f0f2f5;padding:8px 0;margin:0 0 10px}
 .set-tab{flex:0 0 auto;border:0;background:#e3e6ec;color:#333;font-size:13px;font-weight:600;padding:10px 14px;border-radius:20px;min-height:40px;cursor:pointer;white-space:nowrap}
@@ -418,8 +430,7 @@ h3{font-size:14px;margin:0 0 8px}
   <div id="sumFilters" class="hist-filters"></div>
   <div id="sumKpis"></div>
   <div id="sumChart"></div>
-  <div id="sumMonths"></div>
-  <div class="hist-grid" id="sumTables"></div>
+  <div id="sumSites"></div>
   <div id="sumFloat"></div>
   <div class="toolbar" style="margin-top:12px">
     <button class="btn btn-success" onclick="exportSummaryCSV()">Export summary (CSV)</button>
@@ -2124,13 +2135,13 @@ function renderHistoryPage() {
 (function () {
   function act(t) {
     const v = t.getAttribute('data-v');
-    if (t.hasAttribute('data-expand')) { toggleSumDetail(t); return; }
+    if (t.hasAttribute('data-site-toggle')) { toggleSiteBlock(t); return; }
     if (t.hasAttribute('data-hgo')) { histGo(t.getAttribute('data-hgo'), v); return; }
     histSet(t.getAttribute('data-hset'), t.getAttribute('data-hset') === 'limit' ? parseInt(v, 10) : v);
   }
   ['page-history', 'page-monthly'].forEach(id => {
     const page = document.getElementById(id);
-    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo],[data-expand]'); if (t) act(t); });
+    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo],[data-site-toggle]'); if (t) act(t); });
     page.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const t = e.target.closest('g[data-hset],g[data-hgo]');
@@ -2253,104 +2264,7 @@ function formatBusinessMonthLabel(key) {
   return name + ' ' + y + ' (6 ' + name + ' – 5 ' + nextName + ')';
 }
 
-function pctDelta(cur, prev) {
-  if (prev == null) return '';
-  if (!prev) return '';
-  const pct = ((cur - prev) / prev) * 100;
-  if (Math.abs(pct) < 0.5) return '<span class="delta flat">▬ 0%</span>';
-  return `<span class="delta ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
-}
-
 /** Table of groups with a totals row. goField makes the first column a link to History. */
-/**
- * Table of groups with a totals row. expandKind ('site' | 'type') makes the first column a button that
- * expands that group's breakdown in place (ctx = a business month key, or 'period' for the whole filter).
- */
-function sumTableHtml(groups, firstLabel, expandKind, rows, ctx) {
-  const tot = sumRows(rows);
-  return `<div class="table-scroll"><table class="tbl"><thead><tr>
-      <th>${esc(firstLabel)}</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">MGD</th><th class="num c-opt">Coll.</th>
-    </tr></thead><tbody>${groups.map(g => `<tr>
-      <td>${expandKind ? `<button type="button" class="exp-btn" aria-expanded="false" data-expand="${expandKind}" data-v="${esc(g.key)}" data-ctx="${esc(ctx || 'period')}">${esc(g.label)}</button>` : esc(g.label)}</td>
-      <td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td>
-      <td class="ro c-opt">${gbp(g.mgd)}</td><td class="ro c-opt">${g.collections}</td></tr>`).join('')}
-    <tr class="total"><td>Total</td><td class="ro">${gbp(tot.net)}</td><td class="ro">${gbp(tot.ss)}</td><td class="ro">${gbp(tot.cl)}</td>
-      <td class="ro c-opt">${gbp(tot.mgd)}</td><td class="ro c-opt">${tot.collections}</td></tr>
-    </tbody></table></div>`;
-}
-
-/** Equipment table (one row per machine name, e.g. Reels / Inspire / GM) for a set of rows. */
-function sumEquipmentHtml(rows) {
-  const tot = sumRows(rows);
-  const equip = groupRows(rows, 'cat', 'cat').sort((a, b) => typeSort(machineType(a.key), machineType(b.key)) || String(a.label).localeCompare(String(b.label)));
-  return `<div class="table-scroll" style="box-shadow:none;margin:0 0 4px"><table class="tbl"><thead><tr>
-      <th>Machine</th><th class="num c-xs">Gross</th><th class="num c-opt">Float</th><th class="num">Net</th><th class="num c-opt">MGD</th><th class="num">Supplier</th><th class="num">Site</th>
-    </tr></thead><tbody>${equip.map(g => `<tr><td>${esc(g.label)}</td><td class="ro c-xs">${gbp(g.gross)}</td><td class="ro c-opt">${gbp(g.floatTaken)}</td><td class="ro">${gbp(g.net)}</td><td class="ro c-opt">${gbp(g.mgd)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td></tr>`).join('')}
-    <tr class="total"><td>Total</td><td class="ro c-xs">${gbp(tot.gross)}</td><td class="ro c-opt">${gbp(tot.floatTaken)}</td><td class="ro">${gbp(tot.net)}</td><td class="ro c-opt">${gbp(tot.mgd)}</td><td class="ro">${gbp(tot.ss)}</td><td class="ro">${gbp(tot.cl)}</td></tr>
-    </tbody></table></div>`;
-}
-
-/** Breakdown shown under a site or type row: equipment totals, then each collection (site) or each site (type). */
-function sumDetailHtml(rows, kind, ctx) {
-  if (!rows.length) return '<div class="sum-detail"><p class="hint" style="margin:0">No collections for these filters.</p></div>';
-  const scope = ctx === 'period' ? periodLabel(histState.period) : monthLong(ctx);
-  const t = sumRows(rows);
-  let html = `<div class="sum-detail"><div class="sd-title">Equipment · ${esc(scope)} · ${t.collections} collection${t.collections === 1 ? '' : 's'}</div>${sumEquipmentHtml(rows)}`;
-  if (kind === 'site') {
-    const byEntry = {};
-    const order = [];
-    rows.forEach(r => {
-      const k = r.entryKey + '|' + r.siteKey;
-      if (!byEntry[k]) { byEntry[k] = { entry: r.entry, siteKey: r.siteKey, date: r.date, rows: [] }; order.push(k); }
-      byEntry[k].rows.push(r);
-    });
-    const list = order.map(k => byEntry[k]).sort((a, b) => b.date.localeCompare(a.date) || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || '')));
-    html += `<div class="sd-title" style="margin-top:12px">Collections</div>` + list.map(col => {
-      const ct = sumRows(col.rows);
-      const loc = (col.entry.locations || []).find(l => histSiteInfo(l).key === col.siteKey) || {};
-      const photos = loc.photos || [];
-      return `<div class="sd-coll">
-        <div class="sd-head"><strong>${esc(histDateLabel(col.date))}</strong><span>Net ${gbp(ct.net)} · Site ${gbp(ct.cl)}${photos.length ? ' · 📷 ' + photos.map((p, i) => `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ') : ''}</span></div>
-        <div class="table-scroll" style="box-shadow:none;margin:0"><table class="tbl"><thead><tr><th>Machine</th><th class="num c-xs">Gross</th><th class="num c-opt">Float</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th></tr></thead><tbody>
-        ${col.rows.map(r => `<tr><td>${esc(r.cat)}</td><td class="ro c-xs">${gbp(r.gross)}</td><td class="ro c-opt">${gbp(r.floatTaken)}</td><td class="ro">${gbp(r.net)}</td><td class="ro">${gbp(r.ss)}</td><td class="ro">${gbp(r.cl)}</td></tr>`).join('')}
-        </tbody></table></div></div>`;
-    }).join('');
-  } else {
-    const sites = groupRows(rows, 'siteKey', 'siteName');
-    html += `<div class="sd-title" style="margin-top:12px">By site</div>
-      <div class="table-scroll" style="box-shadow:none;margin:0"><table class="tbl"><thead><tr><th>Site</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">Coll.</th></tr></thead><tbody>
-      ${sites.map(g => `<tr><td>${esc(g.label)}</td><td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td><td class="ro c-opt">${g.collections}</td></tr>`).join('')}
-      </tbody></table></div>`;
-  }
-  return html + '</div>';
-}
-
-/** Expand / collapse the in-place breakdown under a Summary row. */
-function toggleSumDetail(btn) {
-  const tr = btn.closest('tr');
-  if (!tr) return;
-  const next = tr.nextElementSibling;
-  if (next && next.classList.contains('sum-detail-row')) {
-    next.remove();
-    btn.setAttribute('aria-expanded', 'false');
-    return;
-  }
-  const kind = btn.getAttribute('data-expand');
-  const key = btn.getAttribute('data-v');
-  const ctx = btn.getAttribute('data-ctx') || 'period';
-  const c = histCompute();
-  let rows = c.rows.filter(r => kind === 'site' ? r.siteKey === key : r.type === key);
-  if (ctx !== 'period') rows = rows.filter(r => r.bm === ctx);
-  const row = document.createElement('tr');
-  row.className = 'sum-detail-row';
-  const td = document.createElement('td');
-  td.colSpan = 6;
-  td.innerHTML = sumDetailHtml(rows, kind, ctx);
-  row.appendChild(td);
-  tr.after(row);
-  btn.setAttribute('aria-expanded', 'true');
-}
-
 function sumRenderChart(c) {
   const end = businessMonthKey(c.today);
   const N = 12;
@@ -2389,40 +2303,83 @@ function sumRenderChart(c) {
   </div>`;
 }
 
-function sumRenderMonths(c) {
-  const el = document.getElementById('sumMonths');
-  const months = groupRows(c.rows, 'bm', 'bm').sort((a, b) => b.key.localeCompare(a.key));
-  if (!months.length) { el.innerHTML = ''; return; }
-  const prevAll = {};
-  groupRows(c.base, 'bm', 'bm').forEach(g => { prevAll[g.key] = g; });
-  let html = '<h2>Month-end statements</h2>';
+/**
+ * One table for a site: every collection (grouped by business month, newest first), every machine in each,
+ * month subtotals, totals by machine, and a grand total.
+ */
+function siteBreakdownHtml(rows) {
+  if (!rows.length) return '<p class="hint" style="margin:0">No collections for these filters.</p>';
+  const nowKey = businessMonthKey(todayStr());
+  const money = (r) => `<td class="ro c-xs">${gbp(r.gross)}</td><td class="ro c-opt">${gbp(r.floatTaken)}</td><td class="ro">${gbp(r.net)}</td><td class="ro c-opt">${gbp(r.mgd)}</td><td class="ro">${gbp(r.ss)}</td><td class="ro">${gbp(r.cl)}</td>`;
+  const byMachine = (a, b) => typeSort(machineType(a.cat), machineType(b.cat)) || String(a.cat).localeCompare(String(b.cat));
+  let body = '';
+  const months = groupRows(rows, 'bm', 'bm').sort((a, b) => b.key.localeCompare(a.key));
   months.forEach(m => {
-    const inProgress = m.key === businessMonthKey(c.today); // part-way through: a % vs last full month would mislead
-    const prev = inProgress ? null : prevAll[shiftMonth(m.key, -1)];
-    const mrows = c.rows.filter(r => r.bm === m.key);
-    const sites = groupRows(mrows, 'siteKey', 'siteName');
-    html += `<details class="hcard">
-      <summary>
-        <div><div class="hc-date">${esc(monthLong(m.key))}</div><div class="hc-site">${esc(monthRangeLabel(m.key))} · ${m.collections} collection${m.collections === 1 ? '' : 's'}${inProgress ? ' · <strong>in progress</strong>' : ''}</div></div>
-        <div><div class="hc-net">${gbp(m.net)}</div><div class="hc-share">Site ${gbp(m.cl)} ${pctDelta(m.net, prev ? prev.net : null)}</div></div>
-      </summary>
-      <div class="hc-body">
-        ${sumTableHtml(sites, 'Site', 'site', mrows, m.key)}
-        <p class="hc-meta">Supplier ${gbp(m.ss)} · MGD ${gbp(m.mgd)}${m.floatTaken > 0 ? ' · Float taken ' + gbp(m.floatTaken) : ''}${prev ? ' · Net vs previous month ' + pctDelta(m.net, prev.net) : ''}</p>
-        <button type="button" class="btn btn-outline btn-sm" data-hgo="period" data-v="${esc(m.key)}">View these collections</button>
-      </div>
-    </details>`;
+    const mrows = rows.filter(r => r.bm === m.key);
+    body += `<tr class="sd-month"><td colspan="7"><strong>${esc(monthLong(m.key))}</strong> <span>${esc(monthRangeLabel(m.key))}${m.key === nowKey ? ' · in progress' : ''}</span></td></tr>`;
+    const cols = {};
+    const order = [];
+    mrows.forEach(r => {
+      const k = r.entryKey + '|' + r.siteKey;
+      if (!cols[k]) { cols[k] = { entry: r.entry, siteKey: r.siteKey, date: r.date, rows: [] }; order.push(k); }
+      cols[k].rows.push(r);
+    });
+    order.map(k => cols[k]).sort((a, b) => b.date.localeCompare(a.date) || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || ''))).forEach(col => {
+      const ct = sumRows(col.rows);
+      const loc = (col.entry.locations || []).find(l => histSiteInfo(l).key === col.siteKey) || {};
+      const photos = (loc.photos || []).map((p, i) => `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ');
+      body += `<tr class="sd-date"><td colspan="7"><div class="sd-rowhead"><strong>${esc(histDateLabel(col.date))}</strong><span>Net ${gbp(ct.net)} · Site ${gbp(ct.cl)}${photos ? ' · 📷 ' + photos : ''}</span></div></td></tr>`;
+      col.rows.slice().sort(byMachine).forEach(r => { body += `<tr><td>${esc(r.cat)}</td>${money(r)}</tr>`; });
+    });
+    const mt = sumRows(mrows);
+    body += `<tr class="total"><td>${esc(monthLong(m.key).split(' ')[0])} total</td>${money({ gross: mt.gross, floatTaken: mt.floatTaken, net: mt.net, mgd: mt.mgd, ss: mt.ss, cl: mt.cl })}</tr>`;
   });
-  el.innerHTML = html;
+  const equip = groupRows(rows, 'cat', 'cat').sort((a, b) => typeSort(machineType(a.key), machineType(b.key)) || String(a.label).localeCompare(String(b.label)));
+  body += `<tr class="sd-month"><td colspan="7"><strong>Totals by machine</strong></td></tr>`;
+  equip.forEach(g => { body += `<tr><td>${esc(g.label)}</td>${money({ gross: g.gross, floatTaken: g.floatTaken, net: g.net, mgd: g.mgd, ss: g.ss, cl: g.cl })}</tr>`; });
+  const t = sumRows(rows);
+  body += `<tr class="total grand"><td>All machines</td>${money({ gross: t.gross, floatTaken: t.floatTaken, net: t.net, mgd: t.mgd, ss: t.ss, cl: t.cl })}</tr>`;
+  return `<div class="table-scroll" style="box-shadow:none;margin:0"><table class="tbl sd-table"><thead><tr>
+      <th>Machine</th><th class="num c-xs">Gross</th><th class="num c-opt">Float</th><th class="num">Net</th><th class="num c-opt">MGD</th><th class="num">Supplier</th><th class="num">Site</th>
+    </tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
-function sumRenderTables(c) {
-  const el = document.getElementById('sumTables');
+function sumRenderSites(c) {
+  const el = document.getElementById('sumSites');
   const sites = groupRows(c.rows, 'siteKey', 'siteName');
-  const cats = groupRows(c.rows, 'type', 'type').sort((a, b) => typeSort(a.key, b.key));
   if (!sites.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="hist-panel"><h2>By site <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(sites, 'Site', 'site', c.rows, 'period')}</div>
-    <div class="hist-panel"><h2>By type <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(cats, 'Type', 'type', c.rows, 'period')}</div>`;
+  const max = Math.max.apply(null, sites.map(g => g.net).concat([1]));
+  const tot = sumRows(c.rows);
+  const only = sites.length === 1;
+  el.innerHTML = `<h2 style="margin:14px 0 8px">Sites <span style="font-weight:400;color:#777;font-size:13px">· ${esc(periodLabel(histState.period))}</span></h2>` +
+    sites.map(g => `<div class="ss-row">
+      <button type="button" class="ss-head" data-site-toggle="${esc(g.key)}" aria-expanded="${only ? 'true' : 'false'}">
+        <span class="ss-top"><span class="ss-name">${esc(g.label)}</span><span class="ss-net">${gbp(g.net)}</span></span>
+        <span class="ss-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.round(g.net / max * 100))}%"></i></span>
+        <span class="ss-sub">Site ${gbp(g.cl)} · Supplier ${gbp(g.ss)} · ${g.collections} collection${g.collections === 1 ? '' : 's'}</span>
+      </button>
+      <div class="ss-body"${only ? '' : ' hidden'}>${only ? siteBreakdownHtml(c.rows.filter(r => r.siteKey === g.key)) + siteOpenHistory(g.key) : ''}</div>
+    </div>`).join('') +
+    `<div class="ss-total"><span>All sites</span><span>Net ${gbp(tot.net)} · Site ${gbp(tot.cl)} · Supplier ${gbp(tot.ss)}</span></div>`;
+}
+
+function siteOpenHistory(key) {
+  return `<div style="margin:10px 0 2px"><button type="button" class="btn btn-outline btn-sm" data-hgo="site" data-v="${esc(key)}">Open in History</button></div>`;
+}
+
+/** Expand / collapse one site in the Summary list (breakdown is built when first opened). */
+function toggleSiteBlock(btn) {
+  const body = btn.nextElementSibling;
+  if (!body) return;
+  const open = btn.getAttribute('aria-expanded') === 'true';
+  if (open) { body.hidden = true; btn.setAttribute('aria-expanded', 'false'); return; }
+  if (!body.innerHTML.trim()) {
+    const key = btn.getAttribute('data-site-toggle');
+    const c = histCompute();
+    body.innerHTML = siteBreakdownHtml(c.rows.filter(r => r.siteKey === key)) + siteOpenHistory(key);
+  }
+  body.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
 }
 
 function sumRenderFloat(c) {
@@ -2439,7 +2396,7 @@ function sumRenderFloat(c) {
   </div>`;
 }
 
-function showMonthlySummary() { safeRender('sumMonths', renderSummaryPage); }
+function showMonthlySummary() { safeRender('sumSites', renderSummaryPage); }
 
 function renderSummaryPage() {
   const c = histCompute();
@@ -2447,17 +2404,14 @@ function renderSummaryPage() {
   histRenderKpis(c, 'sumKpis');
   sumRenderChart(c);
   if (!getEntries().length) {
-    document.getElementById('sumMonths').innerHTML = '<div class="empty-state"><p>No entries yet.</p></div>';
-    document.getElementById('sumTables').innerHTML = '';
+    document.getElementById('sumSites').innerHTML = '<div class="empty-state"><p>No entries yet.</p></div>';
     document.getElementById('sumFloat').innerHTML = '';
     return;
   }
   if (!c.rows.length) {
-    document.getElementById('sumMonths').innerHTML = '<div class="empty-state"><p>No collections for these filters.</p><p style="margin-top:10px"><button type="button" class="btn btn-primary" data-hset="period" data-v="all">Show all time</button></p></div>';
-    document.getElementById('sumTables').innerHTML = '';
+    document.getElementById('sumSites').innerHTML = '<div class="empty-state"><p>No collections for these filters.</p><p style="margin-top:10px"><button type="button" class="btn btn-primary" data-hset="period" data-v="all">Show all time</button></p></div>';
   } else {
-    sumRenderMonths(c);
-    sumRenderTables(c);
+    sumRenderSites(c);
   }
   sumRenderFloat(c);
 }
