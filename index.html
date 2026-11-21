@@ -155,6 +155,7 @@ h3{font-size:14px;margin:0 0 8px}
 .hc-meta{font-size:11px;color:#888;margin:8px 0}
 .hc-body .tbl th,.hc-body .tbl td{white-space:nowrap}
 @media(max-width:520px){.c-opt{display:none}}
+@media(max-width:380px){.c-xs{display:none}}
 .hc-low{font-size:12px;color:#b03a2e;margin:6px 0}
 .hist-tools{margin-top:16px;background:#fff;border-radius:10px;padding:10px 14px}
 .hist-tools summary{cursor:pointer;font-weight:600;font-size:13px;min-height:32px;display:flex;align-items:center;gap:8px}
@@ -162,6 +163,17 @@ h3{font-size:14px;margin:0 0 8px}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#555;margin-bottom:6px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 .tbl tr.total td{font-weight:700;background:#fff8e6}
+.exp-btn{background:none;border:0;font:inherit;font-weight:600;color:#1a1a2e;cursor:pointer;padding:6px 0;min-height:36px;text-align:left;display:inline-flex;gap:6px;align-items:center}
+.exp-btn::before{content:'▸';font-size:12px;color:#888}
+.exp-btn[aria-expanded=true]::before{content:'▾'}
+.sum-detail-row>td{padding:0!important;background:#fafafa}
+.sum-detail{padding:8px 6px 10px;border-left:3px solid #f7b731;min-width:0}
+.sum-detail .tbl th,.sum-detail .tbl td{padding:5px 4px;font-size:11.5px}
+.sum-detail .tbl th{font-size:9.5px}
+.sum-detail .table-scroll{max-width:100%}
+.sd-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#666;margin:2px 0 6px}
+.sd-coll{background:#fff;border-radius:8px;margin:8px 0;padding:6px;box-shadow:0 1px 2px rgba(0,0,0,.08);min-width:0}
+.sd-head{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px;flex-wrap:wrap}
 .link-btn{background:none;border:0;color:#1a1a2e;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer;padding:6px 0;min-height:32px;text-align:left}
 .set-tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:46px;z-index:90;background:#f0f2f5;padding:8px 0;margin:0 0 10px}
 .set-tab{flex:0 0 auto;border:0;background:#e3e6ec;color:#333;font-size:13px;font-weight:600;padding:10px 14px;border-radius:20px;min-height:40px;cursor:pointer;white-space:nowrap}
@@ -2112,12 +2124,13 @@ function renderHistoryPage() {
 (function () {
   function act(t) {
     const v = t.getAttribute('data-v');
+    if (t.hasAttribute('data-expand')) { toggleSumDetail(t); return; }
     if (t.hasAttribute('data-hgo')) { histGo(t.getAttribute('data-hgo'), v); return; }
     histSet(t.getAttribute('data-hset'), t.getAttribute('data-hset') === 'limit' ? parseInt(v, 10) : v);
   }
   ['page-history', 'page-monthly'].forEach(id => {
     const page = document.getElementById(id);
-    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo]'); if (t) act(t); });
+    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo],[data-expand]'); if (t) act(t); });
     page.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const t = e.target.closest('g[data-hset],g[data-hgo]');
@@ -2249,17 +2262,93 @@ function pctDelta(cur, prev) {
 }
 
 /** Table of groups with a totals row. goField makes the first column a link to History. */
-function sumTableHtml(groups, firstLabel, goField, rows) {
+/**
+ * Table of groups with a totals row. expandKind ('site' | 'type') makes the first column a button that
+ * expands that group's breakdown in place (ctx = a business month key, or 'period' for the whole filter).
+ */
+function sumTableHtml(groups, firstLabel, expandKind, rows, ctx) {
   const tot = sumRows(rows);
   return `<div class="table-scroll"><table class="tbl"><thead><tr>
       <th>${esc(firstLabel)}</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">MGD</th><th class="num c-opt">Coll.</th>
     </tr></thead><tbody>${groups.map(g => `<tr>
-      <td>${goField ? `<button type="button" class="link-btn" data-hgo="${goField}" data-v="${esc(g.key)}">${esc(g.label)}</button>` : esc(g.label)}</td>
+      <td>${expandKind ? `<button type="button" class="exp-btn" aria-expanded="false" data-expand="${expandKind}" data-v="${esc(g.key)}" data-ctx="${esc(ctx || 'period')}">${esc(g.label)}</button>` : esc(g.label)}</td>
       <td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td>
       <td class="ro c-opt">${gbp(g.mgd)}</td><td class="ro c-opt">${g.collections}</td></tr>`).join('')}
     <tr class="total"><td>Total</td><td class="ro">${gbp(tot.net)}</td><td class="ro">${gbp(tot.ss)}</td><td class="ro">${gbp(tot.cl)}</td>
       <td class="ro c-opt">${gbp(tot.mgd)}</td><td class="ro c-opt">${tot.collections}</td></tr>
     </tbody></table></div>`;
+}
+
+/** Equipment table (one row per machine name, e.g. Reels / Inspire / GM) for a set of rows. */
+function sumEquipmentHtml(rows) {
+  const tot = sumRows(rows);
+  const equip = groupRows(rows, 'cat', 'cat').sort((a, b) => typeSort(machineType(a.key), machineType(b.key)) || String(a.label).localeCompare(String(b.label)));
+  return `<div class="table-scroll" style="box-shadow:none;margin:0 0 4px"><table class="tbl"><thead><tr>
+      <th>Machine</th><th class="num c-xs">Gross</th><th class="num c-opt">Float</th><th class="num">Net</th><th class="num c-opt">MGD</th><th class="num">Supplier</th><th class="num">Site</th>
+    </tr></thead><tbody>${equip.map(g => `<tr><td>${esc(g.label)}</td><td class="ro c-xs">${gbp(g.gross)}</td><td class="ro c-opt">${gbp(g.floatTaken)}</td><td class="ro">${gbp(g.net)}</td><td class="ro c-opt">${gbp(g.mgd)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td></tr>`).join('')}
+    <tr class="total"><td>Total</td><td class="ro c-xs">${gbp(tot.gross)}</td><td class="ro c-opt">${gbp(tot.floatTaken)}</td><td class="ro">${gbp(tot.net)}</td><td class="ro c-opt">${gbp(tot.mgd)}</td><td class="ro">${gbp(tot.ss)}</td><td class="ro">${gbp(tot.cl)}</td></tr>
+    </tbody></table></div>`;
+}
+
+/** Breakdown shown under a site or type row: equipment totals, then each collection (site) or each site (type). */
+function sumDetailHtml(rows, kind, ctx) {
+  if (!rows.length) return '<div class="sum-detail"><p class="hint" style="margin:0">No collections for these filters.</p></div>';
+  const scope = ctx === 'period' ? periodLabel(histState.period) : monthLong(ctx);
+  const t = sumRows(rows);
+  let html = `<div class="sum-detail"><div class="sd-title">Equipment · ${esc(scope)} · ${t.collections} collection${t.collections === 1 ? '' : 's'}</div>${sumEquipmentHtml(rows)}`;
+  if (kind === 'site') {
+    const byEntry = {};
+    const order = [];
+    rows.forEach(r => {
+      const k = r.entryKey + '|' + r.siteKey;
+      if (!byEntry[k]) { byEntry[k] = { entry: r.entry, siteKey: r.siteKey, date: r.date, rows: [] }; order.push(k); }
+      byEntry[k].rows.push(r);
+    });
+    const list = order.map(k => byEntry[k]).sort((a, b) => b.date.localeCompare(a.date) || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || '')));
+    html += `<div class="sd-title" style="margin-top:12px">Collections</div>` + list.map(col => {
+      const ct = sumRows(col.rows);
+      const loc = (col.entry.locations || []).find(l => histSiteInfo(l).key === col.siteKey) || {};
+      const photos = loc.photos || [];
+      return `<div class="sd-coll">
+        <div class="sd-head"><strong>${esc(histDateLabel(col.date))}</strong><span>Net ${gbp(ct.net)} · Site ${gbp(ct.cl)}${photos.length ? ' · 📷 ' + photos.map((p, i) => `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ') : ''}</span></div>
+        <div class="table-scroll" style="box-shadow:none;margin:0"><table class="tbl"><thead><tr><th>Machine</th><th class="num c-xs">Gross</th><th class="num c-opt">Float</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th></tr></thead><tbody>
+        ${col.rows.map(r => `<tr><td>${esc(r.cat)}</td><td class="ro c-xs">${gbp(r.gross)}</td><td class="ro c-opt">${gbp(r.floatTaken)}</td><td class="ro">${gbp(r.net)}</td><td class="ro">${gbp(r.ss)}</td><td class="ro">${gbp(r.cl)}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    }).join('');
+  } else {
+    const sites = groupRows(rows, 'siteKey', 'siteName');
+    html += `<div class="sd-title" style="margin-top:12px">By site</div>
+      <div class="table-scroll" style="box-shadow:none;margin:0"><table class="tbl"><thead><tr><th>Site</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">Coll.</th></tr></thead><tbody>
+      ${sites.map(g => `<tr><td>${esc(g.label)}</td><td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td><td class="ro c-opt">${g.collections}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  return html + '</div>';
+}
+
+/** Expand / collapse the in-place breakdown under a Summary row. */
+function toggleSumDetail(btn) {
+  const tr = btn.closest('tr');
+  if (!tr) return;
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains('sum-detail-row')) {
+    next.remove();
+    btn.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  const kind = btn.getAttribute('data-expand');
+  const key = btn.getAttribute('data-v');
+  const ctx = btn.getAttribute('data-ctx') || 'period';
+  const c = histCompute();
+  let rows = c.rows.filter(r => kind === 'site' ? r.siteKey === key : r.type === key);
+  if (ctx !== 'period') rows = rows.filter(r => r.bm === ctx);
+  const row = document.createElement('tr');
+  row.className = 'sum-detail-row';
+  const td = document.createElement('td');
+  td.colSpan = 6;
+  td.innerHTML = sumDetailHtml(rows, kind, ctx);
+  row.appendChild(td);
+  tr.after(row);
+  btn.setAttribute('aria-expanded', 'true');
 }
 
 function sumRenderChart(c) {
@@ -2318,7 +2407,7 @@ function sumRenderMonths(c) {
         <div><div class="hc-net">${gbp(m.net)}</div><div class="hc-share">Site ${gbp(m.cl)} ${pctDelta(m.net, prev ? prev.net : null)}</div></div>
       </summary>
       <div class="hc-body">
-        ${sumTableHtml(sites, 'Site', 'site', mrows)}
+        ${sumTableHtml(sites, 'Site', 'site', mrows, m.key)}
         <p class="hc-meta">Supplier ${gbp(m.ss)} · MGD ${gbp(m.mgd)}${m.floatTaken > 0 ? ' · Float taken ' + gbp(m.floatTaken) : ''}${prev ? ' · Net vs previous month ' + pctDelta(m.net, prev.net) : ''}</p>
         <button type="button" class="btn btn-outline btn-sm" data-hgo="period" data-v="${esc(m.key)}">View these collections</button>
       </div>
@@ -2332,8 +2421,8 @@ function sumRenderTables(c) {
   const sites = groupRows(c.rows, 'siteKey', 'siteName');
   const cats = groupRows(c.rows, 'type', 'type').sort((a, b) => typeSort(a.key, b.key));
   if (!sites.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="hist-panel"><h2>By site <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(sites, 'Site', 'site', c.rows)}</div>
-    <div class="hist-panel"><h2>By type <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(cats, 'Type', 'cat', c.rows)}</div>`;
+  el.innerHTML = `<div class="hist-panel"><h2>By site <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(sites, 'Site', 'site', c.rows, 'period')}</div>
+    <div class="hist-panel"><h2>By type <span style="font-weight:400;color:#777">· ${esc(periodLabel(histState.period))}</span></h2>${sumTableHtml(cats, 'Type', 'type', c.rows, 'period')}</div>`;
 }
 
 function sumRenderFloat(c) {
