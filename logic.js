@@ -4,7 +4,7 @@
 
   // Bump together with the ?v= on the <script src> in index.html and REQUIRED_LOGIC_VERSION there
   // (tests/version.test.js fails if they drift). Prevents a stale cached logic.js breaking the pages.
-  var LOGIC_VERSION = '2026-11-19.1';
+  var LOGIC_VERSION = '2026-11-27.1';
 
   var MGD_RATE = 0.2;              // default / fallback MGD when no dated schedule exists
   var BUSINESS_MONTH_CUTOFF_DAY = 5; // collections on the 1st–5th belong to the PREVIOUS month
@@ -511,6 +511,92 @@
     return '';
   }
 
+  /* ---------- statements, search, sort, sparklines, next site, overdue, float review ---------- */
+
+  /** Plain-text month-end statement for one site (also used for the printable page). rows = that site's rows for the month. */
+  function statementText(siteName, monthLabel, rangeLabel, rows, fmt) {
+    fmt = fmt || function (v) { return '£' + (v || 0).toFixed(2); };
+    var byEntry = {}, order = [];
+    rows.forEach(function (r) {
+      var k = r.entryKey + '|' + r.siteKey;
+      if (!byEntry[k]) { byEntry[k] = { date: r.date, ts: String(r.entry.timestamp || ''), rows: [] }; order.push(k); }
+      byEntry[k].rows.push(r);
+    });
+    var cols = order.map(function (k) { return byEntry[k]; }).sort(function (a, b) { return a.date.localeCompare(b.date) || a.ts.localeCompare(b.ts); });
+    var t = sumRows(rows);
+    var lines = ['3BarBros — month-end statement', siteName + ' · ' + monthLabel + (rangeLabel ? ' (' + rangeLabel + ')' : ''), ''];
+    cols.forEach(function (c) {
+      var ct = sumRows(c.rows);
+      lines.push(c.date + '  net ' + fmt(ct.net) + ' · supplier ' + fmt(ct.ss) + ' · site ' + fmt(ct.cl));
+      c.rows.forEach(function (r) { lines.push('   ' + r.cat + ': gross ' + fmt(r.gross) + ', net ' + fmt(r.net) + ', supplier ' + fmt(r.ss) + ', site ' + fmt(r.cl)); });
+    });
+    lines.push('', 'Collections: ' + t.collections, 'Net: ' + fmt(t.net), 'MGD: ' + fmt(t.mgd), 'Supplier share: ' + fmt(t.ss), 'Site share: ' + fmt(t.cl));
+    return lines.join('\n');
+  }
+
+  /** Does a History card match a search? Every word must match the date, site, machine or an amount. */
+  function cardMatches(card, q) {
+    var words = String(q || '').toLowerCase().replace(/[£,]/g, '').split(/\s+/).filter(Boolean);
+    if (!words.length) return true;
+    var nums = [];
+    card.rows.forEach(function (r) { [r.net, r.gross, r.cl, r.ss].forEach(function (v) { nums.push(v.toFixed(2)); nums.push(String(Math.round(v))); }); });
+    var hay = [card.date, card.label || '', card.siteName || '', card.rows.map(function (r) { return r.cat; }).join(' '), nums.join(' ')].join(' ').toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) >= 0; });
+  }
+
+  /** Sort History cards: 'new' (default), 'old', 'high' (net high→low), 'low'. Returns a new array. */
+  function sortCards(cards, mode) {
+    var c = cards.slice();
+    var net = function (x) { return x.rows.reduce(function (s, r) { return s + r.net; }, 0); };
+    var cmpDate = function (a, b) { return a.date.localeCompare(b.date) || String(a.ts || '').localeCompare(String(b.ts || '')); };
+    if (mode === 'old') return c.sort(cmpDate);
+    if (mode === 'high') return c.sort(function (a, b) { return net(b) - net(a); });
+    if (mode === 'low') return c.sort(function (a, b) { return net(a) - net(b); });
+    return c.sort(function (a, b) { return cmpDate(b, a); });
+  }
+
+  /** Gross per collection (oldest→newest, last n) for one machine at one site, plus % change vs the earlier average. */
+  function sparkSeries(rows, siteKey, cat, n) {
+    n = n || 12;
+    var list = rows.filter(function (r) { return r.siteKey === siteKey && r.cat === cat; })
+      .sort(function (a, b) { return a.date.localeCompare(b.date) || String(a.entry.timestamp || '').localeCompare(String(b.entry.timestamp || '')); })
+      .slice(-n);
+    var vals = list.map(function (r) { return r.gross; });
+    var pct = null;
+    if (vals.length >= 4) {
+      var prior = vals.slice(0, -1), avg = prior.reduce(function (s, v) { return s + v; }, 0) / prior.length;
+      if (avg > 0) pct = Math.round(((vals[vals.length - 1] - avg) / avg) * 100);
+    }
+    return { vals: vals, pct: pct };
+  }
+
+  /** The next site (in list order, wrapping) not already collected on `done`. Returns id or ''. */
+  function nextSiteAfter(ids, doneIds, currentId) {
+    var done = {}; doneIds.forEach(function (d) { done[String(d)] = true; });
+    var start = ids.map(String).indexOf(String(currentId));
+    for (var k = 1; k <= ids.length; k++) {
+      var id = String(ids[(start + k + ids.length) % ids.length]);
+      if (!done[id] && id !== String(currentId)) return id;
+    }
+    return '';
+  }
+
+  /** '' | 'late' | 'vlate' for days since last collection against a site's limit (very late = limit + 7). */
+  function overdueLevel(days, limit) {
+    limit = limit > 0 ? limit : 14;
+    if (days >= limit + 7) return 'vlate';
+    if (days >= limit) return 'late';
+    return '';
+  }
+
+  /** If other collections for this site come AFTER `date`, their float carry may now be wrong: return `date`, else ''. */
+  function floatReviewFrom(entries, siteKey, date, siteInfo) {
+    var later = (entries || []).some(function (e) {
+      return e && e.date > date && (e.locations || []).some(function (l) { return l && siteInfo(l).key === siteKey; });
+    });
+    return later ? date : '';
+  }
+
   var api = {
     LOGIC_VERSION: LOGIC_VERSION,
     MGD_RATE: MGD_RATE, BUSINESS_MONTH_CUTOFF_DAY: BUSINESS_MONTH_CUTOFF_DAY, EPOCH: EPOCH,
@@ -519,7 +605,7 @@
     applyTermChanges: applyTermChanges, seedCatTerms: seedCatTerms, seedPoolTerms: seedPoolTerms,
     calcCategory: calcCategory, calcPool: calcPool,
     shiftMonth: shiftMonth, daysBefore: daysBefore, buildRows: buildRows, periodTest: periodTest,
-    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, dayBuckets: dayBuckets, daysBetween: daysBetween, lastCollectedBySite: lastCollectedBySite, usualGross: usualGross, grossLooksOff: grossLooksOff, machineType: machineType, typeSort: typeSort, recomputeGrands: recomputeGrands
+    periodMonth: periodMonth, sumRows: sumRows, groupRows: groupRows, monthSeries: monthSeries, markLow: markLow, floatOutstanding: floatOutstanding, recalcFloat: recalcFloat, statementText: statementText, cardMatches: cardMatches, sortCards: sortCards, sparkSeries: sparkSeries, nextSiteAfter: nextSiteAfter, overdueLevel: overdueLevel, floatReviewFrom: floatReviewFrom, dayBuckets: dayBuckets, daysBetween: daysBetween, lastCollectedBySite: lastCollectedBySite, usualGross: usualGross, grossLooksOff: grossLooksOff, machineType: machineType, typeSort: typeSort, recomputeGrands: recomputeGrands
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.keys(api).forEach(function (k) { root[k] = api[k]; });

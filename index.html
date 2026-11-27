@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>3BarBros — Daily Takings</title>
 <link rel="icon" href="bump.png" type="image/png">
-<link rel="apple-touch-icon" href="bump.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="3BarBros">
 <meta name="theme-color" content="#1a1a2e">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -205,6 +209,13 @@ h3{font-size:14px;margin:0 0 8px}
 .log-row{display:flex;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid #eee}
 .log-row time{color:#888;flex:0 0 auto;min-width:96px}
 .danger-zone{border:1px solid #f1b0a8}
+.notice{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:14px}
+.notice.wait{background:#fff3e0;border:1px solid #f7b731;color:#6b4a00}
+.notice.review{background:#e8f0fe;border:1px solid #9bb7f0;color:#1a3a7a}
+.notice.bad{background:#fdecea;border:1px solid #f1b0a8;color:#8a2b21}
+.notice .nb{display:flex;gap:6px;flex-wrap:wrap}
+.receipt-state{position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.7);color:#fff;border-radius:8px;font-size:11px;padding:0 5px;line-height:16px}
+.receipt-state.bad{background:#c0392b}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .dash{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .dash-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
@@ -386,6 +397,7 @@ h3{font-size:14px;margin:0 0 8px}
 
 <div id="page-entry" class="page active">
   <h1 class="sr-only">Daily Takings</h1>
+  <div id="noticeBanners"></div>
   <div id="savedBanner"></div>
   <div id="totals21Container"></div>
   <div class="entry-site-bar hidden" id="entrySiteBar">
@@ -535,11 +547,11 @@ h3{font-size:14px;margin:0 0 8px}
 
 <input type="file" id="receiptFileInput" accept="image/*" capture="environment" multiple style="display:none">
 
-<script src="logic.js?v=2026-11-19.1"></script>
+<script src="logic.js?v=2026-11-27.1"></script>
 <script>
 // If the browser served an older cached logic.js, reload it once (bypassing the cache);
 // if it is still out of date, say so instead of rendering blank pages.
-const REQUIRED_LOGIC_VERSION = '2026-11-19.1';
+const REQUIRED_LOGIC_VERSION = '2026-11-27.1';
 (function () {
   if (window.LOGIC_VERSION === REQUIRED_LOGIC_VERSION) return;
   let tried = false;
@@ -629,7 +641,9 @@ async function addPendingPhoto(locId, file) {
     showMsg('submitMsg', 'Could not read that photo', 'error');
     return false;
   }
-  pendingPhotos[locId].push({ name: file.name || 'receipt.jpg', dataUrl });
+  const photo = { name: file.name || 'receipt.jpg', dataUrl, status: 'queued', ref: null };
+  pendingPhotos[locId].push(photo);
+  uploadPendingPhoto(locId, photo);   // in the background; falls back to submit/queue if it fails
   return true;
 }
 
@@ -658,8 +672,30 @@ function readImageDownscaled(file) {
 
 function removePendingPhoto(locId, index) {
   const list = pendingPhotos[locId] || [];
-  if (index >= 0 && index < list.length) list.splice(index, 1);
+  const gone = (index >= 0 && index < list.length) ? list.splice(index, 1)[0] : null;
   if (!list.length) delete pendingPhotos[locId];
+  if (gone && gone.ref) deleteUploadedPhoto(gone.ref);   // don't leave an orphan in Drive
+  renderReceipts(locId);
+  updateConfirmReceipts();
+}
+
+function deleteUploadedPhoto(ref) {
+  const url = getApiUrl();
+  if (!url || !ref || !ref.fileId) return;
+  apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'deletePhoto', fileId: ref.fileId }) }).catch(() => {});
+}
+
+/** Upload one receipt as soon as it is added, so Submit has nothing slow left to do. */
+async function uploadPendingPhoto(locId, photo) {
+  const loc = config.locations.find(l => String(l.id) === String(locId));
+  if (!loc || !getApiUrl() || photo.status === 'uploading' || photo.ref) return;
+  photo.status = 'uploading';
+  renderReceipts(locId);
+  const date = (document.getElementById('entryDate') || {}).value || todayStr();
+  const n = (pendingPhotos[locId] || []).indexOf(photo) + 1;
+  const ref = await uploadReceipt(loc, photo, date + '_receipt_' + Math.max(n, 1) + '.jpg');
+  photo.ref = ref || null;
+  photo.status = ref ? 'done' : 'failed';
   renderReceipts(locId);
   updateConfirmReceipts();
 }
@@ -668,14 +704,20 @@ function renderReceipts(locId) {
   const thumbs = document.getElementById('receiptThumbs_' + locId);
   const count = document.getElementById('receiptCount_' + locId);
   const list = pendingPhotos[locId] || [];
+  const state = (p) => p.status === 'done' ? '<span class="receipt-state">✓ sent</span>'
+    : p.status === 'uploading' ? '<span class="receipt-state">⏳</span>'
+    : p.status === 'failed' ? '<span class="receipt-state bad" title="Will be sent with the collection">⚠ later</span>' : '';
   if (thumbs) {
     thumbs.innerHTML = list.map((p, i) =>
       `<div class="receipt-thumb">
-        <img src="${p.dataUrl}" alt="receipt ${i + 1}">
+        <img src="${p.dataUrl}" alt="receipt ${i + 1}">${state(p)}
         <button type="button" class="receipt-remove" onclick="removePendingPhoto('${jsAttr(locId)}', ${i})" aria-label="Remove receipt">×</button>
       </div>`).join('');
   }
-  if (count) count.textContent = list.length ? (list.length + ' identified') : '';
+  if (count) {
+    const done = list.filter(p => p.status === 'done').length;
+    count.textContent = list.length ? (list.length + ' added' + (done ? ' · ' + done + ' uploaded' : '')) : '';
+  }
 }
 
 // ===== CONFIG =====
@@ -944,10 +986,10 @@ function renderConnStatus() {
   const t = connState.when ? connState.when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
   if (connState.ok === true) {
     el.className = 'conn-status ok';
-    el.textContent = '✔ Connected · ' + connState.count + ' entries · loaded ' + t;
+    el.textContent = '✔ Connected · ' + connState.count + ' entries · loaded ' + t + (loadQueue().length ? ' · ' + loadQueue().length + ' waiting to send' : '');
   } else if (connState.ok === false) {
     el.className = 'conn-status bad';
-    el.textContent = '⚠ Not connected (' + t + ') — ' + connState.error;
+    el.textContent = '⚠ Not connected (' + t + ') — ' + connState.error + (loadQueue().length ? ' · ' + loadQueue().length + ' waiting to send' : '');
   } else {
     el.className = 'conn-status unk';
     el.textContent = 'Connection not checked yet';
@@ -957,6 +999,11 @@ function renderConnStatus() {
 /** Loads entries/config from the sheet and records the connection status. */
 async function loadEntries() {
   const r = await loadEntriesInner();
+  if (r && r.ok) {
+    mergeQueuedIntoCache();
+    saveEntriesCache();
+    cacheTime = 0;
+  }
   connState = r && r.ok
     ? { ok: true, when: new Date(), count: (r.entries || []).length, error: '' }
     : { ok: false, when: new Date(), count: getEntries().length, error: (r && r.error) || 'Could not load data' };
@@ -969,9 +1016,9 @@ async function loadEntriesInner() {
   if (!url) {
     dataLoadOk = false;
     entriesLoaded = true;
-    return { ok: false, error: 'No API URL saved. Paste your Apps Script web app URL below and save it.' };
+    return { ok: false, noUrl: true, error: 'No API URL saved. Paste your Apps Script web app URL below and save it.' };
   }
-  showLoading('Loading data…');
+  if (!cachedEntries.length) showLoading('Loading data…');   // with saved data on screen, refresh quietly instead
   try {
     const r = await apiFetch(url, undefined, 20000);
     if (!r.ok) {
@@ -983,6 +1030,7 @@ async function loadEntriesInner() {
     if (data && data.error === 'Unauthorized') {
       dataLoadOk = false;
       entriesLoaded = true;
+      if (data.needLogin) { requireLogin(); return { ok: false, needLogin: true, error: 'Sign in needed' }; }
       return { ok: false, error: 'The API rejected the access token. Check the API token in Settings matches the API_TOKEN script property.' };
     }
     if (Array.isArray(data)) {
@@ -1024,14 +1072,28 @@ async function loadEntriesInner() {
 }
 
 async function bootApp() {
+  // Show the data saved on this phone straight away; the fresh copy loads behind it
+  if (!cachedEntries.length && restoreEntriesCache()) {
+    updateHistoryCount();
+    renderForm();
+    render21DayTotals();
+    renderNotices();
+  }
   const result = await loadEntries();
   if (!result || !result.ok) {
-    failToSettings((result && result.error) || 'Could not connect to the API.');
-    return false;
+    if (result && result.needLogin) return false;                       // sign-in screen is showing
+    if (!(result && result.noUrl) && restoreEntriesCache()) {           // no signal: carry on with the data saved on this phone
+      showMsg('submitMsg', 'Offline — showing data saved on this phone', 'error');
+    } else {
+      failToSettings((result && result.error) || 'Could not connect to the API.');
+      return false;
+    }
   }
   updateHistoryCount();
   renderForm();
   render21DayTotals();
+  renderNotices();
+  flushQueue();
   return true;
 }
 
@@ -1094,30 +1156,168 @@ async function saveConfigToSheet(opts) {
   }
 }
 
-async function saveEntry(entry) {
-  const url = getApiUrl();
-  if (!url) { showMsg('submitMsg', 'No API URL — set in Settings', 'error'); return false; }
-  showLoading('Saving…');
-  try {
-    const r = await apiFetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(entry)
-    });
-    const result = await r.json();
-    if (result.success) {
-      if (result.id) entry.id = result.id;
-      if (result.timestamp) entry.timestamp = result.timestamp;
-      cachedEntries.push(entry);
-      return true;
-    }
-    return false;
-  } catch (e) {
-    console.error(e);
-    return false;
-  } finally {
-    hideLoading();
+// ===== SENDING (offline-safe) =====
+function requireLogin() { /* replaced by the sign-in screen logic */ }
+const QUEUE_KEY = '3bb_queue';
+function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') || []; } catch (e) { return []; } }
+function saveQueue(q) {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); return 'ok'; }
+  catch (e) {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q.map(i => Object.assign({}, i, { photos: [] })))); return 'nophotos'; }
+    catch (e2) { return 'failed'; }
   }
+}
+function stripFlags(entry) { const c = Object.assign({}, entry); delete c._queued; return c; }
+
+/** POST one entry (or an edit). Returns { ok, retry, error }. retry=true means "try again later" (no signal, busy, sign-in needed). */
+async function postEntry(entry, editing) {
+  const url = getApiUrl();
+  if (!url) return { ok: false, retry: false, error: 'No API URL — set it in Settings' };
+  try {
+    const body = editing ? { action: 'updateEntry', entry: stripFlags(entry) } : stripFlags(entry);
+    const r = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) }, 30000);
+    const j = await r.json();
+    if (j && j.success) return { ok: true, result: j };
+    if (j && j.needLogin) { requireLogin(); return { ok: false, retry: true, error: 'Sign in needed' }; }
+    const err = (j && j.error) || 'The server did not accept it';
+    return { ok: false, retry: /busy/i.test(err), error: err };
+  } catch (e) {
+    return { ok: false, retry: true, error: 'No connection' };
+  }
+}
+
+// --- entries kept on the phone so History/Summary and float work with no signal
+const CACHE_KEY = '3bb_cache';
+function saveEntriesCache() {
+  try {
+    const json = JSON.stringify({ t: Date.now(), entries: cachedEntries.filter(e => !e._queued) });
+    if (json.length < 3.5e6) localStorage.setItem(CACHE_KEY, json); else localStorage.removeItem(CACHE_KEY);
+  } catch (e) {}
+}
+function restoreEntriesCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (!c || !Array.isArray(c.entries) || !c.entries.length) return false;
+    cachedEntries = c.entries;
+    migrateEntries();
+    mergeQueuedIntoCache();
+    entriesLoaded = true;
+    cacheTime = c.t;
+    return true;
+  } catch (e) { return false; }
+}
+let cacheTime = 0;
+function hasLocalData() { return cachedEntries.length > 0 || !!localStorage.getItem(CACHE_KEY); }
+
+function mergeQueuedIntoCache() {
+  loadQueue().forEach(q => {
+    if (!cachedEntries.some(e => e.id === q.id)) cachedEntries.push(Object.assign({}, q.entry, { _queued: true }));
+  });
+}
+
+// --- "float may need rechecking" prompt
+const FLOAT_REVIEW_KEY = '3bb_float_review';
+function getFloatReview() { try { return localStorage.getItem(FLOAT_REVIEW_KEY) || ''; } catch (e) { return ''; } }
+function markFloatReview(date) {
+  if (!date) return;
+  try { const cur = getFloatReview(); if (!cur || date < cur) localStorage.setItem(FLOAT_REVIEW_KEY, date); } catch (e) {}
+  renderNotices();
+}
+function clearFloatReview() { try { localStorage.removeItem(FLOAT_REVIEW_KEY); } catch (e) {} renderNotices(); }
+function openFloatReview() {
+  const d = getFloatReview();
+  showPage('settings');
+  setSection('data');
+  const el = document.getElementById('fr_date');
+  if (el && d) { el.value = d; previewFloatRecalc(); }
+}
+
+// --- banners at the top of Daily Entry: waiting to send, float review
+function renderNotices() {
+  const el = document.getElementById('noticeBanners');
+  if (!el) return;
+  const q = loadQueue();
+  let html = '';
+  if (q.length) {
+    const stuck = q.filter(i => i.lastError);
+    html += `<div class="notice wait" role="status"><div>⏳ <strong>${q.length} collection${q.length === 1 ? '' : 's'} saved on this phone, waiting to send.</strong>
+      <div style="font-size:12px;margin-top:2px">${stuck.length ? 'The server said: ' + esc(stuck[0].lastError) : 'It sends automatically when the signal returns.'}</div></div>
+      <div class="nb"><button type="button" class="btn btn-primary btn-sm" onclick="flushQueue(true)">Send now</button>${stuck.length ? '<button type="button" class="btn btn-outline btn-sm" onclick="discardQueued()">Discard stuck</button>' : ''}</div></div>`;
+  }
+  const fr = getFloatReview();
+  if (fr) {
+    html += `<div class="notice review"><div>🔎 <strong>Float figures may need rechecking from ${esc(histDateLabel(fr))}.</strong>
+      <div style="font-size:12px;margin-top:2px">A collection was added, edited or removed before later ones.</div></div>
+      <div class="nb"><button type="button" class="btn btn-primary btn-sm" onclick="openFloatReview()">Review</button><button type="button" class="btn btn-outline btn-sm" onclick="clearFloatReview()">Dismiss</button></div></div>`;
+  }
+  el.innerHTML = html;
+  renderConnStatus();
+}
+
+let flushing = false;
+let flushAgain = false;
+/** Send everything waiting. Stops quietly if there is still no signal. */
+async function flushQueue(manual) {
+  if (flushing) { flushAgain = true; return; }   // a tap during a retry runs once more when it finishes
+  let q = loadQueue();
+  if (!q.length) { renderNotices(); return; }
+  if (!getApiUrl()) return;
+  flushing = true;
+  let sent = 0;
+  try {
+    for (const item of q.slice()) {
+      const e = item.entry;
+      // receipts that could not upload earlier
+      for (const p of (item.photos || [])) {
+        if (p.ref) continue;
+        const loc = (e.locations || []).find(l => String(l.id) === String(p.locId)) || (e.locations || [])[0];
+        const ref = await uploadReceipt(loc || {}, { dataUrl: p.dataUrl, name: p.name }, e.date + '_receipt_' + ((item.photos.indexOf(p)) + 1) + '.jpg');
+        if (!ref) { flushing = false; renderNotices(); return; }       // still offline: try again later
+        p.ref = ref;
+        if (loc) loc.photos = (loc.photos || []).concat([ref]);
+        saveQueue(q);
+      }
+      const res = await postEntry(e, false);
+      if (res.ok) {
+        q = loadQueue().filter(x => x.id !== item.id);
+        saveQueue(q);
+        const idx = cachedEntries.findIndex(x => x.id === item.id);
+        if (idx >= 0) cachedEntries[idx] = stripFlags(cachedEntries[idx]);
+        if (res.result && !res.result.duplicate) markFloatReview(e.date);   // arrived late: later collections may carry the wrong float
+        sent++;
+      } else if (res.retry) {
+        break;                                                          // no signal / busy / sign-in: leave the rest queued
+      } else {
+        const cur = loadQueue();
+        const it2 = cur.find(x => x.id === item.id);
+        if (it2) { it2.lastError = res.error; it2.tries = (it2.tries || 0) + 1; saveQueue(cur); }
+      }
+    }
+  } finally {
+    flushing = false;
+  }
+  renderNotices();
+  if (flushAgain) { flushAgain = false; return flushQueue(manual); }
+  if (sent) {
+    await loadEntries();                                               // refresh from the sheet (queued ones still show)
+    renderForm();
+    render21DayTotals();
+    updateHistoryCount();
+    showMsg('submitMsg', sent + ' waiting collection' + (sent === 1 ? '' : 's') + ' sent', 'success');
+  } else if (manual) {
+    showAppAlert('Still waiting', 'No signal yet (or the server is busy). It will keep trying automatically.');
+  }
+}
+
+function discardQueued() {
+  confirmPermanent('Discard stuck collections?', 'These collections were refused by the server and cannot be sent. They will be removed from this phone. Enter them again if they are still needed.', 'Discard').then(ok => {
+    if (!ok) return;
+    const q = loadQueue();
+    const keep = q.filter(i => !i.lastError);
+    q.filter(i => i.lastError).forEach(i => { cachedEntries = cachedEntries.filter(e => e.id !== i.id); });
+    saveQueue(keep);
+    renderNotices(); renderForm(); render21DayTotals();
+  });
 }
 
 function entryKey(e) {
@@ -1125,6 +1325,12 @@ function entryKey(e) {
 }
 
 async function deleteEntryFromSheet(entry) {
+  if (entry._queued || loadQueue().some(q => q.id === entry.id)) {      // never reached the sheet: just forget it
+    saveQueue(loadQueue().filter(q => q.id !== entry.id));
+    cachedEntries = cachedEntries.filter(e => e.id !== entry.id);
+    renderNotices();
+    return true;
+  }
   const url = getApiUrl();
   if (!url) return false;
   await deleteReceiptsOnDrive(entry);
@@ -1143,6 +1349,8 @@ async function deleteEntryFromSheet(entry) {
     if (result.success) {
       const key = entryKey(entry);
       cachedEntries = cachedEntries.filter(e => entryKey(e) !== key);
+      const sk = (entry.locations || [])[0] ? histSiteInfo(entry.locations[0]).key : '';
+      if (sk) { const rv = floatReviewFrom(cachedEntries, sk, entry.date, histSiteInfo); if (rv) markFloatReview(rv); }
       return true;
     }
     return false;
@@ -1198,12 +1406,21 @@ function getActiveEntryLocations(dateStr) {
 }
 
 function backToSitePicker() {
+  editingEntry = null;
   activeEntrySiteId = null;
   renderForm();
 }
 
-let lastSaved = null; // { entry } shown in the "Saved" banner until dismissed
+let lastSaved = null; // { entry, queued, edited } shown in the "Saved" banner until dismissed
+let editingEntry = null; // a saved collection being edited in the Entry form
 let formRows = [];    // flat rows used for "usual amount" hints while a form is open
+
+function nextSiteFor(entry) {
+  const active = config.locations.filter(l => !l.archived).map(l => String(l.id));
+  const cur = String((entry.locations[0] || {}).id);
+  const done = getEntries().filter(e => e.date === entry.date).flatMap(e => (e.locations || []).map(l => String(l.id)));
+  return nextSiteAfter(active, done.concat([cur]), cur);
+}
 
 function renderSavedBanner() {
   const el = document.getElementById('savedBanner');
@@ -1211,9 +1428,13 @@ function renderSavedBanner() {
   if (!lastSaved) { el.innerHTML = ''; return; }
   const e = lastSaved.entry;
   const sites = [...new Set((e.locations || []).map(l => l.name))].join(', ');
-  el.innerHTML = `<div class="saved-banner" role="status">
-    <div><strong>✔ Saved</strong> ${esc(sites)} · ${esc(histDateLabel(e.date))}<br><span style="font-size:13px">Net ${gbp(e.grandTotal || 0)} · Site share ${gbp(e.grandCL || 0)}</span></div>
-    <div class="sb-actions"><button type="button" class="btn btn-outline btn-sm" onclick="undoLastSaved()">Undo</button><button type="button" class="btn btn-sm" aria-label="Dismiss" onclick="dismissSaved()">✕</button></div>
+  const nextId = lastSaved.edited ? '' : nextSiteFor(e);
+  const next = nextId ? config.locations.find(l => String(l.id) === nextId) : null;
+  const head = lastSaved.queued ? '⏳ Saved on this phone — will send when there is signal' : lastSaved.edited ? '✔ Changes saved' : '✔ Saved';
+  el.innerHTML = `<div class="saved-banner" role="status" style="${lastSaved.queued ? 'background:#fff3e0;border-color:#f7b731;color:#6b4a00' : ''}">
+    <div><strong>${head}</strong><br>${esc(sites)} · ${esc(histDateLabel(e.date))}<br><span style="font-size:13px">Net ${gbp(e.grandTotal || 0)} · Site share ${gbp(e.grandCL || 0)}</span>
+      ${next ? `<div style="margin-top:8px"><button type="button" class="btn btn-primary" style="min-height:44px" onclick="selectEntrySite('${jsAttr(next.id)}')">Next: ${esc(next.name)} →</button></div>` : ''}</div>
+    <div class="sb-actions">${lastSaved.edited ? '' : '<button type="button" class="btn btn-outline btn-sm" onclick="undoLastSaved()">Undo</button>'}<button type="button" class="btn btn-sm" aria-label="Dismiss" onclick="dismissSaved()">✕</button></div>
   </div>`;
 }
 function dismissSaved() { lastSaved = null; renderSavedBanner(); }
@@ -1356,7 +1577,9 @@ function renderForm() {
   const banner = document.getElementById('savedBanner');
   if (dateEl && !dateEl.value) dateEl.value = todayStr();
 
+  renderNotices();
   const pickerMode = () => {
+    editingEntry = null;
     if (picker) picker.classList.remove('hidden');
     [formPanel, siteBar, dateBar].forEach(x => x && x.classList.add('hidden'));
     if (dash) dash.classList.remove('hidden');
@@ -1384,10 +1607,11 @@ function renderForm() {
 
   const loc = locs[0];
   const titleEl = document.getElementById('entrySiteTitle');
-  if (titleEl) titleEl.textContent = formatSiteName(loc);
+  if (titleEl) titleEl.textContent = (editingEntry ? 'Editing · ' : '') + formatSiteName(loc);
   formRows = buildRows(getEntries(), histSiteInfo, entryKey);
 
-  let html = '<div class="mcards">';
+  let html = editingEntry ? `<div class="notice wait"><div><strong>Editing the collection from ${esc(histDateLabel(editingEntry.date))}.</strong><div style="font-size:12px;margin-top:2px">Figures are recalculated with the rates for that date. Receipts already attached stay.</div></div><div class="nb"><button type="button" class="btn btn-outline btn-sm" onclick="cancelEdit()">Cancel</button></div></div>` : '';
+  html += '<div class="mcards">';
   for (const cat of loc.categories) {
     const fid = fieldId(loc, cat);
     const pct = Math.round((parseFloat(cat.rate) || 0) * 100);
@@ -1436,12 +1660,31 @@ function renderForm() {
   </div>`;
 
   if (container) container.innerHTML = html;
-  const restored = restoreDraft();
+  const restored = editingEntry ? fillFormFromEntry(editingEntry, loc) : restoreDraft();
   syncDateChips();
   updateFormCalcs();
   renderReceipts(loc.id);
-  if (restored) showMsg('submitMsg', 'Restored your unsent figures', 'success');
+  if (restored && !editingEntry) showMsg('submitMsg', 'Restored your unsent figures', 'success');
 }
+
+/** Put a saved collection's figures into the form (edit mode). Returns how many fields were filled. */
+function fillFormFromEntry(entry, loc) {
+  const eloc = (entry.locations || [])[0] || {};
+  let n = 0;
+  for (const cat of loc.categories) {
+    const ec = (eloc.categories || []).find(c => (c.id && c.id === cat.id) || c.name === cat.name);
+    if (!ec) continue;
+    const g = document.getElementById('gross_' + fieldId(loc, cat));
+    if (g && (ec.gross || ec.cash)) { g.value = ec.gross != null ? ec.gross : ec.cash; n++; }
+    const f = document.getElementById('floatreq_' + fieldId(loc, cat));
+    if (f && ec.floatRequired) { f.value = ec.floatRequired; n++; }
+  }
+  const p = document.getElementById('pool_' + loc.id);
+  if (p && p.tagName === 'INPUT' && eloc.poolGross) { p.value = eloc.poolGross; n++; }
+  return n;
+}
+
+function cancelEdit() { editingEntry = null; activeEntrySiteId = null; renderForm(); }
 
 function fieldId(loc, cat) {
   return (loc.id + '_' + cat.id).replace(/[^a-zA-Z0-9_]/g, '_');
@@ -1474,7 +1717,7 @@ function updateFormCalcs() {
       const fid = fieldId(loc, cat);
       const gross = parseFloat(document.getElementById('gross_' + fid)?.value) || 0;
       const floatReq = parseFloat(document.getElementById('floatreq_' + fid)?.value) || 0;
-      const owed = getFloatOwedIn(loc.id, cat.id, date, null);
+      const owed = getFloatOwedIn(loc.id, cat.id, date, editingEntry ? editingEntry.timestamp : null);
       const r = calcCategory(gross, cat.rate, true, floatReq, owed, cat.flatFee, mgdRate);
       if (gross > 0 || floatReq > 0) anyAmount = true;
 
@@ -1545,7 +1788,7 @@ function buildEntryFromForm() {
       const fid = fieldId(loc, cat);
       const gross = parseFloat(document.getElementById('gross_' + fid)?.value) || 0;
       const floatReq = parseFloat(document.getElementById('floatreq_' + fid)?.value) || 0;
-      const owed = getFloatOwedIn(loc.id, cat.id, date, null);
+      const owed = getFloatOwedIn(loc.id, cat.id, date, editingEntry ? editingEntry.timestamp : null);
       const r = calcCategory(gross, cat.rate, true, floatReq, owed, cat.flatFee, mgdRate);
       locData.categories.push({
         id: cat.id, name: cat.name, rate: cat.rate,
@@ -1606,7 +1849,8 @@ function updateConfirmReceipts() {
   el.innerHTML = html;
 }
 
-function showSubmitConfirm(entry) {
+function showSubmitConfirm(entry, opts) {
+  opts = opts || {};
   return new Promise((resolve) => {
     const ov = document.getElementById('confirmOverlay');
     const meta = document.getElementById('confirmMeta');
@@ -1618,11 +1862,14 @@ function showSubmitConfirm(entry) {
 
     const bKey = businessMonthKey(entry.date);
     confirmEntry = entry;
+    const h3 = ov.querySelector('h3');
+    if (h3) h3.textContent = opts.editing ? 'Check & save changes' : 'Check & save';
+    okBtn.textContent = opts.editing ? 'Save changes' : (opts.offline ? 'Save on this phone' : 'Save collection');
     updateConfirmReceipts();
 
     const siteNames = [...new Set((entry.locations || []).map(l => l.name))].join(', ');
     if (meta) meta.innerHTML = '<strong>' + esc(siteNames) + '</strong> · ' + esc(histDateLabel(entry.date));
-    if (monthEl) monthEl.innerHTML = 'Counts toward <strong>' + esc(monthLong(bKey)) + '</strong> (' + esc(monthRangeLabel(bKey)) + ').';
+    if (monthEl) monthEl.innerHTML = 'Counts toward <strong>' + esc(monthLong(bKey)) + '</strong> (' + esc(monthRangeLabel(bKey)) + ').' + (opts.offline ? '<br><strong>No signal.</strong> It will be kept on this phone and sent automatically. Float is worked out from the data saved here; you may be asked to recheck it afterwards.' : '');
 
     let rows = '', warns = '';
     for (const loc of entry.locations || []) {
@@ -1668,16 +1915,27 @@ async function submitEntry() {
   if (!date) { showMsg('submitMsg', 'Select a date', 'error'); return; }
   if (!activeEntrySiteId) { showMsg('submitMsg', 'Choose a site first', 'error'); return; }
   if (!config.locations.length) { showMsg('submitMsg', 'No sites configured', 'error'); return; }
+  const editing = !!editingEntry;
 
-  // Refresh first so float carry-forward uses the latest sheet data (not a stale tab).
+  // Refresh first so float carry-forward uses the latest sheet data. With no signal we carry on using the
+  // data saved on this phone and send afterwards (not possible for edits).
+  let offline = false;
   const fresh = await loadEntries();
-  if (!fresh.ok || !dataLoadOk) {
-    showMsg('submitMsg', 'Could not load latest data — not submitted. ' + (fresh.error || ''), 'error');
-    return;
+  if (!fresh.ok) {
+    if (fresh.needLogin) return;
+    if (editing) { showMsg('submitMsg', 'Editing needs a connection — try again with signal', 'error'); return; }
+    if (!hasLocalData()) { showMsg('submitMsg', 'Could not load your data yet — not submitted. ' + (fresh.error || ''), 'error'); return; }
+    offline = true;
   }
 
   const entry = buildEntryFromForm();
   if (!entry) { showMsg('submitMsg', 'Could not build entry', 'error'); return; }
+  if (editing) {
+    entry.id = editingEntry.id;
+    entry.timestamp = editingEntry.timestamp;
+    const oldLoc = (editingEntry.locations || [])[0] || {};
+    (entry.locations || []).forEach(l => { if ((oldLoc.photos || []).length) l.photos = oldLoc.photos.slice(); });
+  }
 
   const hasAny = (entry.grandTotal || 0) > 0 || (entry.grandFloat || 0) > 0 ||
     entry.locations.some(l => (l.categories || []).some(c => (c.gross || 0) > 0 || (c.floatRequired || 0) > 0) || (l.poolGross || 0) > 0);
@@ -1686,45 +1944,73 @@ async function submitEntry() {
     return;
   }
 
-  const confirmed = await showSubmitConfirm(entry);
+  const confirmed = await showSubmitConfirm(entry, { offline, editing });
   if (!confirmed) {
     showMsg('submitMsg', 'Cancelled', 'error');
     return;
   }
 
-  // Show the blocking saving indicator immediately so the user knows the
-  // submission is in progress and can't tap anything else while it saves.
-  showLoading('Saving…');
-  const failed = [];
+  showLoading(offline ? 'Saving on this phone…' : 'Saving…');
+  // Receipts: reuse the ones already uploaded; upload the rest now; anything that still fails travels with the queue
+  const leftover = [];
   for (const loc of entry.locations || []) {
     const list = pendingPhotos[String(loc.id)] || [];
-    if (!list.length) continue;
-    const refs = [];
+    const refs = (loc.photos || []).slice();
     for (let i = 0; i < list.length; i++) {
-      const ref = await uploadReceipt(loc, list[i], date + '_receipt_' + (i + 1) + '.jpg');
-      if (ref) refs.push(ref);
-      else failed.push(loc.name || 'Site');
+      const p = list[i];
+      if (p.ref) { refs.push(p.ref); continue; }
+      const ref = offline ? null : await uploadReceipt(loc, p, date + '_receipt_' + (i + 1) + '.jpg');
+      if (ref) { p.ref = ref; refs.push(ref); }
+      else leftover.push({ locId: loc.id, name: p.name, dataUrl: p.dataUrl, ref: null });
     }
     if (refs.length) loc.photos = refs;
   }
 
-  const ok = await saveEntry(entry);
-  if (ok) {
-    for (const loc of entry.locations || []) {
-      delete pendingPhotos[String(loc.id)];
+  const res = offline ? { ok: false, retry: true, error: 'No connection' } : await postEntry(entry, editing);
+  hideLoading();
+
+  if (res.ok) {
+    if (!editing && res.result) {
+      if (res.result.id) entry.id = res.result.id;
+      if (res.result.timestamp) entry.timestamp = res.result.timestamp;
     }
-    clearDraft();
-    // Back to the site list (date kept for the next site), with a Saved banner + Undo
-    activeEntrySiteId = null;
-    lastSaved = { entry };
-    renderForm();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (failed.length) showAppAlert('Saved — but a receipt did not upload', failed.length + ' receipt photo' + (failed.length === 1 ? '' : 's') + ' could not be uploaded. The collection itself was saved; you can add the receipt again from History.');
+    const idx = cachedEntries.findIndex(e => e.id === entry.id);
+    if (idx >= 0) cachedEntries[idx] = entry; else cachedEntries.push(entry);
+    const siteKey = histSiteInfo(entry.locations[0]).key;
+    const review = floatReviewFrom(cachedEntries.filter(e => e.id !== entry.id), siteKey, entry.date, histSiteInfo);
+    if (review) markFloatReview(review);
+    afterSubmit(entry, { editing, queued: false, leftoverPhotos: leftover.length });
+  } else if (res.retry && !editing) {
+    // No signal / busy: keep it safely on this phone and send automatically
+    const q = loadQueue();
+    q.push({ id: entry.id, entry: stripFlags(entry), photos: leftover, addedAt: Date.now() });
+    const st = saveQueue(q);
+    if (st === 'failed') { showAppAlert('Could not keep it on this phone', 'Your phone has no room to store this collection. Keep this page open and try Review again when you have signal.'); return; }
+    cachedEntries.push(Object.assign({}, stripFlags(entry), { _queued: true }));
+    const siteKey = histSiteInfo(entry.locations[0]).key;
+    const review = floatReviewFrom(cachedEntries.filter(e => e.id !== entry.id), siteKey, entry.date, histSiteInfo);
+    if (review) markFloatReview(review);
+    afterSubmit(entry, { editing: false, queued: true, leftoverPhotos: leftover.length, noPhotos: st === 'nophotos' });
+    flushQueue();                       // try straight away; harmless if still offline
   } else {
-    showAppAlert('Not saved', 'The collection could not be saved. Your figures are kept on this phone — check your connection and press Review & submit again.');
-    showMsg('submitMsg', 'Save failed — nothing was lost, try again', 'error');
+    showAppAlert(editing ? 'Changes not saved' : 'Not saved', 'The server said: ' + (res.error || 'something went wrong') + '. Your figures are still on screen.');
+    showMsg('submitMsg', 'Not saved — ' + (res.error || 'try again'), 'error');
   }
   updateHistoryCount();
+}
+
+/** Common tail after a successful save or a queued save. */
+function afterSubmit(entry, o) {
+  for (const loc of entry.locations || []) delete pendingPhotos[String(loc.id)];
+  clearDraft();
+  activeEntrySiteId = null;
+  editingEntry = null;
+  lastSaved = { entry, queued: !!o.queued, edited: !!o.editing };
+  renderForm();
+  renderNotices();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (o.noPhotos) showAppAlert('Saved — receipts not kept', 'The collection is saved on this phone, but there was no room to keep the receipt photos. Add them again once it has sent.');
+  else if (o.leftoverPhotos && !o.queued) showAppAlert('Saved — but a receipt did not upload', o.leftoverPhotos + ' receipt photo' + (o.leftoverPhotos === 1 ? '' : 's') + ' could not be uploaded. The collection itself was saved.');
 }
 
 async function uploadReceipt(loc, photo, filename) {
@@ -1770,8 +2056,13 @@ async function deleteReceiptsOnDrive(entry) {
 }
 
 function resetForm() {
-  // Clear typed values for this site/date (including the saved draft)
+  // Clear typed values for this site/date (including the saved draft and any receipts already uploaded for it)
   clearDraft();
+  if (!editingEntry) {
+    const key = String(activeEntrySiteId);
+    (pendingPhotos[key] || []).forEach(p => { if (p.ref) deleteUploadedPhoto(p.ref); });
+    delete pendingPhotos[key];
+  }
   renderForm();
 }
 
@@ -2081,7 +2372,8 @@ function histRenderCards(c) {
       <summary>
         <div><div class="hc-date">${esc(histDateLabel(card.date))}</div>${showSite ? `<div class="hc-site">${esc(card.siteName)}</div>` : ''}</div>
         <div><div class="hc-net">${gbp(t.net)}</div><div class="hc-share">Site ${gbp(t.cl)}</div></div>
-        ${(photos.length || low.length || t.floatTaken > 0) ? `<div class="hc-badges">
+        ${(photos.length || low.length || t.floatTaken > 0 || card.entry._queued) ? `<div class="hc-badges">
+          ${card.entry._queued ? '<span class="badge low" style="background:#fff3e0;color:#8a5200">⏳ Waiting to send</span>' : ''}
           ${low.length ? '<span class="badge low">Below usual</span>' : ''}
           ${t.floatTaken > 0 ? `<span class="badge">Float ${gbp(t.floatTaken)}</span>` : ''}
           ${photos.length ? `<span class="badge">Receipts ${photos.length}</span>` : ''}
@@ -2097,7 +2389,7 @@ function histRenderCards(c) {
         ${low.map(r => `<div class="hc-low">${esc(r.cat)}: ${gbp(r.gross)} gross vs usual about ${gbp(r.low)}</div>`).join('')}
         ${photos.length ? `<div class="hc-meta">Receipts: ${photos.map((p, i) => `<a href="https://drive.google.com/file/d/${esc(p.fileId || '')}/view" target="_blank" rel="noopener">${i + 1}</a>`).join(', ')}</div>` : ''}
         <div class="hc-meta">Submitted ${esc(ts)}</div>
-        <button type="button" class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${jsAttr(card.entryKey)}')">Delete entry</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-sm" onclick="editEntryByKey('${jsAttr(card.entryKey)}')">Edit</button><button type="button" class="btn btn-danger btn-sm" onclick="deleteEntryByKey('${jsAttr(card.entryKey)}')">Delete entry</button></div>
       </div>
     </details>`;
   });
@@ -2153,6 +2445,25 @@ function renderHistoryPage() {
 function updateHistoryCount() {
   const el = document.getElementById('historyCount');
   if (el) el.textContent = getEntries().length + ' entries';
+}
+
+/** Open a saved collection in the Daily Entry form to correct it. */
+function editEntryByKey(key) {
+  const e = getEntries().find(x => entryKey(x) === key);
+  if (!e) return;
+  if (e._queued) { showAppAlert('Still waiting to send', 'This collection has not reached the sheet yet. Edit it once it has sent, or delete it and enter it again.'); return; }
+  const locs = (e.locations || []).filter(Boolean);
+  if (locs.length !== 1) { showAppAlert('Cannot edit here', 'This older collection covers several sites at once. Delete it and enter each site again.'); return; }
+  const cfg = config.locations.find(l => String(l.id) === String(locs[0].id)) ||
+    config.locations.find(l => l.name === locs[0].name || (l.nameHistory || []).includes(locs[0].name));
+  if (!cfg) { showAppAlert('Site not found', 'This site is no longer in Settings, so the collection cannot be edited.'); return; }
+  showPage('entry');
+  editingEntry = JSON.parse(JSON.stringify(e));
+  activeEntrySiteId = String(cfg.id);
+  lastSaved = null;
+  document.getElementById('entryDate').value = e.date;
+  renderForm();
+  window.scrollTo({ top: 0 });
 }
 
 async function deleteEntryByKey(key) {
@@ -3477,6 +3788,7 @@ function showPage(name) {
   if (name === 'settings') { renderSettings(); openSettingsSection(); }
   if (name === 'entry') {
     // Always land on site picker when opening Daily Entry
+    editingEntry = null;
     activeEntrySiteId = null;
     renderForm();
     render21DayTotals();
@@ -3509,6 +3821,10 @@ async function doLogin() {
 }
 
 // ===== INIT =====
+// Offline shell + installable app (only over http/https, never from a local file)
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
 loadConfigLocal();
 { const w = document.getElementById('loginWho'); if (w) w.value = getWho(); }
 
@@ -3528,6 +3844,11 @@ startApp();
 document.getElementById('entryDate').addEventListener('change', () => {
   renderForm();
 });
+
+// Send anything waiting when the signal returns, when the app is reopened, and every half minute while something waits
+window.addEventListener('online', () => flushQueue());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && loadQueue().length) flushQueue(); });
+setInterval(() => { if (loadQueue().length && sessionStorage.getItem('3bb_logged_in')) flushQueue(); }, 30000);
 
 document.querySelectorAll('#entryDateBar .chip').forEach(b => {
   b.addEventListener('click', () => setEntryDate(parseInt(b.getAttribute('data-offset'), 10)));

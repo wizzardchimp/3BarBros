@@ -240,4 +240,61 @@ t('days between, last collected per site, usual gross and typo check', () => {
   assert.strictEqual(L.grossLooksOff(0, 104), '');
   assert.strictEqual(L.grossLooksOff(50, null), '');
 });
+
+const rowsFor = es => L.buildRows(es, info, keyFn);
+
+t('statement text lists every collection and machine, then the totals that matter to the supplier', () => {
+  const e1 = mkEntry('2026-11-03', 100); e1.locations[0].categories.push({ name: 'GM', gross: 50, net: 50, mgd: 10, supplierShare: 20, cashLeft: 30, floatTaken: 0 });
+  const txt = L.statementText('Alberto', 'November 2026', '6 Nov – 5 Dec', rowsFor([e1, mkEntry('2026-11-17', 200)]));
+  assert.ok(/Alberto · November 2026 \(6 Nov – 5 Dec\)/.test(txt));
+  assert.ok(txt.indexOf('2026-11-03') < txt.indexOf('2026-11-17'));
+  assert.ok(/Reels: gross £100.00/.test(txt) && /GM: gross £50.00/.test(txt));
+  assert.ok(/Collections: 2/.test(txt) && /Net: £350.00/.test(txt) && /Supplier share: £/.test(txt));
+});
+
+t('search matches dates, site, machine and amounts (with or without £ and commas); all words must match', () => {
+  const card = { date: '2026-11-17', label: 'Tue 17 Nov', siteName: 'The Barley', rows: [{ cat: 'Reels', net: 1234.5, gross: 1234.5, cl: 740.7, ss: 493.8 }, { cat: 'Inspire', net: 70, gross: 70, cl: 42, ss: 28 }] };
+  ['', 'barley', 'INSPIRE', 'tue 17', '2026-11', '£1,234.50', '1234', '70', 'barley reels'].forEach(q => assert.ok(L.cardMatches(card, q), q));
+  ['alberto', 'barley gm', '999', 'dec'].forEach(q => assert.ok(!L.cardMatches(card, q), q));
+});
+
+t('sorting: newest/oldest by date, highest/lowest by net', () => {
+  const mk = (date, net, ts) => ({ date, ts, rows: [{ net }] });
+  const cs = [mk('2026-11-03', 50, 'a'), mk('2026-11-17', 10, 'b'), mk('2026-11-10', 90, 'c')];
+  assert.deepStrictEqual(L.sortCards(cs, 'new').map(c => c.date), ['2026-11-17', '2026-11-10', '2026-11-03']);
+  assert.deepStrictEqual(L.sortCards(cs, 'old').map(c => c.date), ['2026-11-03', '2026-11-10', '2026-11-17']);
+  assert.deepStrictEqual(L.sortCards(cs, 'high').map(c => c.rows[0].net), [90, 50, 10]);
+  assert.deepStrictEqual(L.sortCards(cs, 'low').map(c => c.rows[0].net), [10, 50, 90]);
+  assert.strictEqual(cs[0].date, '2026-11-03');                                    // input untouched
+});
+
+t('sparkline series: last n collections for one machine, with % vs earlier average', () => {
+  const es = [100, 100, 100, 100, 150].map((g, i) => mkEntry('2026-0' + (i + 1) + '-10', g));
+  const s = L.sparkSeries(rowsFor(es), 's1', 'Reels', 12);
+  assert.deepStrictEqual([s.vals.length, s.pct], [5, 50]);
+  assert.strictEqual(L.sparkSeries(rowsFor(es.slice(0, 3)), 's1', 'Reels').pct, null);          // too few points
+  assert.strictEqual(L.sparkSeries(rowsFor(es), 's1', 'Reels', 3).vals.length, 3);
+});
+
+t('next site after saving skips sites already collected that day and wraps round', () => {
+  assert.strictEqual(L.nextSiteAfter(['a', 'b', 'c'], ['a'], 'a'), 'b');
+  assert.strictEqual(L.nextSiteAfter(['a', 'b', 'c'], ['a', 'b'], 'b'), 'c');
+  assert.strictEqual(L.nextSiteAfter(['a', 'b', 'c'], ['a', 'c'], 'c'), 'b');                    // wraps
+  assert.strictEqual(L.nextSiteAfter(['a', 'b'], ['a', 'b'], 'b'), '');                            // all done
+  assert.strictEqual(L.nextSiteAfter(['a'], ['a'], 'a'), '');
+});
+
+t('overdue level follows each site\'s own limit', () => {
+  assert.strictEqual(L.overdueLevel(13, 14), ''); assert.strictEqual(L.overdueLevel(14, 14), 'late');
+  assert.strictEqual(L.overdueLevel(21, 14), 'vlate'); assert.strictEqual(L.overdueLevel(29, 30), '');
+  assert.strictEqual(L.overdueLevel(30, 30), 'late'); assert.strictEqual(L.overdueLevel(15, undefined), 'late');
+});
+
+t('float review is only needed when later collections exist for that site', () => {
+  const es = [mkEntry('2026-03-10', 1), mkEntry('2026-05-10', 1), mkEntry('2026-04-10', 1, 's2')];
+  assert.strictEqual(L.floatReviewFrom(es, 's1', '2026-03-10', info), '2026-03-10');             // May comes after
+  assert.strictEqual(L.floatReviewFrom(es, 's1', '2026-05-10', info), '');                         // newest: nothing after
+  assert.strictEqual(L.floatReviewFrom(es, 's2', '2026-03-01', info), '2026-03-01');
+  assert.strictEqual(L.floatReviewFrom([], 's1', '2026-03-10', info), '');
+});
 console.log(n + ' tests passed');
