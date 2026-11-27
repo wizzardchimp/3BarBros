@@ -167,6 +167,35 @@ h3{font-size:14px;margin:0 0 8px}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#555;margin-bottom:6px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 .tbl tr.total td{font-weight:700;background:#fff8e6}
+.hist-search{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.hist-search input{flex:1 1 200px;padding:10px 12px;border:1px solid #ccc;border-radius:10px;font-size:16px;min-height:44px}
+.hist-search select{padding:10px;border:1px solid #ccc;border-radius:10px;font-size:15px;min-height:44px;background:#fff}
+.sd-bandrow{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.sd-actions{display:flex;gap:6px}
+.sd-btn{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:14px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;min-height:30px}
+.spark{display:flex;flex-direction:column;align-items:flex-start;gap:0;margin-top:2px;font-weight:400}
+.spark svg{width:52px;height:16px}
+.spark small{font-size:10px;color:#666;line-height:1.1}
+#printArea{display:none}
+.stmt{font-family:Georgia,'Times New Roman',serif;color:#000;max-width:780px;margin:0 auto}
+.stmt-head{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:12px}
+.stmt h1{margin:0;font-size:24px}
+.stmt-meta{text-align:right;font-size:13px;line-height:1.5}
+.stmt table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+.stmt th,.stmt td{border-bottom:1px solid #bbb;padding:5px 6px;text-align:left}
+.stmt .num{text-align:right;font-variant-numeric:tabular-nums}
+.stmt tr.st-date td{background:#eee;font-size:12px}
+.stmt-sum{max-width:320px;margin-left:auto}
+.stmt-sum td{font-size:13px}
+.stmt-sum tr.st-big td{font-weight:700;font-size:15px;border-top:2px solid #000}
+.stmt-foot{font-size:10px;color:#555}
+@media print{
+  @page{margin:14mm}
+  body.printing>*:not(#printArea){display:none!important}
+  body.printing #printArea{display:block!important}
+  body.printing{background:#fff!important}
+  html.dark{filter:none!important}
+}
 .ss-row{background:#fff;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}
 .ss-head{display:block;width:100%;text-align:left;background:none;border:0;padding:14px;cursor:pointer;font:inherit;color:inherit;min-height:64px}
 .ss-head:focus-visible{outline:2px solid #f7b731;outline-offset:-2px}
@@ -367,14 +396,14 @@ h3{font-size:14px;margin:0 0 8px}
   <div class="login-box">
     <img class="login-logo" src="bump.png" alt="3BarBros">
     <h1>3BarBros</h1>
-    <p>Enter password to continue</p>
+    <p id="loginHint">Enter password to continue</p>
     <input type="password" id="loginPwd" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
     <input type="text" id="loginWho" placeholder="Your name (optional)" autocomplete="name" maxlength="40" style="margin-top:10px;font-size:16px" onkeydown="if(event.key==='Enter')doLogin()">
     <div id="loginError" class="login-error">Incorrect password</div>
     <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;font-size:16px" onclick="doLogin()">Log In</button>
   </div>
 </div>
-<script>if(sessionStorage.getItem('3bb_logged_in'))document.getElementById('loginOverlay').classList.add('hidden')</script>
+<script>try{if(sessionStorage.getItem('3bb_logged_in')||localStorage.getItem('3bb_auth'))document.getElementById('loginOverlay').classList.add('hidden')}catch(e){}</script>
 
 <div id="loadingOverlay" class="loading-overlay" aria-busy="false">
   <div class="loading-spinner"></div>
@@ -426,6 +455,7 @@ h3{font-size:14px;margin:0 0 8px}
   <div id="histKpis"></div>
   <div id="histChart"></div>
   <div id="histBreakdown"></div>
+  <div id="histSearchBar" class="hist-search"></div>
   <div id="historyTable"></div>
   <details class="hist-tools">
     <summary>Data tools <span id="historyCount" class="hist-count"></span></summary>
@@ -477,6 +507,7 @@ h3{font-size:14px;margin:0 0 8px}
   </section>
 
   <section id="sec-conn" class="set-sec hidden">
+    <div id="accountCard"></div>
     <div class="settings-card">
       <h2>Google Sheet API URL</h2>
       <p class="hint">Paste the web app URL from Apps Script → Deploy</p>
@@ -547,6 +578,7 @@ h3{font-size:14px;margin:0 0 8px}
 
 <input type="file" id="receiptFileInput" accept="image/*" capture="environment" multiple style="display:none">
 
+<div id="printArea" aria-hidden="true"></div>
 <script src="logic.js?v=2026-11-27.1"></script>
 <script>
 // If the browser served an older cached logic.js, reload it once (bypassing the cache);
@@ -877,6 +909,10 @@ function deviceLabel() {
   else if (/Safari/.test(ua)) br = 'Safari';
   return dev + ' · ' + br;
 }
+// ===== sign-in (per-person PIN, when the sheet owner has added people) =====
+function getAuth() { try { return JSON.parse(localStorage.getItem('3bb_auth') || 'null'); } catch (e) { return null; } }
+function getAuthToken() { const a = getAuth(); return a && a.token ? a.token : ''; }
+let authMode = null;   // 'pin' | 'legacy' | null (not asked yet)
 function getApiToken() { return localStorage.getItem('3bb_api_token') || ''; }
 function setApiToken(t) {
   if (t) localStorage.setItem('3bb_api_token', t);
@@ -885,14 +921,19 @@ function setApiToken(t) {
 /** Attach the optional shared secret to a request (GET query / POST JSON body). */
 function withToken(url, opts) {
   const token = getApiToken();
+  const auth = getAuthToken();
   if (!opts || !opts.body) {
-    if (!token) return { url, opts };
-    return { url: url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token), opts };
+    const q = [];
+    if (token) q.push('token=' + encodeURIComponent(token));
+    if (auth) q.push('auth=' + encodeURIComponent(auth));
+    if (!q.length) return { url, opts };
+    return { url: url + (url.indexOf('?') >= 0 ? '&' : '?') + q.join('&'), opts };
   }
   try {
     const b = JSON.parse(opts.body);
     if (token) b.token = token;
-    // Who/where: lets the owner's notification email say who did what (display only, not authentication)
+    if (auth) b.authToken = auth;
+    // Who/where: with PIN sign-in the server uses the verified name; otherwise this is display-only
     b.session = getSessionId();
     const who = getWho();
     if (who) b.who = who;
@@ -1157,7 +1198,53 @@ async function saveConfigToSheet(opts) {
 }
 
 // ===== SENDING (offline-safe) =====
-function requireLogin() { /* replaced by the sign-in screen logic */ }
+/** The server wants a (new) sign-in: forget the old token and show the login box in PIN mode. */
+function requireLogin() {
+  try { localStorage.removeItem('3bb_auth'); sessionStorage.removeItem('3bb_logged_in'); } catch (e) {}
+  authMode = 'pin';
+  showLogin('Your sign-in has expired or is needed. Enter your name and PIN.');
+}
+
+function showLogin(msg) {
+  const ov = document.getElementById('loginOverlay');
+  if (!ov) return;
+  ov.classList.remove('hidden');
+  const pin = authMode === 'pin';
+  const hint = document.getElementById('loginHint');
+  if (hint) hint.textContent = msg || (pin ? 'Enter your name and PIN' : 'Enter password to continue');
+  const pwd = document.getElementById('loginPwd');
+  if (pwd) { pwd.placeholder = pin ? 'PIN' : 'Password'; pwd.value = ''; }
+  const who = document.getElementById('loginWho');
+  if (who) who.placeholder = pin ? 'Your name' : 'Your name (optional)';
+  const err = document.getElementById('loginError');
+  if (err) err.style.display = 'none';
+}
+
+/** Ask the server whether PIN sign-in is on (null = could not tell). */
+async function fetchAuthInfo() {
+  const url = getApiUrl();
+  if (!url) return null;
+  const t = withToken(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=authinfo');
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+  try {
+    const r = await fetch(t.url, ctrl ? { signal: ctrl.signal } : undefined);
+    const d = await r.json();
+    if (d && d.error === 'Unauthorized' && !d.needLogin) return null;   // wrong API token: let Settings explain
+    return !!(d && d.auth);
+  } catch (e) { return null; }
+  finally { if (timer) clearTimeout(timer); }
+}
+
+async function pinLogin(name, pin) {
+  const url = getApiUrl();
+  try {
+    const r = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'login', name, pin, timestamp: new Date().toISOString() }) }, 20000);
+    const j = await r.json();
+    if (j && j.success && j.token) return { ok: true, token: j.token, name: j.name || name };
+    return { ok: false, error: (j && j.error) || 'Could not sign in' };
+  } catch (e) { return { ok: false, error: 'Could not reach the server. Check your signal.' }; }
+}
 const QUEUE_KEY = '3bb_queue';
 function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') || []; } catch (e) { return []; } }
 function saveQueue(q) {
@@ -2150,11 +2237,13 @@ let prefs = loadPrefs();
 function savePrefs() { try { localStorage.setItem('3bb_prefs', JSON.stringify(prefs)); } catch (e) {} }
 
 // ===== HISTORY =====
-const HIST_DEFAULT = { period: prefs.histPeriod, site: 'all', cat: 'all', limit: 40 };
+const HIST_DEFAULT = { period: prefs.histPeriod, site: 'all', cat: 'all', limit: 40, q: '', sort: 'new' };
+/** Remember the filters on this phone (the search words are not remembered). */
+function persistHist() { try { const c = Object.assign({}, histState); delete c.q; localStorage.setItem('3bb_hist', JSON.stringify(c)); } catch (e) {} }
 let histState = (function () {
   try {
     const saved = JSON.parse(localStorage.getItem('3bb_hist') || 'null');
-    if (saved && typeof saved === 'object') return Object.assign({}, HIST_DEFAULT, saved, { limit: 40 });
+    if (saved && typeof saved === 'object') return Object.assign({}, HIST_DEFAULT, saved, { limit: 40, q: '' });
   } catch (e) {}
   return Object.assign({}, HIST_DEFAULT);
 })();
@@ -2168,7 +2257,7 @@ function histSiteInfo(loc) {
 function histSet(k, v) {
   histState[k] = v;
   if (k !== 'limit') histState.limit = HIST_DEFAULT.limit;
-  try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
+  persistHist();
   refreshReview();
 }
 
@@ -2188,7 +2277,7 @@ function refreshReview() {
 function histGo(k, v) {
   histState[k] = v;
   histState.limit = HIST_DEFAULT.limit;
-  try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
+  persistHist();
   showPage('history');
 }
 
@@ -2237,7 +2326,7 @@ function histRenderFilters(c, targetId) {
   const months = [...new Set(c.all.map(r => r.bm))].sort().reverse();
   const presets = ['m0', 'm1', '21d', '3m', '6m', '12m', 'all'];
   const opt = (v, label, cur) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(label)}</option>`;
-  const dirty = histState.period !== HIST_DEFAULT.period || histState.site !== 'all' || histState.cat !== 'all';
+  const dirty = histState.period !== HIST_DEFAULT.period || histState.site !== 'all' || histState.cat !== 'all' || histState.sort !== 'new' || !!histState.q;
   document.getElementById(targetId || 'histFilters').innerHTML = `
     <label>Period<select onchange="histSet('period', this.value)" aria-label="Period">
       ${presets.map(p => opt(p, periodLabel(p), histState.period)).join('')}
@@ -2336,6 +2425,19 @@ function histRenderBreakdown(c) {
   </div>`;
 }
 
+function histRenderSearch() {
+  const el = document.getElementById('histSearchBar');
+  if (!el) return;
+  const sorts = [['new', 'Newest first'], ['old', 'Oldest first'], ['high', 'Highest net'], ['low', 'Lowest net']];
+  el.innerHTML = `<input type="search" id="histQ" value="${esc(histState.q)}" placeholder="Search date, site, machine or amount" aria-label="Search collections" oninput="onHistSearch(this.value)" enterkeyhint="search">
+    <select aria-label="Sort collections" onchange="histSet('sort', this.value)">${sorts.map(x => `<option value="${x[0]}"${histState.sort === x[0] ? ' selected' : ''}>${x[1]}</option>`).join('')}</select>`;
+}
+function onHistSearch(v) {
+  histState.q = v;
+  histState.limit = HIST_DEFAULT.limit;
+  histRenderCards(histCompute());
+}
+
 function histRenderCards(c) {
   const el = document.getElementById('historyTable');
   if (!getEntries().length) { el.innerHTML = '<div class="empty-state"><p>No submissions yet.</p></div>'; return; }
@@ -2351,14 +2453,21 @@ function histRenderCards(c) {
     if (!cards[k]) { cards[k] = { key: k, entry: r.entry, entryKey: r.entryKey, siteKey: r.siteKey, siteName: r.siteName, date: r.date, bm: r.bm, rows: [] }; order.push(k); }
     cards[k].rows.push(r);
   });
-  const list = order.map(k => cards[k]).sort((a, b) =>
-    b.date.localeCompare(a.date) || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || '')));
+  let list = order.map(k => cards[k]);
+  list.forEach(card => { card.ts = String(card.entry.timestamp || ''); card.label = histDateLabel(card.date); });
+  const total = list.length;
+  list = sortCards(list.filter(card => cardMatches(card, histState.q)), histState.sort);
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><p>No collections match “' + esc(histState.q) + '”.</p></div>';
+    return;
+  }
   const shown = list.slice(0, histState.limit);
   const showSite = histState.site === 'all';
-  let html = '';
+  const byMonth = histState.sort === 'new' || histState.sort === 'old';
+  let html = (histState.q || histState.sort !== 'new') ? `<p class="hint" style="margin:0 0 6px">Showing ${list.length}${histState.q ? ' of ' + total : ''} collection${list.length === 1 ? '' : 's'}</p>` : '';
   let curMonth = null;
   shown.forEach(card => {
-    if (card.bm !== curMonth) {
+    if (byMonth && card.bm !== curMonth) {
       curMonth = card.bm;
       const mt = sumRows(c.rows.filter(r => r.bm === curMonth));
       html += `<h3 class="hist-month"><div>${esc(monthLong(curMonth))}<div class="hist-range">${esc(monthRangeLabel(curMonth))}</div></div><span>Net ${gbp(mt.net)} · Site ${gbp(mt.cl)} · ${mt.collections} collection${mt.collections === 1 ? '' : 's'}</span></h3>`;
@@ -2420,6 +2529,7 @@ function renderHistoryPage() {
   histRenderKpis(c);
   histRenderChart(c);
   histRenderBreakdown(c);
+  histRenderSearch();
   histRenderCards(c);
 }
 
@@ -2427,13 +2537,14 @@ function renderHistoryPage() {
 (function () {
   function act(t) {
     const v = t.getAttribute('data-v');
+    if (t.hasAttribute('data-st')) { statementAction(t); return; }
     if (t.hasAttribute('data-site-toggle')) { toggleSiteBlock(t); return; }
     if (t.hasAttribute('data-hgo')) { histGo(t.getAttribute('data-hgo'), v); return; }
     histSet(t.getAttribute('data-hset'), t.getAttribute('data-hset') === 'limit' ? parseInt(v, 10) : v);
   }
   ['page-history', 'page-monthly'].forEach(id => {
     const page = document.getElementById(id);
-    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo],[data-site-toggle]'); if (t) act(t); });
+    page.addEventListener('click', e => { const t = e.target.closest('[data-hset],[data-hgo],[data-site-toggle],[data-st]'); if (t) act(t); });
     page.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const t = e.target.closest('g[data-hset],g[data-hgo]');
@@ -2618,7 +2729,19 @@ function sumRenderChart(c) {
  * One table for a site: every collection (grouped by business month, newest first), every machine in each,
  * month subtotals, totals by machine, and a grand total.
  */
-function siteBreakdownHtml(rows) {
+/** Tiny trend line of a machine's last collections (gross), with how the latest compares to usual. */
+function sparkHtml(allRows, siteKey, cat) {
+  const sp = sparkSeries(allRows, siteKey, cat, 12);
+  if (sp.vals.length < 3) return '';
+  const W = 64, H = 18, max = Math.max.apply(null, sp.vals), min = Math.min.apply(null, sp.vals), span = (max - min) || 1;
+  const pts = sp.vals.map((v, i) => [Math.round(i / (sp.vals.length - 1) * (W - 4) + 2), Math.round(H - 3 - ((v - min) / span) * (H - 6))]);
+  const last = pts[pts.length - 1];
+  const trend = sp.pct == null ? '' : (sp.pct >= 0 ? '▲ ' : '▼ ') + Math.abs(sp.pct) + '%';
+  const label = esc(cat) + ' trend over the last ' + sp.vals.length + ' collections' + (sp.pct == null ? '' : ', latest ' + Math.abs(sp.pct) + '% ' + (sp.pct >= 0 ? 'above' : 'below') + ' the earlier average');
+  return `<span class="spark" role="img" aria-label="${label}"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#888" stroke-width="1.5" stroke-linejoin="round"></polyline><circle cx="${last[0]}" cy="${last[1]}" r="2.5" fill="${sp.pct != null && sp.pct < -20 ? '#c0392b' : '#f7b731'}"></circle></svg>${trend ? `<small>${trend}</small>` : ''}</span>`;
+}
+
+function siteBreakdownHtml(rows, allRows) {
   if (!rows.length) return '<p class="hint" style="margin:0">No collections for these filters.</p>';
   const nowKey = businessMonthKey(todayStr());
   const money = (r) => `<td class="ro c-xs">${gbp(r.gross)}</td><td class="ro c-opt">${gbp(r.floatTaken)}</td><td class="ro">${gbp(r.net)}</td><td class="ro c-opt">${gbp(r.mgd)}</td><td class="ro">${gbp(r.ss)}</td><td class="ro">${gbp(r.cl)}</td>`;
@@ -2627,7 +2750,8 @@ function siteBreakdownHtml(rows) {
   const months = groupRows(rows, 'bm', 'bm').sort((a, b) => b.key.localeCompare(a.key));
   months.forEach(m => {
     const mrows = rows.filter(r => r.bm === m.key);
-    body += `<tr class="sd-month"><td colspan="7"><strong>${esc(monthLong(m.key))}</strong> <span>${esc(monthRangeLabel(m.key))}${m.key === nowKey ? ' · in progress' : ''}</span></td></tr>`;
+    body += `<tr class="sd-month"><td colspan="7"><div class="sd-bandrow"><span><strong>${esc(monthLong(m.key))}</strong> <span>${esc(monthRangeLabel(m.key))}${m.key === nowKey ? ' · in progress' : ''}</span></span>
+      <span class="sd-actions"><button type="button" class="sd-btn" data-st="print" data-site="${esc(rows[0].siteKey)}" data-month="${esc(m.key)}">Print / PDF</button><button type="button" class="sd-btn" data-st="share" data-site="${esc(rows[0].siteKey)}" data-month="${esc(m.key)}">Share</button></span></div></td></tr>`;
     const cols = {};
     const order = [];
     mrows.forEach(r => {
@@ -2647,7 +2771,7 @@ function siteBreakdownHtml(rows) {
   });
   const equip = groupRows(rows, 'cat', 'cat').sort((a, b) => typeSort(machineType(a.key), machineType(b.key)) || String(a.label).localeCompare(String(b.label)));
   body += `<tr class="sd-month"><td colspan="7"><strong>Totals by machine</strong></td></tr>`;
-  equip.forEach(g => { body += `<tr><td>${esc(g.label)}</td>${money({ gross: g.gross, floatTaken: g.floatTaken, net: g.net, mgd: g.mgd, ss: g.ss, cl: g.cl })}</tr>`; });
+  equip.forEach(g => { body += `<tr><td>${esc(g.label)}${sparkHtml(allRows || rows, rows[0].siteKey, g.label)}</td>${money({ gross: g.gross, floatTaken: g.floatTaken, net: g.net, mgd: g.mgd, ss: g.ss, cl: g.cl })}</tr>`; });
   const t = sumRows(rows);
   body += `<tr class="total grand"><td>All machines</td>${money({ gross: t.gross, floatTaken: t.floatTaken, net: t.net, mgd: t.mgd, ss: t.ss, cl: t.cl })}</tr>`;
   return `<div class="table-scroll" style="box-shadow:none;margin:0"><table class="tbl sd-table"><thead><tr>
@@ -2662,16 +2786,79 @@ function sumRenderSites(c) {
   const max = Math.max.apply(null, sites.map(g => g.net).concat([1]));
   const tot = sumRows(c.rows);
   const only = sites.length === 1;
+  // With a single business month selected, show each site against the month before
+  const pm = periodMonth(histState.period, c.today);
+  const inProg = pm && pm === businessMonthKey(c.today);
+  const prevBy = {};
+  if (pm && !inProg) groupRows(c.base.filter(r => r.bm === shiftMonth(pm, -1)), 'siteKey', 'siteName').forEach(x => { prevBy[x.key] = x; });
+  const prevLabel = pm ? monthShort(shiftMonth(pm, -1)).slice(0, 3) : '';
   el.innerHTML = `<h2 style="margin:14px 0 8px">Sites <span style="font-weight:400;color:#777;font-size:13px">· ${esc(periodLabel(histState.period))}</span></h2>` +
     sites.map(g => `<div class="ss-row">
       <button type="button" class="ss-head" data-site-toggle="${esc(g.key)}" aria-expanded="${only ? 'true' : 'false'}">
         <span class="ss-top"><span class="ss-name">${esc(g.label)}</span><span class="ss-net">${gbp(g.net)}</span></span>
         <span class="ss-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.round(g.net / max * 100))}%"></i></span>
-        <span class="ss-sub">Site ${gbp(g.cl)} · Supplier ${gbp(g.ss)} · ${g.collections} collection${g.collections === 1 ? '' : 's'}</span>
+        <span class="ss-sub">Site ${gbp(g.cl)} · Supplier ${gbp(g.ss)} · ${g.collections} collection${g.collections === 1 ? '' : 's'}${inProg ? ' · month in progress' : ''}</span>
+        ${pm && !inProg ? `<span class="ss-sub">${prevBy[g.key] ? deltaHtml(g.net, prevBy[g.key].net, prevLabel).replace('<div', '<span').replace('</div>', '</span>') : 'No collections in ' + esc(prevLabel)}</span>` : ''}
       </button>
-      <div class="ss-body"${only ? '' : ' hidden'}>${only ? siteBreakdownHtml(c.rows.filter(r => r.siteKey === g.key)) + siteOpenHistory(g.key) : ''}</div>
+      <div class="ss-body"${only ? '' : ' hidden'}>${only ? siteBreakdownHtml(c.rows.filter(r => r.siteKey === g.key), c.all) + siteOpenHistory(g.key) : ''}</div>
     </div>`).join('') +
     `<div class="ss-total"><span>All sites</span><span>Net ${gbp(tot.net)} · Site ${gbp(tot.cl)} · Supplier ${gbp(tot.ss)}</span></div>`;
+}
+
+/** Every collection for one site in one business month (all machines, ignoring the on-screen filters). */
+function statementRowsFor(siteKey, month) {
+  return histCompute().all.filter(r => r.siteKey === siteKey && r.bm === month);
+}
+
+function statementHtml(siteName, month, rows) {
+  const t = sumRows(rows);
+  const byEntry = {}, order = [];
+  rows.forEach(r => { const k = r.entryKey + '|' + r.siteKey; if (!byEntry[k]) { byEntry[k] = { date: r.date, ts: String(r.entry.timestamp || ''), rows: [] }; order.push(k); } byEntry[k].rows.push(r); });
+  const cols = order.map(k => byEntry[k]).sort((a, b) => a.date.localeCompare(b.date) || a.ts.localeCompare(b.ts));
+  const body = cols.map(c => {
+    const ct = sumRows(c.rows);
+    return `<tr class="st-date"><td colspan="7"><strong>${esc(histDateLabel(c.date))}</strong> — net ${gbp(ct.net)}</td></tr>` +
+      c.rows.slice().sort((a, b) => typeSort(machineType(a.cat), machineType(b.cat)) || String(a.cat).localeCompare(String(b.cat))).map(r =>
+        `<tr><td>${esc(r.cat)}</td><td class="num">${gbp(r.gross)}</td><td class="num">${gbp(r.floatTaken)}</td><td class="num">${gbp(r.net)}</td><td class="num">${gbp(r.mgd)}</td><td class="num">${gbp(r.ss)}</td><td class="num">${gbp(r.cl)}</td></tr>`).join('');
+  }).join('');
+  return `<div class="stmt">
+    <div class="stmt-head"><div><h1>3BarBros</h1><div>Month-end statement</div></div>
+      <div class="stmt-meta"><strong>${esc(siteName)}</strong><br>${esc(monthLong(month))}<br>${esc(monthRangeLabel(month))}<br>Prepared ${esc(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}</div></div>
+    <table><thead><tr><th>Machine</th><th class="num">Gross</th><th class="num">Float</th><th class="num">Net</th><th class="num">MGD</th><th class="num">Supplier</th><th class="num">Site</th></tr></thead><tbody>${body}</tbody></table>
+    <table class="stmt-sum"><tbody>
+      <tr><td>Collections</td><td class="num">${t.collections}</td></tr>
+      <tr><td>Net takings</td><td class="num">${gbp(t.net)}</td></tr>
+      <tr><td>MGD</td><td class="num">${gbp(t.mgd)}</td></tr>
+      <tr class="st-big"><td>Supplier share</td><td class="num">${gbp(t.ss)}</td></tr>
+      <tr class="st-big"><td>Site share</td><td class="num">${gbp(t.cl)}</td></tr></tbody></table>
+    <p class="stmt-foot">Figures are as recorded at each collection (float recovered is taken before shares are split).</p>
+  </div>`;
+}
+
+function statementAction(btn) {
+  const siteKey = btn.getAttribute('data-site');
+  const month = btn.getAttribute('data-month');
+  const rows = statementRowsFor(siteKey, month);
+  if (!rows.length) { showAppAlert('No data', 'There are no collections for that site and month.'); return; }
+  const siteName = rows[0].siteName;
+  if (btn.getAttribute('data-st') === 'print') {
+    const area = document.getElementById('printArea');
+    area.innerHTML = statementHtml(siteName, month, rows);
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => window.print(), 50);
+    setTimeout(done, 60000);
+    return;
+  }
+  const text = statementText(siteName, monthLong(month), monthRangeLabel(month), rows, gbp);
+  if (navigator.share) {
+    navigator.share({ title: '3BarBros statement — ' + siteName + ' ' + monthLong(month), text }).catch(() => {});
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showAppAlert('Copied', 'The statement text is copied. Paste it into a message or email.'), () => showAppAlert('Could not copy', 'Use Print / PDF instead.'));
+  } else {
+    showAppAlert('Sharing not available', 'Use Print / PDF instead.');
+  }
 }
 
 function siteOpenHistory(key) {
@@ -2687,7 +2874,7 @@ function toggleSiteBlock(btn) {
   if (!body.innerHTML.trim()) {
     const key = btn.getAttribute('data-site-toggle');
     const c = histCompute();
-    body.innerHTML = siteBreakdownHtml(c.rows.filter(r => r.siteKey === key)) + siteOpenHistory(key);
+    body.innerHTML = siteBreakdownHtml(c.rows.filter(r => r.siteKey === key), c.all) + siteOpenHistory(key);
   }
   body.hidden = false;
   btn.setAttribute('aria-expanded', 'true');
@@ -2842,9 +3029,19 @@ function setPref(k, v, el) {
   if (k === 'histPeriod') {
     HIST_DEFAULT.period = v;
     histState.period = v;
-    try { localStorage.setItem('3bb_hist', JSON.stringify(histState)); } catch (e) {}
+    persistHist();
   }
   showMsg('prefsMsg', 'Saved on this device', 'success');
+}
+
+function renderAccountCard() {
+  const el = document.getElementById('accountCard');
+  if (!el) return;
+  const a = getAuth();
+  el.innerHTML = `<div class="settings-card"><h2>Account</h2>
+    <p class="rate-line">${a ? 'Signed in as <strong>' + esc(a.name) + '</strong> (PIN sign-in)' : 'Using the shared app password' + (getWho() ? ' as <strong>' + esc(getWho()) + '</strong>' : '')}</p>
+    <p class="hint">${a ? 'Your phone stays signed in for 30 days. Sign out on a shared or lost phone.' : 'The sheet owner can switch on a PIN for each person from the sheet menu: 3BarBros → Add person / reset PIN.'}</p>
+    <button type="button" class="btn btn-outline" onclick="signOut()">${a ? 'Sign out' : 'Lock this device'}</button></div>`;
 }
 
 function renderAboutCard() {
@@ -2945,6 +3142,7 @@ function renderSettings() {
   renderBackupCard();
   renderPrefsCard();
   renderAboutCard();
+  renderAccountCard();
   renderDangerCard();
   renderConnStatus();
 }
@@ -3797,27 +3995,55 @@ function showPage(name) {
 
 async function doLogin() {
   const pwd = document.getElementById('loginPwd').value;
-  if (String(pwd || '').toLowerCase() !== String(APP_PASSWORD).toLowerCase()) {
-    document.getElementById('loginError').style.display = 'block';
-    return;
+  const whoVal = (document.getElementById('loginWho') || {}).value || '';
+  const errEl = document.getElementById('loginError');
+  const fail = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
+
+  if (authMode === null && getApiUrl()) {
+    const on = await fetchAuthInfo();
+    authMode = on === true ? 'pin' : 'legacy';
+    if (on === true) showLogin();
   }
-  document.getElementById('loginError').style.display = 'none';
+
+  if (authMode === 'pin') {
+    if (!whoVal.trim() || !pwd) { fail('Enter your name and PIN'); return; }
+    errEl.style.display = 'none';
+    const btn = document.querySelector('#loginOverlay .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+    const r = await pinLogin(whoVal.trim(), pwd);
+    if (btn) { btn.disabled = false; btn.textContent = 'Log In'; }
+    if (!r.ok) { fail(r.error); return; }
+    try { localStorage.setItem('3bb_auth', JSON.stringify({ token: r.token, name: r.name })); } catch (e) {}
+    setWho(r.name);
+    try { sessionStorage.removeItem('3bb_session'); } catch (e) {}
+  } else {
+    if (String(pwd || '').toLowerCase() !== String(APP_PASSWORD).toLowerCase()) { fail('Incorrect password'); return; }
+    errEl.style.display = 'none';
+    try { sessionStorage.removeItem('3bb_session'); } catch (e) {}
+    setWho(whoVal);
+  }
   document.getElementById('loginOverlay').classList.add('hidden');
   sessionStorage.setItem('3bb_logged_in', '1');
-  try { sessionStorage.removeItem('3bb_session'); } catch (e) {}
-  setWho((document.getElementById('loginWho') || {}).value);
 
   const ok = await bootApp();
   if (!ok) return;
 
   const url = getApiUrl();
-  if (url) {
+  if (url && authMode !== 'pin') {      // PIN sign-in already told the server
     apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'login', timestamp: new Date().toISOString() })
     }).catch(() => {});
   }
+}
+
+/** Sign this phone out (token revoked on the server too). */
+async function signOut() {
+  const url = getApiUrl();
+  if (url && getAuthToken()) { try { await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'logout' }) }, 8000); } catch (e) {} }
+  try { localStorage.removeItem('3bb_auth'); sessionStorage.removeItem('3bb_logged_in'); sessionStorage.removeItem('3bb_session'); } catch (e) {}
+  location.reload();
 }
 
 // ===== INIT =====
@@ -3827,9 +4053,14 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 }
 loadConfigLocal();
 { const w = document.getElementById('loginWho'); if (w) w.value = getWho(); }
+// Learn whether PIN sign-in is on, so the login box asks the right thing straight away
+if (!sessionStorage.getItem('3bb_logged_in') && !getAuthToken() && getApiUrl()) {
+  fetchAuthInfo().then(on => { if (on === null) return; authMode = on ? 'pin' : 'legacy'; if (on) showLogin(); });
+}
 
 async function startApp() {
   // Always verify API before using the app (except bare settings if already open)
+  if (getAuthToken()) { try { sessionStorage.setItem('3bb_logged_in', '1'); } catch (e) {} }
   const loggedIn = !!sessionStorage.getItem('3bb_logged_in');
   if (!loggedIn) {
     // Stay on login; after login bootApp runs
