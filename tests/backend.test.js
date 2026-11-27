@@ -1,5 +1,5 @@
 // Runs Code.gs against an in-memory mock of Apps Script (sheets, locks, properties, mail, triggers).
-const vm = require('vm'); const fs = require('fs'); const assert = require('assert'); const path = require('path');
+const vm = require('vm'); const fs = require('fs'); const assert = require('assert'); const path = require('path'); const nodeCrypto = require('crypto');
 const code = fs.readFileSync(path.join(__dirname, '..', 'Code.gs'), 'utf8');
 
 function makeEnv(opts = {}) {
@@ -26,13 +26,16 @@ function makeEnv(opts = {}) {
     }
   }
   const sheets = {};
-  const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n)), getSheets: () => Object.values(sheets), getName: () => 'Mock' };
+  const ss = { getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n)), getSheets: () => Object.values(sheets), getName: () => 'Mock', getId: () => 'SSID' };
+  const driveFolders = {}; const copies = [];
+  const mkFolder = (name) => { const files = []; return { name, files, getFiles() { let i = 0; return { hasNext: () => i < files.length, next: () => files[i++] }; } }; };
   const fmt = (d, tz, f) => {
     const p = {}; new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).forEach(x => (p[x.type] = x.value));
     const mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
     if (f === 'yyyyMMdd') return d.getFullYear() + mm + dd;
     if (f === 'yyyy-MM-dd') return d.getFullYear() + '-' + mm + '-' + dd;
     if (f === 'HH:mm') return p.hour + ':' + p.minute;
+    if (f === 'yyyy-MM-dd HHmm') return d.getFullYear() + '-' + mm + '-' + dd + ' ' + p.hour + p.minute;
     return p.weekday + ' ' + p.day + ' ' + p.month + ', ' + p.hour + ':' + p.minute;
   };
   const ctx = {
@@ -41,16 +44,25 @@ function makeEnv(opts = {}) {
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = v; }, setProperties: o => Object.assign(props, o), deleteProperty: k => { delete props[k]; } }) },
     Session: { getScriptTimeZone: () => 'Europe/London', getEffectiveUser: () => ({ getEmail: () => 'owner@example.com' }) },
-    Utilities: { formatDate: fmt, base64Decode: s => Buffer.from(s, 'base64'), newBlob: () => ({}) },
+    Utilities: { formatDate: fmt, base64Decode: s => Buffer.from(s, 'base64'), newBlob: () => ({}),
+      computeDigest: (alg, str) => Array.from(nodeCrypto.createHash('sha256').update(String(str)).digest()).map(b => (b > 127 ? b - 256 : b)),
+      DigestAlgorithm: { SHA_256: 'sha256' }, getUuid: () => nodeCrypto.randomUUID() },
     MailApp: { sendEmail: m => { if (opts.mailThrows) throw new Error('Authorization required'); mails.push(m); }, getRemainingDailyQuota: () => 100 },
-    ScriptApp: { newTrigger: fn => ({ timeBased: () => ({ after: ms => ({ create: () => { if (opts.triggerThrows) throw new Error('scope'); triggers.push({ fn, ms }); } }) }) }), getProjectTriggers: () => triggers },
+    ScriptApp: { newTrigger: fn => ({ timeBased: () => ({
+        after: ms => ({ create: () => { if (opts.triggerThrows) throw new Error('scope'); triggers.push({ fn, ms, getHandlerFunction: () => fn }); } }),
+        everyDays: d => ({ atHour: h => ({ create: () => { triggers.push({ fn, daily: true, hour: h, getHandlerFunction: () => fn }); } }) }) }) }),
+      getProjectTriggers: () => triggers.slice(), deleteTrigger: tr => { const i = triggers.indexOf(tr); if (i >= 0) triggers.splice(i, 1); } },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ s, setMimeType() { return this; }, getContent() { return s; } }) },
-    DriveApp: {}
+    DriveApp: {
+      getFoldersByName: n => ({ hasNext: () => !!driveFolders[n], next: () => driveFolders[n] }),
+      createFolder: n => (driveFolders[n] = mkFolder(n)),
+      getFileById: () => ({ makeCopy: (name, folder) => { const f = { getName: () => name, getDateCreated: () => new Date(Date.now() + copies.length * 1000), trashed: false, setTrashed() { this.trashed = true; } }; folder.files.push(f); copies.push(f); return f; } })
+    }
   };
   vm.createContext(ctx); vm.runInContext(code, ctx);
   const post = body => JSON.parse(vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify(body) } }).getContent());
   const get = () => JSON.parse(vm.runInContext('doGet', ctx)({ parameter: {} }).getContent());
-  return { ctx, props, mails, triggers, logs, sheets, post, get, digest: () => vm.runInContext('sendActivityDigest', ctx)(), run: s => vm.runInContext(s, ctx) };
+  return { ctx, props, mails, triggers, logs, sheets, driveFolders, copies, post, get, digest: () => vm.runInContext('sendActivityDigest', ctx)(), run: s => vm.runInContext(s, ctx) };
 }
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 const ident = { session: 'abc123def', who: 'Sam', device: 'iPhone · Safari' };
@@ -209,5 +221,124 @@ t('diagnose never throws and reports each blocked piece', () => {
   assert.ok(/NOT SET/.test(txt) && /Own address lookup: BLOCKED/.test(txt) && /Send email permission: BLOCKED/.test(txt) && /NOWHERE/.test(txt));
   e.props.NOTIFY_EMAIL = 'me@example.com';
   assert.ok(/SET \(m\*\*\*@example\.com\)/.test(e.run('__diagnoseNotify()')) && /Emails will go to: m\*\*\*@example\.com/.test(e.run('__diagnoseNotify()')));
+});
+
+// ================= PIN sign-in =================
+const addSam = (e) => e.run("setUserPin('Sam', '1234')");
+const login = (e, name, pin, extra = {}) => e.post(Object.assign({ action: 'login', name, pin }, ident, extra));
+
+t('no people added: the app behaves exactly as before (open + advisory identity)', () => {
+  const e = makeEnv();
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(e.get().backup)), { last: '' });
+  assert.strictEqual(e.run("usersExist()"), false);
+  assert.strictEqual(e.post(entry('N1')).success, true);
+  const info = JSON.parse(vm.runInContext('doGet', e.ctx)({ parameter: { action: 'authinfo' } }).getContent());
+  assert.strictEqual(info.auth, false);
+});
+
+t('adding a person turns sign-in on for everything: reads and writes need a token', () => {
+  const e = makeEnv(); addSam(e);
+  assert.strictEqual(e.run("usersExist()"), true);
+  const g = e.get(); assert.strictEqual(g.error, 'Unauthorized'); assert.strictEqual(g.needLogin, true);
+  const p = e.post(entry('A1')); assert.strictEqual(p.success, false); assert.strictEqual(p.needLogin, true);
+  assert.ok(!e.sheets.Data || e.sheets.Data.rows.length <= 1);
+  const info = JSON.parse(vm.runInContext('doGet', e.ctx)({ parameter: { action: 'authinfo' } }).getContent());
+  assert.strictEqual(info.auth, true);
+});
+
+t('correct PIN: token issued, reads/writes work, activity names the VERIFIED person (not what the client typed)', () => {
+  const e = makeEnv(); addSam(e);
+  const r = login(e, 'sam', '1234', { who: 'Mallory' });                       // name is case-insensitive
+  assert.strictEqual(r.success, true); assert.strictEqual(r.name, 'Sam'); assert.ok(r.token && r.token.length >= 32);
+  const g = JSON.parse(vm.runInContext('doGet', e.ctx)({ parameter: { auth: r.token } }).getContent());
+  assert.ok(Array.isArray(g.entries));
+  assert.strictEqual(e.post(Object.assign(entry('A2', { who: 'Mallory' }), { authToken: r.token })).success, true);
+  const rows = e.sheets.ActivityLog.rows.slice(1);
+  assert.ok(rows.length >= 2 && rows.every(x => x[2] === 'Sam'), JSON.stringify(rows.map(x => x[2])));
+  assert.ok(e.mails.some(m => /Sam logged in/.test(m.subject)));
+});
+
+t('wrong PIN: generic error, no token; 5 wrong PINs lock the name and email an alert; correct PIN is refused while locked', () => {
+  const e = makeEnv(); addSam(e);
+  const r = login(e, 'Sam', '0000'); assert.strictEqual(r.success, false); assert.strictEqual(r.error, 'Wrong name or PIN'); assert.ok(!r.token);
+  assert.strictEqual(login(e, 'Nobody', '1234').error, 'Wrong name or PIN');   // unknown names look the same
+  for (let i = 0; i < 4; i++) login(e, 'Sam', '1111');
+  assert.ok(e.mails.some(m => /repeated wrong PINs/.test(m.subject)));
+  const locked = login(e, 'Sam', '1234'); assert.strictEqual(locked.success, false); assert.ok(/Too many wrong tries/.test(locked.error));
+  // lock expires
+  const f = JSON.parse(e.props.FAILS); f.sam.until = Date.now() - 1; e.props.FAILS = JSON.stringify(f);
+  assert.strictEqual(login(e, 'Sam', '1234').success, true);
+});
+
+t('PINs are stored hashed, validated, and resettable; people can be removed', () => {
+  const e = makeEnv(); addSam(e);
+  const flat = JSON.stringify(e.sheets.Users.rows);
+  assert.ok(!/1234/.test(flat) && e.sheets.Users.rows[1][2].length === 64);
+  assert.strictEqual(e.run("setUserPin('Bad', '12')").ok, false);
+  assert.strictEqual(e.run("setUserPin('', '1234')").ok, false);
+  e.run("setUserPin('SAM', 'newpin9')");                                         // reset (same person, any case)
+  assert.strictEqual(e.sheets.Users.rows.length, 2);
+  assert.strictEqual(login(e, 'Sam', '1234').success, false);
+  assert.strictEqual(login(e, 'Sam', 'newpin9').success, true);
+  assert.strictEqual(e.run("removeUser('sam')"), true);
+  assert.strictEqual(e.run("usersExist()"), false);
+});
+
+t('tokens expire and can be revoked by sign-out', () => {
+  const e = makeEnv(); addSam(e);
+  const { token } = login(e, 'Sam', '1234');
+  assert.strictEqual(e.post(Object.assign({ action: 'logout', authToken: token }, ident)).success, true);
+  assert.strictEqual(e.post(Object.assign(entry('X'), { authToken: token })).needLogin, true);
+  const t2 = login(e, 'Sam', '1234').token;
+  const toks = JSON.parse(e.props.TOKENS); toks[t2].exp = Date.now() - 1; e.props.TOKENS = JSON.stringify(toks);
+  assert.strictEqual(e.post(Object.assign(entry('Y'), { authToken: t2 })).needLogin, true);
+  assert.strictEqual(e.post(Object.assign(entry('Z'), { authToken: 'made-up-token' })).needLogin, true);
+});
+
+t('AUTH=off is an emergency switch; API_TOKEN and PINs are both required when both are set', () => {
+  const e = makeEnv(); addSam(e);
+  e.props.AUTH = 'off';
+  assert.strictEqual(e.post(entry('O1')).success, true);                        // open again
+  delete e.props.AUTH; e.props.API_TOKEN = 'secret';
+  assert.strictEqual(login(e, 'Sam', '1234').error, 'Unauthorized');            // device secret missing
+  const r = login(e, 'Sam', '1234', { token: 'secret' }); assert.strictEqual(r.success, true);
+  assert.strictEqual(e.post(Object.assign(entry('O2'), { token: 'secret' })).needLogin, true);   // device ok, no sign-in
+  assert.strictEqual(e.post(Object.assign(entry('O3'), { token: 'secret', authToken: r.token })).success, true);
+});
+
+// ================= backups =================
+t('backupNow copies the sheet, keeps the newest 14, records the time; the action is rate-limited', () => {
+  const e = makeEnv();
+  for (let i = 0; i < 17; i++) { e.props.LAST_BACKUP_MS = '0'; e.post(Object.assign({ action: 'backupNow' }, ident)); }
+  const folder = e.driveFolders['3BarBros Backups'];
+  assert.strictEqual(folder.files.length, 17);
+  assert.strictEqual(folder.files.filter(f => !f.trashed).length, 14);
+  assert.ok(/^3BarBros backup \d{4}-\d{2}-\d{2} \d{4}$/.test(folder.files[0].getName()));
+  assert.ok(e.get().backup.last.length > 10);
+  const again = e.post(Object.assign({ action: 'backupNow' }, ident));
+  assert.strictEqual(again.success, false); assert.ok(/moment ago/.test(again.error));
+});
+
+t('setupDailyBackup installs exactly one daily trigger (and replaces an old one)', () => {
+  const e = makeEnv();
+  e.run('setupDailyBackup()'); e.run('setupDailyBackup()');
+  const tr = e.triggers.filter(x => x.fn === 'dailyBackup');
+  assert.strictEqual(tr.length, 1); assert.strictEqual(tr[0].hour, 3);
+});
+
+t('dailyBackup failure emails the owner instead of failing silently', () => {
+  const e = makeEnv();
+  e.ctx.DriveApp.getFileById = () => { throw new Error('Drive unavailable'); };
+  e.run('dailyBackup()');
+  assert.ok(e.mails.some(m => /daily backup failed/.test(m.subject)));
+});
+
+t('onOpen builds the owner menu when a sheet UI exists and is harmless without one', () => {
+  const e = makeEnv();
+  e.run('onOpen()');                                                              // no getUi in the mock: must not throw
+  const items = [];
+  e.ctx.SpreadsheetApp.getUi = () => ({ createMenu: () => { const m = { addItem: (l) => { items.push(l); return m; }, addSeparator: () => m, addToUi: () => {} }; return m; } });
+  e.run('onOpen()');
+  assert.ok(items.includes('Add person / reset PIN') && items.includes('Back up now'));
 });
 console.log(n + ' backend tests passed');

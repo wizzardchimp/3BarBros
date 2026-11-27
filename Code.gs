@@ -6,6 +6,7 @@ const LOG_SHEET_NAME = 'LoginLog';
 const RATES_SHEET_NAME = 'Rates';
 const MASTER_SHEET_NAME = 'MasterLog';
 const ACTIVITY_SHEET_NAME = 'ActivityLog';
+const USERS_SHEET_NAME = 'Users';
 
 const RECEIPTS_FOLDER_NAME = '3BarBros Receipts';
 
@@ -17,6 +18,12 @@ const MASTER_HEADER = [
 const ACTIVITY_HEADER = ['Time', 'Session', 'Who', 'Device', 'Action', 'Detail', 'Notified'];
 const DIGEST_DELAY_MIN = 5;      // activity is summarised by email this many minutes after it starts
 const MAX_EMAILS_PER_DAY = 25;   // safety cap (Gmail allows ~100/day for personal accounts)
+const USERS_HEADER = ['Name', 'Salt', 'Hash', 'Created', 'Last login'];
+const TOKEN_DAYS = 30;           // a signed-in phone stays signed in this long
+const MAX_FAILS = 5;             // wrong PINs allowed before a lock-out
+const LOCK_MINUTES = 15;
+const BACKUP_FOLDER_NAME = '3BarBros Backups';
+const BACKUP_KEEP = 14;
 const ALLOWED_IMAGE_TYPES = { 'image/jpeg': 1, 'image/png': 1, 'image/webp': 1, 'image/heic': 1 };
 
 function json(obj) {
@@ -29,15 +36,131 @@ function round2(v) {
 }
 
 /**
- * Optional shared-secret check. Set a Script Property named API_TOKEN
- * (Project Settings → Script properties). When set, every request must carry
- * the same token (?token= on GET, "token" in the POST body). When unset the
- * endpoint behaves as before (open) so existing deployments keep working.
+ * Layer 1 — optional shared secret (Script Property API_TOKEN): every request must carry the same token
+ * (?token= on GET, "token" in the POST body). Unset = open, so existing deployments keep working.
  */
-function isAuthorised(token) {
+function apiTokenOk(token) {
   const expected = PropertiesService.getScriptProperties().getProperty('API_TOKEN');
   if (!expected) return true;
   return String(token || '') === expected;
+}
+
+/* ================= People + PIN sign-in (Layer 2) =================
+ * Add the first person (menu: 3BarBros → Add person / reset PIN) and sign-in becomes REQUIRED for the
+ * whole API: each person has their own PIN, a signed-in phone gets a 30-day token, and the activity log
+ * and emails name the verified person. With nobody added, the old behaviour stays. Emergency off switch:
+ * Script Property AUTH = off.
+ */
+let AUTH_USER = '';   // verified name for the current request ('' when sign-in is not in use)
+
+function getUsersSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(USERS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(USERS_SHEET_NAME);
+    sheet.appendRow(USERS_HEADER);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function readUsers() {
+  const sheet = getSpreadsheet().getSheetByName(USERS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, USERS_HEADER.length).getValues();
+  return vals.map(function (v, i) { return { row: i + 2, name: String(v[0] || ''), salt: String(v[1] || ''), hash: String(v[2] || '') }; })
+    .filter(function (u) { return u.name && u.hash; });
+}
+
+function usersExist() {
+  if (PropertiesService.getScriptProperties().getProperty('AUTH') === 'off') return false;
+  return readUsers().length > 0;
+}
+
+function hashPin(salt, pin) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + pin);
+  return bytes.map(function (b) { return ((b < 0 ? b + 256 : b) + 0x100).toString(16).slice(1); }).join('');
+}
+
+/** Add a person or reset their PIN. Returns { ok, error }. */
+function setUserPin(name, pin) {
+  name = String(name || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 40);
+  pin = String(pin || '').trim();
+  if (!name) return { ok: false, error: 'A name is needed' };
+  if (!/^[A-Za-z0-9]{4,12}$/.test(pin)) return { ok: false, error: 'PIN must be 4 to 12 letters or numbers' };
+  const sheet = getUsersSheet();
+  const salt = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+  const hash = hashPin(salt, pin);
+  const existing = readUsers().filter(function (u) { return u.name.toLowerCase() === name.toLowerCase(); })[0];
+  if (existing) {
+    sheet.getRange(existing.row, 1, 1, 3).setValues([[existing.name, salt, hash]]);
+  } else {
+    sheet.appendRow([name, salt, hash, new Date(), '']);
+  }
+  clearFails(name);
+  return { ok: true, error: '' };
+}
+
+function removeUser(name) {
+  const u = readUsers().filter(function (x) { return x.name.toLowerCase() === String(name || '').trim().toLowerCase(); })[0];
+  if (!u) return false;
+  getUsersSheet().deleteRow(u.row);
+  return true;
+}
+
+function readJsonProp(key) {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(key) || '{}') || {}; } catch (e) { return {}; }
+}
+function writeJsonProp(key, obj) { PropertiesService.getScriptProperties().setProperty(key, JSON.stringify(obj)); }
+function clearFails(name) { const f = readJsonProp('FAILS'); delete f[String(name).toLowerCase()]; writeJsonProp('FAILS', f); }
+
+/** Check a name + PIN with lock-out after MAX_FAILS wrong tries. Returns { ok, name, error }. */
+function verifyLogin(name, pin) {
+  const key = String(name || '').trim().toLowerCase();
+  const fails = readJsonProp('FAILS');
+  const rec = fails[key] || { n: 0, until: 0 };
+  if (rec.until && Date.now() < rec.until) {
+    return { ok: false, name: '', error: 'Too many wrong tries. Try again in ' + Math.ceil((rec.until - Date.now()) / 60000) + ' minutes.' };
+  }
+  const u = readUsers().filter(function (x) { return x.name.toLowerCase() === key; })[0];
+  if (u && hashPin(u.salt, String(pin || '').trim()) === u.hash) {
+    delete fails[key]; writeJsonProp('FAILS', fails);
+    try { getUsersSheet().getRange(u.row, 5).setValue(new Date()); } catch (e) {}
+    return { ok: true, name: u.name, error: '' };
+  }
+  rec.n = (rec.n || 0) + 1;
+  if (rec.n >= MAX_FAILS) {
+    rec.until = Date.now() + LOCK_MINUTES * 60000; rec.n = 0;
+    sendNotification('⚠ 3BarBros: repeated wrong PINs for "' + String(name || '').slice(0, 40) + '"',
+      'Someone entered the wrong name/PIN ' + MAX_FAILS + ' times for "' + String(name || '').slice(0, 40) + '". That name is locked for ' + LOCK_MINUTES + ' minutes.\n\nWhen: ' + fmtWhen(new Date()) + '\n\n— 3BarBros');
+  }
+  fails[key] = rec; writeJsonProp('FAILS', fails);
+  return { ok: false, name: '', error: 'Wrong name or PIN' };
+}
+
+function issueToken(name) {
+  const tokens = readJsonProp('TOKENS');
+  const now = Date.now();
+  Object.keys(tokens).forEach(function (t) { if (tokens[t].exp < now) delete tokens[t]; });
+  const keys = Object.keys(tokens);
+  if (keys.length >= 100) delete tokens[keys[0]];
+  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+  tokens[token] = { name: name, exp: now + TOKEN_DAYS * 864e5 };
+  writeJsonProp('TOKENS', tokens);
+  return token;
+}
+
+/** Name for a valid, unexpired sign-in token, else ''. */
+function tokenName(token) {
+  if (!token) return '';
+  const t = readJsonProp('TOKENS')[String(token)];
+  return t && t.exp > Date.now() ? String(t.name) : '';
+}
+
+function revokeToken(token) {
+  const tokens = readJsonProp('TOKENS');
+  delete tokens[String(token || '')];
+  writeJsonProp('TOKENS', tokens);
 }
 
 const META_SHEETS = {};
@@ -45,6 +168,7 @@ META_SHEETS[LOG_SHEET_NAME] = true;
 META_SHEETS[RATES_SHEET_NAME] = true;
 META_SHEETS[MASTER_SHEET_NAME] = true;
 META_SHEETS[ACTIVITY_SHEET_NAME] = true;
+META_SHEETS[USERS_SHEET_NAME] = true;
 
 function getSpreadsheet() {
   return SpreadsheetApp.getActiveSpreadsheet();
@@ -371,7 +495,7 @@ function escHtml(v) {
 function clientInfo(body) {
   return {
     session: String((body && body.session) || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12),
-    who: String((body && body.who) || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 40),
+    who: AUTH_USER || String((body && body.who) || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 40),
     device: String((body && body.device) || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 60)
   };
 }
@@ -613,9 +737,90 @@ function __authMail() {
   return 'Mail quota left today: ' + quota + ' | project triggers: ' + triggers + ' | emails go to: ' + maskEmail(notifyAddress());
 }
 
+/* ================= Backups ================= */
+
+/** Copy the whole spreadsheet into the "3BarBros Backups" Drive folder; keep the newest BACKUP_KEEP. */
+function backupNow() {
+  const ss = getSpreadsheet();
+  const folders = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmm');
+  const name = '3BarBros backup ' + stamp;
+  DriveApp.getFileById(ss.getId()).makeCopy(name, folder);
+  const files = [];
+  const it = folder.getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (String(f.getName()).indexOf('3BarBros backup ') === 0) files.push({ f: f, t: f.getDateCreated().getTime() });
+  }
+  files.sort(function (a, b) { return b.t - a.t; });
+  files.slice(BACKUP_KEEP).forEach(function (x) { x.f.setTrashed(true); });
+  const last = new Date().toISOString();
+  PropertiesService.getScriptProperties().setProperties({ LAST_BACKUP: last, LAST_BACKUP_MS: String(Date.now()) });
+  return { name: name, last: last };
+}
+
+/** Time-driven daily job. */
+function dailyBackup() {
+  try { backupNow(); } catch (err) {
+    Logger.log('dailyBackup failed: ' + err);
+    sendNotification('⚠ 3BarBros: the daily backup failed', 'The daily backup copy could not be made: ' + (err && err.message || err) + '\n\n— 3BarBros');
+  }
+}
+
+/** Turn on the daily backup (about 3am). Safe to run again. */
+function setupDailyBackup() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'dailyBackup') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('dailyBackup').timeBased().everyDays(1).atHour(3).create();
+  return 'Daily backup is on (about 3am). Copies go to the Drive folder "' + BACKUP_FOLDER_NAME + '"; the newest ' + BACKUP_KEEP + ' are kept.';
+}
+
+/* ================= Sheet menu (owner tools) ================= */
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi().createMenu('3BarBros')
+      .addItem('Add person / reset PIN', 'menuAddPerson')
+      .addItem('Remove person', 'menuRemovePerson')
+      .addItem('List people', 'menuListPeople')
+      .addSeparator()
+      .addItem('Turn on daily backup', 'menuDailyBackup')
+      .addItem('Back up now', 'menuBackupNow')
+      .addToUi();
+  } catch (err) { /* not opened from a sheet */ }
+}
+
+function menuAddPerson() {
+  const ui = SpreadsheetApp.getUi();
+  const n = ui.prompt('Add person / reset PIN', 'Name (as they will type it at login):', ui.ButtonSet.OK_CANCEL);
+  if (n.getSelectedButton() !== ui.Button.OK) return;
+  const p = ui.prompt('PIN for ' + n.getResponseText().trim(), '4 to 12 letters or numbers. Tell them privately.', ui.ButtonSet.OK_CANCEL);
+  if (p.getSelectedButton() !== ui.Button.OK) return;
+  const first = readUsers().length === 0;
+  const r = setUserPin(n.getResponseText(), p.getResponseText());
+  ui.alert(r.ok ? 'Saved' : 'Not saved', r.ok ? (first ? 'Done. PIN sign-in is now REQUIRED for the app, so add everyone who needs access. Anyone not added will be locked out.' : 'Done.') : r.error, ui.ButtonSet.OK);
+}
+function menuRemovePerson() {
+  const ui = SpreadsheetApp.getUi();
+  const n = ui.prompt('Remove person', 'Name to remove:', ui.ButtonSet.OK_CANCEL);
+  if (n.getSelectedButton() !== ui.Button.OK) return;
+  ui.alert(removeUser(n.getResponseText()) ? 'Removed' : 'Not found', '', ui.ButtonSet.OK);
+}
+function menuListPeople() {
+  const ui = SpreadsheetApp.getUi();
+  const names = readUsers().map(function (u) { return u.name; });
+  ui.alert('People who can sign in', names.length ? names.join('\n') : 'Nobody yet — the app still uses its simple password until you add someone.', ui.ButtonSet.OK);
+}
+function menuDailyBackup() { SpreadsheetApp.getUi().alert(setupDailyBackup()); }
+function menuBackupNow() { SpreadsheetApp.getUi().alert('Backup created: ' + backupNow().name); }
+
 function doGet(e) {
-  if (!isAuthorised(e && e.parameter && e.parameter.token)) {
+  if (!apiTokenOk(e && e.parameter && e.parameter.token)) {
     return json({ success: false, error: 'Unauthorized' });
+  }
+  // Public hint for the login screen: is PIN sign-in on? (reveals nothing else)
+  if (e && e.parameter && e.parameter.action === 'authinfo') return json({ auth: usersExist() });
+  if (usersExist() && !tokenName(e && e.parameter && e.parameter.auth)) {
+    return json({ success: false, error: 'Unauthorized', needLogin: true });
   }
   // Ensure meta tabs exist (LoginLog, MasterLog) on every load
   try {
@@ -627,7 +832,8 @@ function doGet(e) {
   }
   return json({
     entries: readEntries(),
-    config: readConfig()
+    config: readConfig(),
+    backup: { last: PropertiesService.getScriptProperties().getProperty('LAST_BACKUP') || '' }
   });
 }
 
@@ -676,8 +882,14 @@ function doPost(e) {
   } catch (err) {
     return json({ success: false, error: 'Bad request' });
   }
-  if (!isAuthorised(body && body.token)) {
+  if (!apiTokenOk(body && body.token)) {
     return json({ success: false, error: 'Unauthorized' });
+  }
+  // With people set up, everything except signing in needs a valid sign-in token
+  AUTH_USER = '';
+  if (usersExist() && body.action !== 'login') {
+    AUTH_USER = tokenName(body.authToken);
+    if (!AUTH_USER) return json({ success: false, error: 'Unauthorized', needLogin: true });
   }
 
   // Serialise all writes so concurrent requests can't interleave rows.
@@ -711,8 +923,30 @@ function handlePost(body) {
 
   if (action === 'login') {
     getLogSheet().appendRow([new Date().toISOString(), '']);
+    if (usersExist()) {
+      const v = verifyLogin(body.name, body.pin);
+      if (!v.ok) return json({ success: false, error: v.error });
+      AUTH_USER = v.name;
+      const token = issueToken(v.name);
+      note('login', 'Signed in (PIN)', 'login');
+      return json({ success: true, token: token, name: v.name, days: TOKEN_DAYS });
+    }
     note('login', 'Logged in', 'login');
     return json({ success: true });
+  }
+
+  if (action === 'logout') {
+    revokeToken(body.authToken);
+    note('logout', 'Signed out');
+    return json({ success: true });
+  }
+
+  if (action === 'backupNow') {
+    const last = parseInt(PropertiesService.getScriptProperties().getProperty('LAST_BACKUP_MS') || '0', 10);
+    if (Date.now() - last < 5 * 60000) return json({ success: false, error: 'A backup was made a moment ago' });
+    const r = backupNow();
+    note('backup', 'Backup copy created');
+    return json({ success: true, name: r.name, last: r.last });
   }
 
   if (action === 'testNotify') {
