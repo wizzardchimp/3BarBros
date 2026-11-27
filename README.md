@@ -54,11 +54,12 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 - Pool: no float (rent or 50/50 as configured)  
 
 ## Daily Entry page (mobile-first)
-- **Last 21 days** panel at the top: net, site share and collections with change vs the prior 21 days, a bar chart of net per day, and a collapsible per-site breakdown (MGD, supplier, site share). *See in History →* jumps to that period.
-- **Site cards** show when each site was last collected (⏰ after 14 days, red after 21), its 21-day net with a share bar and trend, and any float still to recover.
-- **Form:** one card per machine with big numeric fields, live Net / Site / Supplier / MGD chips, "usual amount" hints and a ⚠ check when a figure is far from usual (e.g. an extra zero), float carried in, and a pool card. Enter jumps to the next field. Date chips (Today / Yesterday / pick) show which business month it counts toward and warn for future or long back-dated entries.
+- **Last 21 days** panel at the top: net, site share and collections with the change vs the prior 21 days, a bar chart of net per day, and a collapsible per-site breakdown (MGD, supplier, site share). Tap the heading to **collapse it to one line** (remembered on the phone). *History →* jumps to that period.
+- **Site cards** show when each site was last collected (⏰ after its own overdue limit, red a week later), its 21-day net with a share bar and trend, and any float still to recover.
+- **Form:** one compact card per machine: the gross field with the machine's *usual amount* beside the label (a ⚠ check appears when a figure is far from usual, e.g. an extra zero), then live **Net / Site / Supplier / MGD** in a single row. **Float to recover** is tucked behind a *+ Add float to recover* button (it opens by itself when the field already has a value, e.g. a restored draft or an edit); float carried in from earlier collections is always shown. Pool has its own card, and receipts are one row. On a desktop the machine cards sit two across. Enter jumps to the next visible field.
+- **Date chips** (Today / Yesterday / pick) show which business month it counts toward and warn for future or long back-dated entries.
 - **Sticky bar** at the bottom keeps the live total and the **Review →** button in thumb reach. The review sheet shows the breakdown, any unusual-amount warnings and receipts before saving.
-- **After saving:** a *Saved* banner with **Undo** (deletes it again), and the dashboard updates immediately.
+- **After saving:** a *Saved* banner with **Undo** and **Next: <site>**, and the dashboard updates immediately.
 - **Unsent figures are kept** on the phone (per site and date) if the signal drops or the tab closes, and restored when you come back.
 
 ## Works without signal, and installs like an app

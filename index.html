@@ -199,7 +199,7 @@ html.dark svg rect[fill="#f7b731"],html.dark svg circle[fill="#f7b731"]{filter:i
 /* Large figures */
 html.big .field input{font-size:30px;min-height:66px}
 html.big .field.sm input{font-size:24px;min-height:56px}
-html.big .cchip{font-size:15px;padding:9px 12px}
+html.big .cchip b{font-size:16px}
 html.big .eb-totals strong{font-size:22px}
 html.big .hist-kpi .val{font-size:19px}
 html.big .ss-net,html.big .hc-net,html.big .sc-name{font-size:21px}
@@ -273,7 +273,7 @@ html.big .site-card{padding:18px}
 .dash details[open]>summary::after,.site-row details[open]>summary::after{content:'▴'}
 .dash summary{cursor:pointer;color:#555;min-height:36px;display:flex;align-items:center}
 .site-grid{display:grid;grid-template-columns:1fr;gap:10px;margin:8px 0 16px}
-.site-card{display:block;width:100%;text-align:left;background:#fff;border:2px solid transparent;border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;font:inherit;color:inherit;min-height:84px}
+.site-card{display:block;width:100%;text-align:left;background:#fff;border:2px solid transparent;border-radius:14px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;font:inherit;color:inherit;min-height:84px}
 .site-card:active{transform:scale(.99)}
 .site-card:focus-visible,.site-card:hover{border-color:#f7b731;outline:none}
 .sc-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -281,7 +281,7 @@ html.big .site-card{padding:18px}
 .sc-last{font-size:12px;font-weight:600;color:#666;white-space:nowrap}
 .sc-last.late{color:#b36b00}.sc-last.vlate{color:#b03a2e}
 .sc-cats{font-size:12px;color:#888;margin-top:2px}
-.sc-bar{height:6px;background:#eef0f4;border-radius:3px;margin-top:10px;overflow:hidden}
+.sc-bar{height:6px;background:#eef0f4;border-radius:3px;margin-top:8px;overflow:hidden}
 .sc-bar i{display:block;height:100%;background:#f7b731;border-radius:3px}
 .sc-stats{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#555;margin-top:6px;flex-wrap:wrap}
 .sc-float{font-size:12px;font-weight:600;color:#b36b00;margin-top:4px}
@@ -300,13 +300,37 @@ html.big .site-card{padding:18px}
 .field{display:block;margin:8px 0}
 .field>span{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:4px}
 .field input{width:100%;padding:12px;border:1.5px solid #ccc;border-radius:10px;font-size:22px;font-weight:600;min-height:52px;text-align:right;font-variant-numeric:tabular-nums}
+.fl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;font-size:12px;font-weight:600;color:#555}
+.fl b{font-weight:600}
+.fl .usual{font-style:normal;font-weight:400;min-height:0}
+.float-row{margin:2px 0 4px}
+.float-add{background:none;border:1.5px dashed #bbb;color:#555;border-radius:20px;font:inherit;font-size:13px;font-weight:600;padding:8px 14px;min-height:40px;cursor:pointer}
+.float-add.hidden,.float-field.hidden{display:none}
+.float-info{font-size:12px;color:#555;line-height:1.5;margin-bottom:4px}
+.float-info:empty{display:none}
+.receipt-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fdf8ea;border:1px solid #eed9a0;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.receipt-bar .receipt-thumbs{margin:0}
+.date-bar .msg{display:block;margin:6px 0 0}
+.date-bar .msg:empty{display:none}
+.hist-kpis.compact{gap:6px;margin-bottom:4px}
+.hist-kpis.compact .hist-kpi{padding:8px 10px}
+.hist-kpis.compact .val{font-size:16px}
+.hist-kpis.compact .delta{margin-top:2px;font-size:12px}
+.dash-note{font-size:11px;color:#888;margin:2px 0 4px}
+.dash-toggle{background:none;border:0;font:inherit;font-size:16px;font-weight:700;color:inherit;cursor:pointer;padding:6px 0;min-height:40px;text-align:left}
+.dash-chev{color:#888;font-size:13px}
+.dash-mini{font-weight:500;font-size:13px;color:#666}
 .field input:focus{border-color:#f7b731;outline:none}
 .field.sm input{font-size:17px;min-height:46px}
 .usual{font-size:12px;color:#888;min-height:16px}
 .usual.warn{color:#b36b00;font-weight:600}
 .float-info{font-size:12px;color:#555;line-height:1.5}
-.calc-chips{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
-.cchip{background:#f4f5f8;border-radius:8px;padding:6px 10px;display:flex;justify-content:space-between;gap:6px;font-size:13px}
+.calc-chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.calc-chips.three{grid-template-columns:repeat(3,1fr)}
+@media(max-width:359px){.calc-chips{grid-template-columns:repeat(2,1fr)}}
+.cchip{background:#f4f5f8;border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;gap:0;min-width:0}
+.cchip span{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.3px}
+.cchip b{font-size:13px;overflow-wrap:anywhere}
 .cchip b{font-variant-numeric:tabular-nums}
 .cchip.main{background:#fff8e6}
 .entry-bar{position:sticky;bottom:0;z-index:60;display:flex;align-items:center;gap:12px;background:#fff;border-top:1px solid #e3e6ec;box-shadow:0 -6px 16px rgba(0,0,0,.1);margin:16px -16px -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
@@ -325,7 +349,7 @@ html.big .site-card{padding:18px}
 .cf-tile b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
 .cf-tile span{font-size:10px;color:#777;text-transform:uppercase}
 @media(max-width:600px){.entry-bar{margin:16px -10px -12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}.eb-totals{gap:12px}.eb-totals strong{font-size:16px}}
-@media(min-width:700px){.site-grid{grid-template-columns:repeat(2,1fr)}.calc-chips{grid-template-columns:repeat(4,1fr)}.entry-bar{margin:16px 0 0;border-radius:12px}}
+@media(min-width:700px){.site-grid{grid-template-columns:repeat(2,1fr)}.mcards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start}.mcards .mcard{margin-bottom:0}.entry-bar{margin:16px 0 0;border-radius:12px}}
 .hist-more{display:block;margin:10px auto;min-height:44px}
 @media(min-width:700px){
   .hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
@@ -1725,12 +1749,14 @@ function renderForm() {
     const shares = `Site ${pct}% · Supplier ${100 - pct}%` + (cat.flatFee > 0 ? ` · Fee £${cat.flatFee}` : '');
     html += `<section class="mcard" aria-label="${esc(cat.name)}">
       <div class="mcard-head"><h3>${esc(cat.name)}</h3><span class="type-tag">${esc(shares)}</span></div>
-      <label class="field"><span>Gross takings (£)</span>
+      <label class="field"><div class="fl"><b>Gross takings (£)</b><i class="usual" id="usual_${fid}"></i></div>
         <input type="number" inputmode="decimal" step="any" min="0" id="gross_${fid}" class="js-next" data-draft enterkeyhint="next" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>
-      <div class="usual" id="usual_${fid}"></div>
-      ${cat.hasFloat ? `<label class="field sm"><span>Float to recover (£)</span>
-        <input type="number" inputmode="decimal" step="any" min="0" id="floatreq_${fid}" class="js-next" data-draft enterkeyhint="next" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>
-        <div class="float-info" id="float_${fid}"></div>` : ''}
+      ${cat.hasFloat ? `<div class="float-row">
+        <div class="float-info" id="float_${fid}"></div>
+        <button type="button" class="float-add" id="floatbtn_${fid}" onclick="showFloatField('${fid}')">+ Add float to recover</button>
+        <label class="field sm float-field hidden" id="floatfield_${fid}"><div class="fl"><b>Float to recover (£)</b></div>
+          <input type="number" inputmode="decimal" step="any" min="0" id="floatreq_${fid}" class="js-next" data-draft enterkeyhint="next" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>
+      </div>` : ''}
       <div class="calc-chips" id="split_${fid}"></div>
     </section>`;
   }
@@ -1744,15 +1770,15 @@ function renderForm() {
         ? `<p style="margin:4px 0;font-size:14px">Fixed rent <strong id="pool_${lid}">£${(parseFloat(loc.poolRent) || 0).toFixed(2)}</strong> — added automatically.</p>`
         : `<label class="field"><span>Pool gross takings (£)</span>
             <input type="number" inputmode="decimal" step="any" min="0" id="pool_${lid}" class="js-next" data-draft enterkeyhint="done" placeholder="0.00" oninput="formInput()" onfocus="this.select()"></label>`}
-      <div class="calc-chips" id="pool_split_${lid}"></div>
+      <div class="calc-chips three" id="pool_split_${lid}"></div>
     </section>`;
   }
   html += '</div>';
 
-  html += `<div class="receipt-panel">
-    <div class="receipt-header"><strong>Receipt photos</strong><span class="receipt-count" id="receiptCount_${loc.id}"></span></div>
-    <div class="receipt-thumbs" id="receiptThumbs_${loc.id}"></div>
+  html += `<div class="receipt-bar">
     <button type="button" class="btn btn-outline" style="min-height:44px" onclick="openReceiptPicker('${jsAttr(loc.id)}')">📷 Add receipt photo</button>
+    <span class="receipt-count" id="receiptCount_${loc.id}"></span>
+    <div class="receipt-thumbs" id="receiptThumbs_${loc.id}"></div>
   </div>`;
 
   html += `<details class="dash" style="padding:10px 14px"><summary style="cursor:pointer;min-height:36px;display:flex;align-items:center;font-weight:600">Totals breakdown</summary>
@@ -1768,10 +1794,25 @@ function renderForm() {
 
   if (container) container.innerHTML = html;
   const restored = editingEntry ? fillFormFromEntry(editingEntry, loc) : restoreDraft();
+  syncFloatFields();
   syncDateChips();
   updateFormCalcs();
   renderReceipts(loc.id);
   if (restored && !editingEntry) showMsg('submitMsg', 'Restored your unsent figures', 'success');
+}
+
+/** Float entry is tucked behind a button until it is needed (or already holds a value). */
+function showFloatField(fid) {
+  const f = document.getElementById('floatfield_' + fid), b = document.getElementById('floatbtn_' + fid);
+  if (f) f.classList.remove('hidden');
+  if (b) b.classList.add('hidden');
+  const i = document.getElementById('floatreq_' + fid);
+  if (i) i.focus();
+}
+function syncFloatFields() {
+  document.querySelectorAll('#formContainer input[id^="floatreq_"]').forEach(i => {
+    if (i.value !== '') showFloatField(i.id.replace('floatreq_', ''));
+  });
 }
 
 /** Put a saved collection's figures into the form (edit mode). Returns how many fields were filled. */
@@ -1814,7 +1855,7 @@ function updateFormCalcs() {
   const locs = getActiveEntryLocations(date);
   if (!locs.length) return;
   const mgdRate = mgdAt(config, date);
-  const chip = (l, v, main) => `<div class="cchip${main ? ' main' : ''}"><span>${l}</span><b>${gbp(v)}</b></div>`;
+  const chip = (l, v, main) => `<div class="cchip${main ? ' main' : ''}"><span>${l}</span><b>${gbp(v)}</b></div>`;   // label above value
 
   for (const loc of locs) {
     let locNet = 0, locMgd = 0, locSs = 0, locCl = 0;
@@ -2197,6 +2238,9 @@ function dayLabelShort(d) {
   return new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+function dashOpen() { try { return localStorage.getItem('3bb_dash') !== 'closed'; } catch (e) { return true; } }
+function toggleDash() { try { localStorage.setItem('3bb_dash', dashOpen() ? 'closed' : 'open'); } catch (e) {} render21DayTotals(); }
+
 function render21DayTotals() {
   const el = document.getElementById('totals21Container');
   if (!el) return;
@@ -2208,7 +2252,7 @@ function render21DayTotals() {
   const tc = sumRows(o.cur), tp = sumRows(o.prev);
   const days = dayBuckets(o.cur, o.today, 21);
   const max = Math.max.apply(null, days.map(d => d.net).concat([1]));
-  const W = 360, H = 132, base = 100, top = 16, slot = W / 21, bw = 11;
+  const W = 360, H = 98, base = 72, top = 14, slot = W / 21, bw = 11;
   let bars = '';
   days.forEach((d, i) => {
     const h = Math.round((d.net / max) * (base - top));
@@ -2219,27 +2263,29 @@ function render21DayTotals() {
       ? `<g><title>${esc(nice)}: ${esc(gbp(d.net))} net</title><rect x="${x}" y="${base - h}" width="${bw}" height="${h}" rx="2" fill="#f7b731" ${isToday ? 'stroke="#1a1a2e" stroke-width="1.5"' : ''}></rect>${d.net === max ? `<text x="${x + bw / 2}" y="${base - h - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="#1a1a2e">${gbpShort(d.net)}</text>` : ''}</g>`
       : `<rect x="${x}" y="${base - 2}" width="${bw}" height="2" rx="1" fill="#d9dce3"></rect>`;
   });
-  const lbl = (i, txt, anchor) => `<text x="${i * slot + slot / 2}" y="${base + 16}" text-anchor="${anchor || 'middle'}" font-size="10" fill="#666">${esc(txt)}</text>`;
+  const lbl = (i, txt, anchor) => `<text x="${i * slot + slot / 2}" y="${base + 14}" text-anchor="${anchor || 'middle'}" font-size="10" fill="#666">${esc(txt)}</text>`;
   const axis = lbl(0, dayLabelShort(days[0].date), 'start') + lbl(7, dayLabelShort(days[7].date)) + lbl(14, dayLabelShort(days[14].date)) + lbl(20, 'Today', 'end');
   const groups = groupRows(o.cur, 'siteKey', 'siteName');
   const sitesTable = groups.length ? `<div class="table-scroll" style="box-shadow:none;margin:8px 0 0"><table class="tbl"><thead><tr><th>Site</th><th class="num">Net</th><th class="num">Supplier</th><th class="num">Site</th><th class="num c-opt">MGD</th></tr></thead><tbody>${groups.map(g => `<tr><td>${esc(g.label)}</td><td class="ro">${gbp(g.net)}</td><td class="ro">${gbp(g.ss)}</td><td class="ro">${gbp(g.cl)}</td><td class="ro c-opt">${gbp(g.mgd)}</td></tr>`).join('')}
     <tr class="total"><td>Total</td><td class="ro">${gbp(tc.net)}</td><td class="ro">${gbp(tc.ss)}</td><td class="ro">${gbp(tc.cl)}</td><td class="ro c-opt">${gbp(tc.mgd)}</td></tr></tbody></table></div>` : '';
   const tile = (val, l, extra) => `<div class="hist-kpi"><div class="val">${val}</div><div class="lbl">${l}</div>${extra || ''}</div>`;
   const hasPrev = tp.collections > 0;
+  const open = dashOpen();
+  const dshort = (cur, prev) => { if (!hasPrev || !prev) return ''; const p = ((cur - prev) / prev) * 100; return Math.abs(p) < 0.5 ? '<div class="delta flat">▬ 0%</div>' : `<div class="delta ${p > 0 ? 'up' : 'down'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p).toFixed(0)}%</div>`; };
   el.innerHTML = `<div class="dash">
-    <div class="dash-head"><h2>Last 21 days</h2><button type="button" class="link-btn" onclick="histGo('period','21d')">See in History →</button></div>
-    <div class="hist-kpis" style="margin-bottom:6px">
-      ${tile(gbp(tc.net), 'Net', hasPrev ? deltaHtml(tc.net, tp.net, 'prior 21d') : '')}
-      ${tile(gbp(tc.cl), 'Site share', hasPrev ? deltaHtml(tc.cl, tp.cl, 'prior 21d') : '')}
-      ${tile(String(tc.collections), 'Collections', hasPrev ? deltaHtml(tc.collections, tp.collections, 'prior 21d') : '')}
-    </div>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net takings per day for the last 21 days. Total ${esc(gbp(tc.net))} from ${tc.collections} collection${tc.collections === 1 ? '' : 's'}.">
+    <div class="dash-head"><button type="button" class="dash-toggle" aria-expanded="${open}" onclick="toggleDash()"><span class="dash-chev">${open ? '▾' : '▸'}</span> Last 21 days${open ? '' : ` <span class="dash-mini">· ${esc(gbp(tc.net))} net · ${tc.collections} collection${tc.collections === 1 ? '' : 's'}</span>`}</button>${open ? '<button type="button" class="link-btn" onclick="histGo(\'period\',\'21d\')">History →</button>' : ''}</div>
+    ${open ? `<div class="hist-kpis compact">
+      ${tile(gbp(tc.net), 'Net', dshort(tc.net, tp.net))}
+      ${tile(gbp(tc.cl), 'Site share', dshort(tc.cl, tp.cl))}
+      ${tile(String(tc.collections), 'Collections', dshort(tc.collections, tp.collections))}
+    </div>${hasPrev ? '<div class="dash-note">▲▼ change vs the previous 21 days</div>' : ''}` : ''}
+    ${open ? `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net takings per day for the last 21 days. Total ${esc(gbp(tc.net))} from ${tc.collections} collection${tc.collections === 1 ? '' : 's'}.">
       <line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#ccc"></line>
       <line x1="${7 * slot}" y1="${top}" x2="${7 * slot}" y2="${base}" stroke="#eee" stroke-dasharray="3 3"></line>
       <line x1="${14 * slot}" y1="${top}" x2="${14 * slot}" y2="${base}" stroke="#eee" stroke-dasharray="3 3"></line>
       ${bars}${axis}
     </svg>
-    <details><summary>Breakdown by site (MGD, supplier, site share)</summary>${sitesTable}</details>
+    <details><summary>Breakdown by site (MGD, supplier, site share)</summary>${sitesTable}</details>` : ''}
   </div>`;
 }
 
@@ -4191,7 +4237,7 @@ document.querySelectorAll('#entryDateBar .chip').forEach(b => {
 document.getElementById('formContainer').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || !e.target.classList || !e.target.classList.contains('js-next')) return;
   e.preventDefault();
-  const all = [...document.querySelectorAll('#formContainer .js-next')];
+  const all = [...document.querySelectorAll('#formContainer .js-next')].filter(el => el.offsetParent !== null);
   const i = all.indexOf(e.target);
   const next = all[i + 1];
   if (next) next.focus();
