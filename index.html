@@ -1158,6 +1158,7 @@ async function loadEntriesInner() {
 }
 
 async function bootApp() {
+  await restoreQueueFromBackup();
   // Show the data saved on this phone straight away; the fresh copy loads behind it
   if (!cachedEntries.length && restoreEntriesCache()) {
     updateHistoryCount();
@@ -1292,7 +1293,48 @@ async function pinLogin(name, pin) {
 }
 const QUEUE_KEY = '3bb_queue';
 function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') || []; } catch (e) { return []; } }
+// A second copy of the waiting queue lives in IndexedDB (a separate storage), so a lost localStorage write can never lose a collection
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    try {
+      const r = indexedDB.open('3bb', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    } catch (e) { reject(e); }
+  });
+}
+async function idbSet(k, v) {
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    db.close();
+  } catch (e) { /* private mode etc.: the localStorage copy still works */ }
+}
+async function idbGet(k) {
+  try {
+    const db = await idbOpen();
+    const v = await new Promise((res, rej) => { const rq = db.transaction('kv').objectStore('kv').get(k); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); });
+    db.close();
+    return v;
+  } catch (e) { return undefined; }
+}
+/** At start-up: bring back any waiting collection the main copy has lost. Re-sending is safe (the server de-dupes by id). */
+async function restoreQueueFromBackup() {
+  const bk = await idbGet(QUEUE_KEY);
+  if (!Array.isArray(bk) || !bk.length) return 0;
+  const cur = loadQueue();
+  const have = new Set(cur.map(i => i.id));
+  const missing = bk.filter(i => i && i.id && i.entry && !have.has(i.id));
+  if (!missing.length) return 0;
+  saveQueue(cur.concat(missing));
+  mergeQueuedIntoCache();
+  renderNotices();
+  return missing.length;
+}
+
 function saveQueue(q) {
+  idbSet(QUEUE_KEY, q);
   try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); return 'ok'; }
   catch (e) {
     try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q.map(i => Object.assign({}, i, { photos: [] })))); return 'nophotos'; }

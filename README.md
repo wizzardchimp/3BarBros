@@ -64,6 +64,7 @@ Server-side safeguards: writes are serialised with a script lock; submits are id
 
 ## Works without signal, and installs like an app
 - **Install:** open the site on your phone and choose *Add to Home Screen* (iPhone: Share → Add to Home Screen; Android: menu → Install app). It opens full screen with its own icon.
+- **Safety copy:** the waiting queue is stored twice on the phone (browser storage and IndexedDB); if the main copy is ever missing it is restored from the other on the next open, and re-sending is always safe because the sheet de-dupes by collection id.
 - **No signal:** the app opens from the data saved on the phone. A collection that can't be sent is **kept on the phone and sent automatically** when signal returns (also when you reopen the app, and every 30 s while waiting). A banner shows what is waiting; **Send now** forces a try. The sheet de-dupes by collection id, so a lost reply never creates a duplicate. Float is worked out from the saved data, and you are prompted to recheck it after the collection arrives.
 - **Receipts** upload as soon as you add them (✓ sent); removing one deletes it from Drive. If a receipt can't upload, it travels with the queued collection.
 - **Float recheck prompt:** after a collection is added late, back-dated, edited or deleted, a banner offers *Review* (opens Recalculate float from that date).
