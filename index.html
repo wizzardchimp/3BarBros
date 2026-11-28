@@ -702,17 +702,17 @@ function handleReceiptFiles(files) {
 
 async function addPendingPhoto(locId, file) {
   if (!file || !/^image\//.test(file.type)) {
-    showMsg('submitMsg', 'Only image files are supported', 'error');
+    showAppAlert('Not a photo', 'Only image files can be added as receipts.');
     return false;
   }
   if (!Array.isArray(pendingPhotos[locId])) pendingPhotos[locId] = [];
   if (pendingPhotos[locId].length >= 5) {
-    showMsg('submitMsg', 'Max 5 receipts per site', 'error');
+    showAppAlert('Receipt limit', 'You can add up to 5 receipt photos per site.');
     return false;
   }
   const dataUrl = await readImageDownscaled(file);
   if (!dataUrl) {
-    showMsg('submitMsg', 'Could not read that photo', 'error');
+    showAppAlert('Could not read the photo', 'Try taking the photo again.');
     return false;
   }
   const photo = { name: file.name || 'receipt.jpg', dataUrl, status: 'queued', ref: null };
@@ -2059,7 +2059,7 @@ function showSubmitConfirm(entry, opts) {
 
     const siteNames = [...new Set((entry.locations || []).map(l => l.name))].join(', ');
     if (meta) meta.innerHTML = '<strong>' + esc(siteNames) + '</strong> · ' + esc(histDateLabel(entry.date));
-    if (monthEl) monthEl.innerHTML = 'Counts toward <strong>' + esc(monthLong(bKey)) + '</strong> (' + esc(monthRangeLabel(bKey)) + ').' + (opts.offline ? '<br><strong>No signal.</strong> It will be kept on this phone and sent automatically. Float is worked out from the data saved here; you may be asked to recheck it afterwards.' : '');
+    if (monthEl) monthEl.innerHTML = 'Counts toward <strong>' + esc(monthLong(bKey)) + '</strong> (' + esc(monthRangeLabel(bKey)) + ').' + (opts.offline ? '<br><strong>' + (opts.slow ? 'The sheet is slow to answer.' : 'No signal.') + '</strong> It will be kept on this phone and sent automatically. Float is worked out from the data saved here; you may be asked to recheck it afterwards.' : '');
 
     let rows = '', warns = '';
     for (const loc of entry.locations || []) {
@@ -2100,26 +2100,59 @@ function showSubmitConfirm(entry, opts) {
   });
 }
 
+/** loadEntries() but never makes the user wait longer than `ms` (the refresh keeps going in the background). */
+function refreshWithin(ms) {
+  return new Promise(resolve => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; resolve({ ok: false, timedOut: true, error: 'The sheet is slow to answer.' }); } }, ms);
+    loadEntries().then(r => { if (!done) { done = true; clearTimeout(t); resolve(r); } })
+      .catch(e => { if (!done) { done = true; clearTimeout(t); resolve({ ok: false, error: String((e && e.message) || e) }); } });
+  });
+}
+
+let submitting = false;
+/** Review & submit. Gives instant feedback, ignores double-taps, and never fails silently. */
 async function submitEntry() {
+  if (submitting) return;
+  submitting = true;
+  const btn = document.getElementById('submitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  try {
+    await submitEntryInner();
+  } catch (e) {
+    console.error(e);
+    hideLoading();
+    showAppAlert('Something went wrong', 'The review could not open (' + String((e && e.message) || e) + '). Your figures are still on screen. Please try again.');
+  } finally {
+    submitting = false;
+    hideLoading();
+    const b2 = document.getElementById('submitBtn');
+    if (b2) { b2.textContent = 'Review →'; updateFormCalcs(); }
+  }
+}
+
+async function submitEntryInner() {
   const date = document.getElementById('entryDate').value;
-  if (!date) { showMsg('submitMsg', 'Select a date', 'error'); return; }
-  if (!activeEntrySiteId) { showMsg('submitMsg', 'Choose a site first', 'error'); return; }
-  if (!config.locations.length) { showMsg('submitMsg', 'No sites configured', 'error'); return; }
+  if (!date) { showAppAlert('Pick a date', 'Choose the collection date first.'); return; }
+  if (!activeEntrySiteId) { showAppAlert('Choose a site', 'Pick a site before reviewing.'); return; }
+  if (!config.locations.length) { showAppAlert('No sites yet', 'Add a site in Settings first.'); return; }
   const editing = !!editingEntry;
 
-  // Refresh first so float carry-forward uses the latest sheet data. With no signal we carry on using the
-  // data saved on this phone and send afterwards (not possible for edits).
-  let offline = false;
-  const fresh = await loadEntries();
+  // Refresh first so float carry-forward uses the latest sheet data. Give it a few seconds only: if the sheet is
+  // slow or there is no signal, carry on with the data saved on this phone and send afterwards (not possible for edits).
+  let offline = false, slow = false;
+  showLoading('Checking the latest figures…');
+  const fresh = await refreshWithin(6000);
+  hideLoading();
   if (!fresh.ok) {
     if (fresh.needLogin) return;
-    if (editing) { showMsg('submitMsg', 'Editing needs a connection — try again with signal', 'error'); return; }
-    if (!hasLocalData()) { showMsg('submitMsg', 'Could not load your data yet — not submitted. ' + (fresh.error || ''), 'error'); return; }
-    offline = true;
+    if (editing) { showAppAlert('Editing needs a connection', 'The sheet could not be reached quickly enough. Try again with a better signal.'); return; }
+    if (!hasLocalData()) { showAppAlert('Could not load your data', 'Nothing was submitted. ' + (fresh.error || 'Check your signal and try again.')); return; }
+    offline = true; slow = !!fresh.timedOut;
   }
 
   const entry = buildEntryFromForm();
-  if (!entry) { showMsg('submitMsg', 'Could not build entry', 'error'); return; }
+  if (!entry) { showAppAlert('Could not build the collection', 'Check the date and amounts and try again.'); return; }
   if (editing) {
     entry.id = editingEntry.id;
     entry.timestamp = editingEntry.timestamp;
@@ -2130,11 +2163,11 @@ async function submitEntry() {
   const hasAny = (entry.grandTotal || 0) > 0 || (entry.grandFloat || 0) > 0 ||
     entry.locations.some(l => (l.categories || []).some(c => (c.gross || 0) > 0 || (c.floatRequired || 0) > 0) || (l.poolGross || 0) > 0);
   if (!hasAny) {
-    showMsg('submitMsg', 'Enter at least one amount', 'error');
+    showAppAlert('Enter an amount', 'Type at least one amount before reviewing.');
     return;
   }
 
-  const confirmed = await showSubmitConfirm(entry, { offline, editing });
+  const confirmed = await showSubmitConfirm(entry, { offline, editing, slow });
   if (!confirmed) {
     showMsg('submitMsg', 'Cancelled', 'error');
     return;
