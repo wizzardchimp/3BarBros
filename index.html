@@ -566,7 +566,7 @@ html.big .site-card{padding:18px}
     </div>
     <div class="settings-card">
       <h2>Email notifications</h2>
-      <p class="hint">The owner of the Google Sheet gets an email when someone <strong>logs in</strong>, and a short summary of <strong>what they did</strong> (collections saved, edited or deleted, settings changed) a few minutes later. “Clear all” is emailed straight away. Everything is also kept in the <strong>ActivityLog</strong> tab of the sheet.</p>
+      <p class="hint">The owner of the Google Sheet gets an email when someone <strong>logs in</strong>, <strong>an email for every new collection</strong> with a short summary (site, who entered it, net, site share, supplier, each machine, float and receipts), and a short digest of other changes (edits, deletes, settings) a few minutes later. “Clear all” is emailed straight away. Everything is also kept in the <strong>ActivityLog</strong> tab of the sheet.</p>
       <p class="hint"><strong>One-time setup in Apps Script:</strong> 1) paste the latest <code>Code.gs</code>; 2) run <code>__authMail</code> once from the editor and accept the permissions (send email, triggers); 3) Deploy → Manage deployments → edit → <em>New version</em>. Emails go to the account that owns the script. Optional Script Properties: <code>NOTIFY_EMAIL</code> to send elsewhere, <code>NOTIFY</code> = <code>off</code> to pause.</p>
       <p class="hint">Names come from the “Your name” box at login, so they identify who, but they are not proof — the password is shared.</p>
       <div class="toolbar"><button type="button" class="btn btn-outline" onclick="testNotifyEmail()">Send test email</button><span id="notifyMsg" class="msg"></span></div>

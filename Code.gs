@@ -17,7 +17,7 @@ const MASTER_HEADER = [
 ];
 const ACTIVITY_HEADER = ['Time', 'Session', 'Who', 'Device', 'Action', 'Detail', 'Notified'];
 const DIGEST_DELAY_MIN = 5;      // activity is summarised by email this many minutes after it starts
-const MAX_EMAILS_PER_DAY = 25;   // safety cap (Gmail allows ~100/day for personal accounts)
+const MAX_EMAILS_PER_DAY = 40;   // safety cap (Gmail allows ~100/day for personal accounts)
 const USERS_HEADER = ['Name', 'Salt', 'Hash', 'Created', 'Last login'];
 const TOKEN_DAYS = 30;           // a signed-in phone stays signed in this long
 const MAX_FAILS = 5;             // wrong PINs allowed before a lock-out
@@ -574,8 +574,61 @@ function diffChangeLog(oldCfg, newCfg) {
 
 let PENDING_ACTIVITY = [];
 /** Record something done during this request (flushed after the main work is saved). */
-function note(action, detail, mode) {
-  PENDING_ACTIVITY.push({ action: action, detail: String(detail || ''), mode: mode || '' });
+function note(action, detail, mode, extra) {
+  PENDING_ACTIVITY.push({ action: action, detail: String(detail || ''), mode: mode || '', extra: extra || null });
+}
+
+/** Each new collection is emailed straight away. Script Property NOTIFY_COLLECTIONS = off folds them into the digest instead. */
+function notifyCollections() {
+  return PropertiesService.getScriptProperties().getProperty('NOTIFY_COLLECTIONS') !== 'off';
+}
+
+function moneyText(v) {
+  const n = parseFloat(v) || 0;
+  const parts = Math.abs(n).toFixed(2).split('.');
+  return (n < 0 ? '-£' : '£') + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
+}
+
+function dayText(dateStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateStr || ''));
+  if (!m) return String(dateStr || '');
+  try { return Utilities.formatDate(new Date(+m[1], +m[2] - 1, +m[3], 12), Session.getScriptTimeZone(), 'EEE d MMM yyyy'); } catch (e) { return String(dateStr); }
+}
+
+/** A short summary email for one saved collection. */
+function buildCollectionMail(entry, info) {
+  const names = [];
+  const lines = [];
+  let photos = 0, netSum = 0;
+  (entry.locations || []).forEach(function (loc) {
+    if (!loc) return;
+    if (loc.name && names.indexOf(loc.name) < 0) names.push(loc.name);
+    (loc.categories || []).forEach(function (c) {
+      if (!c) return;
+      netSum += parseFloat(c.net) || 0;
+      const g = parseFloat(c.gross != null ? c.gross : c.cash) || 0, f = parseFloat(c.floatTaken) || 0;
+      if (g > 0 || f > 0) lines.push((c.name || 'Machine') + ': ' + moneyText(g) + (f > 0 ? ' (float ' + moneyText(f) + ' taken)' : ''));
+    });
+    const pg = parseFloat(loc.poolGross) || 0;
+    if (pg > 0) { lines.push('Pool: ' + moneyText(pg)); netSum += pg; }
+    photos += (loc.photos || []).length;
+  });
+  const site = names.join(', ') || 'a site';
+  const net = entry.grandTotal != null ? parseFloat(entry.grandTotal) || 0 : netSum;
+  const cl = parseFloat(entry.grandCL) || 0, ss = parseFloat(entry.grandSS) || 0, mgd = parseFloat(entry.grandMGD) || 0, fl = parseFloat(entry.grandFloat) || 0;
+  const by = whoLabel(info.who) + (info.device ? ' (' + info.device + ')' : '');
+  const text = 'New collection — ' + site + '\nCollected: ' + dayText(entry.date) + '\nEntered by: ' + by + '\n\n' +
+    'Net ' + moneyText(net) + '\nSite share ' + moneyText(cl) + ' · Supplier ' + moneyText(ss) + ' · MGD ' + moneyText(mgd) + '\n' +
+    (fl > 0 ? 'Float taken ' + moneyText(fl) + '\n' : '') + '\nMachines\n' + (lines.length ? lines.map(function (l) { return '  ' + l; }).join('\n') : '  (no amounts)') +
+    (photos ? '\n\nReceipts: ' + photos + ' photo' + (photos === 1 ? '' : 's') : '') + '\n\n— 3BarBros';
+  const html = '<p style="margin:0 0 6px"><strong>New collection — ' + escHtml(site) + '</strong></p>' +
+    '<p style="margin:0 0 10px;color:#555">Collected ' + escHtml(dayText(entry.date)) + ' · entered by ' + escHtml(by) + '</p>' +
+    '<table cellpadding="4" style="border-collapse:collapse"><tr><td><strong>Net</strong></td><td><strong>' + escHtml(moneyText(net)) + '</strong></td></tr>' +
+    '<tr><td>Site share</td><td>' + escHtml(moneyText(cl)) + '</td></tr><tr><td>Supplier</td><td>' + escHtml(moneyText(ss)) + '</td></tr><tr><td>MGD</td><td>' + escHtml(moneyText(mgd)) + '</td></tr>' +
+    (fl > 0 ? '<tr><td>Float taken</td><td>' + escHtml(moneyText(fl)) + '</td></tr>' : '') + '</table>' +
+    '<p style="margin:10px 0 2px"><strong>Machines</strong></p><ul style="margin:0;padding-left:18px">' + (lines.length ? lines.map(function (l) { return '<li>' + escHtml(l) + '</li>'; }).join('') : '<li>(no amounts)</li>') + '</ul>' +
+    (photos ? '<p style="margin:10px 0 0">Receipts: ' + photos + ' photo' + (photos === 1 ? '' : 's') + '</p>' : '') + '<p style="color:#666">— 3BarBros</p>';
+  return { subject: '3BarBros: ' + site + ' — ' + moneyText(net) + ' net (' + whoLabel(info.who) + ')', text: text, html: html };
 }
 
 function loginEmailBody(info, when) {
@@ -600,10 +653,11 @@ function flushActivity(body) {
     const immediate = it.mode === 'login' || it.mode === 'urgent';
     return [now, sanitizeCell(info.session), sanitizeCell(info.who), sanitizeCell(info.device), it.action, sanitizeCell(it.detail), immediate ? 'immediate' : ''];
   });
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, ACTIVITY_HEADER.length).setValues(rows);
+  const startRow = sheet.getLastRow() + 1;
+  sheet.getRange(startRow, 1, rows.length, ACTIVITY_HEADER.length).setValues(rows);
 
   let needDigest = false;
-  items.forEach(function (it) {
+  items.forEach(function (it, i) {
     if (it.mode === 'login') {
       const b = loginEmailBody(info, fmtWhen(now));
       sendNotification('3BarBros: ' + whoLabel(info.who) + ' logged in' + (info.device ? ' (' + info.device + ')' : ''), b.text, b.html);
@@ -611,6 +665,14 @@ function flushActivity(body) {
       const text = '⚠ ' + it.detail + '\n\nBy: ' + whoLabel(info.who) + ' (' + (info.device || 'unknown device') + ')\nWhen: ' + fmtWhen(now) + '\n\n— 3BarBros';
       sendNotification('⚠ 3BarBros: ' + it.detail, text, '<p>⚠ <strong>' + escHtml(it.detail) + '</strong></p><p>By: ' + escHtml(whoLabel(info.who)) +
         ' (' + escHtml(info.device || 'unknown device') + ')<br>When: ' + escHtml(fmtWhen(now)) + '</p>');
+    } else if (it.mode === 'collection') {
+      // One email per collection. If it can't be sent (or is switched off) it stays unmarked so the digest reports it.
+      let sent = false;
+      if (notifyCollections() && it.extra) {
+        const m = buildCollectionMail(it.extra, info);
+        sent = sendNotification(m.subject, m.text, m.html).sent;
+      }
+      if (sent) sheet.getRange(startRow + i, 7).setValue('immediate'); else needDigest = true;
     } else {
       needDigest = true;
     }
@@ -1070,7 +1132,7 @@ function handlePost(body) {
   rest.id = id;
   rest.date = date;
   sheet.appendRow([date, ts, JSON.stringify(rest)]);
-  note('submit', 'Collection submitted — ' + describeEntryForLog(rest));
+  note('submit', 'Collection submitted — ' + describeEntryForLog(rest), 'collection', rest);
 
   // Permanent append-only audit log (survives delete/clear/merge)
   let masterRows = 0;

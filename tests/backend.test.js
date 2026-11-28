@@ -34,6 +34,7 @@ function makeEnv(opts = {}) {
     const mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
     if (f === 'yyyyMMdd') return d.getFullYear() + mm + dd;
     if (f === 'yyyy-MM-dd') return d.getFullYear() + '-' + mm + '-' + dd;
+    if (f === 'EEE d MMM yyyy') return p.weekday + ' ' + p.day + ' ' + p.month + ' ' + p.year;
     if (f === 'HH:mm') return p.hour + ':' + p.minute;
     if (f === 'yyyy-MM-dd HHmm') return d.getFullYear() + '-' + mm + '-' + dd + ' ' + p.hour + p.minute;
     return p.weekday + ' ' + p.day + ' ' + p.month + ', ' + p.hour + ':' + p.minute;
@@ -80,33 +81,78 @@ t('login: logged, emailed immediately with who and device, saves unaffected', ()
   assert.ok(/Sam/.test(e.mails[0].body) && /Device: iPhone/.test(e.mails[0].body));
 });
 
-t('submit: collection saved, identity NOT stored in the entry, activity queued with one digest trigger', () => {
+t('submit: collection saved, identity NOT stored in the entry, each collection emailed straight away', () => {
   const e = makeEnv();
   const r = e.post(entry('2026-11-17T10:00:00.000Z'));
   assert.strictEqual(r.success, true);
   const saved = JSON.parse(e.sheets.Data.rows[1][2]);
   assert.ok(!('who' in saved) && !('session' in saved) && !('device' in saved) && !('token' in saved));
-  assert.strictEqual(e.mails.length, 0);                                 // not emailed straight away
-  assert.strictEqual(e.triggers.length, 1);
-  assert.strictEqual(e.triggers[0].ms, 5 * 60 * 1000);
+  assert.strictEqual(e.mails.length, 1);                                 // emailed straight away
+  assert.strictEqual(e.triggers.length, 0);                              // no digest needed for a collection
   e.post(entry('2026-11-17T10:05:00.000Z'));
-  assert.strictEqual(e.triggers.length, 1);                              // one digest queued, not one per action
+  assert.strictEqual(e.mails.length, 2);                                 // one email per collection
   const a = e.sheets.ActivityLog.rows;
   assert.ok(/Collection submitted — Alberto · 2026-11-17 · net £120.50/.test(a[1][5]));
+  assert.ok(a.slice(1).every(r => r[6] === 'immediate'));               // already emailed: the digest will not repeat it
 });
 
-t('digest: one email summarising what they did, rows marked emailed, nothing sent twice', () => {
+t('collection email: short summary with site, who, totals, each machine, float and receipts', () => {
+  const e = makeEnv();
+  const big = entry('C1', { date: '2026-11-17', grandTotal: 1234.5, grandCL: 740.7, grandSS: 493.8, grandMGD: 246.9, grandFloat: 25,
+    locations: [{ id: 'a', name: 'Alberto', poolGross: 60, poolSS: 30, poolCL: 30, photos: [{ fileId: 'f1' }, { fileId: 'f2' }],
+      categories: [{ id: 'r', name: 'Reels', gross: 800, net: 775, floatTaken: 25 }, { id: 'd', name: 'Inspire', gross: 399.5, net: 399.5, floatTaken: 0 }, { id: 'x', name: 'GM', gross: 0, net: 0 }] }] });
+  e.post(big);
+  const m = e.mails[0];
+  assert.strictEqual(m.to, 'owner@example.com');
+  assert.strictEqual(m.subject, '3BarBros: Alberto — £1,234.50 net (Sam)');
+  ['New collection — Alberto', 'Entered by: Sam (iPhone · Safari)', 'Net £1,234.50', 'Site share £740.70', 'Supplier £493.80', 'MGD £246.90', 'Float taken £25.00',
+   'Reels: £800.00 (float £25.00 taken)', 'Inspire: £399.50', 'Pool: £60.00', 'Receipts: 2 photos'].forEach(x => assert.ok(m.body.indexOf(x) >= 0, 'missing: ' + x));
+  assert.ok(m.body.indexOf('GM:') < 0);                                 // machines with nothing entered are left out
+  assert.ok(/<li>Reels: £800.00/.test(m.htmlBody) && /Net<\/strong>/.test(m.htmlBody));
+});
+
+t('collection email: site names are HTML-escaped, a retried submit does not email twice', () => {
+  const e = makeEnv();
+  const x = entry('E1'); x.locations[0].name = '<b>Evil</b> & Co';
+  e.post(x); e.post(x);                                                  // second is a duplicate retry
+  assert.strictEqual(e.mails.length, 1);
+  assert.ok(!/<b>Evil<\/b>/.test(e.mails[0].htmlBody) && /&lt;b&gt;Evil/.test(e.mails[0].htmlBody));
+});
+
+t('collection emails can be switched off (they fall back to the digest) and edits/deletes stay in the digest', () => {
+  const e = makeEnv(); e.props.NOTIFY_COLLECTIONS = 'off';
+  e.post(entry('F1'));
+  assert.strictEqual(e.mails.length, 0);
+  assert.strictEqual(e.triggers.length, 1);                              // digest queued instead
+  e.post(Object.assign({ action: 'updateEntry', entry: entry('F1', { grandTotal: 99 }) }, ident));
+  e.digest();
+  assert.strictEqual(e.mails.length, 1);
+  assert.ok(/Collection submitted/.test(e.mails[0].body) && /Collection edited/.test(e.mails[0].body));
+});
+
+t('if the collection email cannot be sent, the digest still reports it (nothing is lost)', () => {
+  const e = makeEnv({ mailThrows: true });
+  assert.strictEqual(e.post(entry('G1')).success, true);                 // saving unaffected
+  assert.strictEqual(e.sheets.ActivityLog.rows[1][6], '');               // left for the digest
+  assert.strictEqual(e.triggers.length, 1);
+  e.digest();
+  assert.ok(/not sent/.test(e.sheets.ActivityLog.rows[1][6]));
+});
+
+t('digest: one email summarising edits and deletes, rows marked emailed, nothing sent twice', () => {
   const e = makeEnv();
   e.post(Object.assign({ action: 'login' }, ident));
   e.post(entry('2026-11-17T10:00:00.000Z')); e.post(entry('2026-11-17T10:05:00.000Z'));
   e.post(Object.assign({ action: 'delete', id: '2026-11-17T10:05:00.000Z' }, ident));
+  e.post(Object.assign({ action: 'updateEntry', entry: entry('2026-11-17T10:00:00.000Z', { grandTotal: 5 }) }, ident));
   e.digest();
-  assert.strictEqual(e.mails.length, 2);                                  // login + digest
-  const d = e.mails[1];
-  assert.ok(/3 actions by Sam/.test(d.subject), d.subject);
-  assert.ok(/Collection submitted/.test(d.body) && /Collection deleted/.test(d.body) && /iPhone/.test(d.body));
+  assert.strictEqual(e.mails.length, 4);                                  // login + 2 collections + digest
+  const d = e.mails[3];
+  assert.ok(/2 actions by Sam/.test(d.subject), d.subject);
+  assert.ok(/Collection deleted/.test(d.body) && /Collection edited/.test(d.body) && /iPhone/.test(d.body));
+  assert.ok(!/Collection submitted/.test(d.body));                        // already emailed on its own
   assert.ok(e.sheets.ActivityLog.rows.slice(1).every(r => /immediate|emailed/.test(r[6])));
-  e.digest(); assert.strictEqual(e.mails.length, 2);                      // nothing new -> no email
+  e.digest(); assert.strictEqual(e.mails.length, 4);                      // nothing new -> no email
 });
 
 t('clear all is urgent: emailed immediately, and refused without confirm', () => {
@@ -166,15 +212,16 @@ t('mail permission missing: saves still succeed, testNotify says why, digest mar
 
 t('no trigger permission: digest is sent straight away instead of being lost', () => {
   const e = makeEnv({ triggerThrows: true });
-  e.post(entry('Z1'));
-  assert.strictEqual(e.mails.length, 1);
-  assert.ok(/1 action by Sam/.test(e.mails[0].subject));
+  e.post(entry('Z1'));                                                    // emailed on its own
+  e.post(Object.assign({ action: 'delete', id: 'Z1' }, ident));           // digest item: no trigger permission -> sent at once
+  assert.strictEqual(e.mails.length, 2);
+  assert.ok(/1 action by Sam/.test(e.mails[1].subject));
 });
 
 t('daily email cap stops floods', () => {
   const e = makeEnv();
-  for (let i = 0; i < 30; i++) e.post(Object.assign({ action: 'testNotify' }, ident));
-  assert.strictEqual(e.mails.length, 25);
+  for (let i = 0; i < 50; i++) e.post(Object.assign({ action: 'testNotify' }, ident));
+  assert.strictEqual(e.mails.length, 40);
 });
 
 t('client text cannot inject sheet formulas or HTML into emails', () => {

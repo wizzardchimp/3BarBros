@@ -84,7 +84,7 @@ By default the app uses one shared password that is visible in the page source. 
 - **Nightly backup:** in the sheet choose **3BarBros → Turn on daily backup** (about 3am). If a backup fails you get an email.
 
 ## Email notifications (login + what they did)
-The owner of the Google Sheet is emailed when someone **logs in** (name from the login box, device, time) and gets a **digest of what they did** (collections saved / edited / deleted, settings changed) about 5 minutes after it starts. **Clear all** is emailed immediately. Every action is also written to the **ActivityLog** tab. The names are entered at login so they say *who*, but they are not authentication (the password is shared).
+The owner of the Google Sheet is emailed when someone **logs in** (name, device, time), and gets **one email for every new collection** straight away with a short summary: site, who entered it, date, net / site share / supplier / MGD, each machine's gross, float taken and the number of receipt photos. Edits, deletes and settings changes arrive as a short **digest** about 5 minutes later. **Clear all** is emailed immediately. A collection that was saved offline emails when it reaches the sheet. Every action is also written to the **ActivityLog** tab. The names are entered at login so they say *who*, but they are not authentication (the password is shared).
 
 One-time setup:
 1. Apps Script → paste the latest `Code.gs`.
@@ -92,7 +92,7 @@ One-time setup:
 3. Deploy → Manage deployments → edit → **New version**.
 4. In the app: Settings → Connection → **Send test email**.
 
-Script Properties (optional): `NOTIFY_EMAIL` (send elsewhere), `NOTIFY` = `off` (pause emails; logging continues). A cap of 25 emails/day protects your Gmail quota. If emails can't be sent (e.g. permission not granted) saving is never affected. If running `__authMail` fails with *“Specified permissions are not sufficient … script.send_mail”*, your project has a manifest with a fixed `oauthScopes` list. In Apps Script: Project Settings (gear) → tick **Show “appsscript.json” manifest file in editor**, open `appsscript.json`, and either delete the whole `oauthScopes` block (Apps Script then works the permissions out from the code) or add these three lines to it (keep the others, mind the commas):
+Script Properties (optional): `NOTIFY_EMAIL` (send elsewhere), `NOTIFY` = `off` (pause all emails; logging continues), `NOTIFY_COLLECTIONS` = `off` (no per-collection emails; collections then appear in the digest instead). A cap of 40 emails/day protects your Gmail quota. If emails can't be sent (e.g. permission not granted) saving is never affected. If running `__authMail` fails with *“Specified permissions are not sufficient … script.send_mail”*, your project has a manifest with a fixed `oauthScopes` list. In Apps Script: Project Settings (gear) → tick **Show “appsscript.json” manifest file in editor**, open `appsscript.json`, and either delete the whole `oauthScopes` block (Apps Script then works the permissions out from the code) or add these three lines to it (keep the others, mind the commas):
 ```
 "https://www.googleapis.com/auth/script.send_mail",
 "https://www.googleapis.com/auth/script.scriptapp",
